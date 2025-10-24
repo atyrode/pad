@@ -8,12 +8,10 @@ export default function Board() {
 
   const gridStyle: React.CSSProperties = {
     gridTemplateColumns: `repeat(${state.boardWidth}, minmax(0, 1fr))`,
-    // make rows stretch evenly to fill the container
     gridTemplateRows: `repeat(${state.boardHeight}, 1fr)`,
   };
 
   return (
-    // ensure the board itself stretches to fill the parent
     <div id="board" className="grid gap-1 sm:gap-2 p-2 w-full h-full" style={gridStyle}>
       {state.board.map((cell) => (
         <Cell key={cell.index} cell={cell} />
