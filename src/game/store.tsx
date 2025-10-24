@@ -5,13 +5,11 @@ export type TileModel = {
   id: string;
   letter?: string;
   score?: number;
-  modifiers?: string[]; // effect ids
 };
 
 export type BoardCell = {
   index: number;
   tile?: TileModel | null;
-  modifiers?: string[]; // per-cell modifiers (double-word etc or roguelike effects)
 };
 
 export type GameState = {
@@ -23,14 +21,12 @@ export type GameState = {
 
 type Action =
   | { type: "INIT"; payload?: Partial<GameState> }
-  | { type: "SET_BOARD_TILE"; index: number; tile: TileModel | null }
-  | { type: "SET_RACK_TILE"; slot: number; tile: TileModel | null }
   | { type: "RESET" }
   | { type: "SET_BOARD_DIMS"; width: number; height: number }
   | { type: "SET_RACK_SIZE"; size: number };
 
-const DEFAULT_WIDTH = 11;
-const DEFAULT_HEIGHT = 11;
+const DEFAULT_WIDTH = 4;
+const DEFAULT_HEIGHT = 4;
 const DEFAULT_RACK = 7;
 
 function makeBoard(
@@ -60,20 +56,6 @@ function reducer(state: GameState, action: Action): GameState {
         ...state,
         ...action.payload,
       };
-    case "SET_BOARD_TILE": {
-      const board = state.board.slice();
-      if (action.index >= 0 && action.index < board.length) {
-        board[action.index] = { ...board[action.index], tile: action.tile };
-      }
-      return { ...state, board };
-    }
-    case "SET_RACK_TILE": {
-      const rack = state.rack.slice();
-      if (action.slot >= 0 && action.slot < rack.length) {
-        rack[action.slot] = action.tile;
-      }
-      return { ...state, rack };
-    }
     case "SET_BOARD_DIMS": {
       const { width, height } = action;
       const board = makeBoard(width, height, state.board);

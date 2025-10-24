@@ -2,15 +2,7 @@
 import { useGame } from "../game/store";
 
 export default function Rack() {
-  const { state, dispatch } = useGame();
-
-  const setSample = (slot: number) => {
-    dispatch({
-      type: "SET_RACK_TILE",
-      slot,
-      tile: { id: `r-${slot}`, letter: String.fromCharCode(65 + slot), score: 1 },
-    });
-  };
+  const { state } = useGame();
 
   return (
     <div
@@ -20,7 +12,7 @@ export default function Rack() {
       }}
     >
       {state.rack.map((tile, i) => (
-        <div key={i} onClick={() => setSample(i)}>
+        <div key={i}>
           <div
             className="select-none caret-transparent bg-white/90 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-sm flex items-center justify-center text-xs sm:text-sm outline-none"
             style={{

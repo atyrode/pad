@@ -1,23 +1,10 @@
 "use client";
+
 import { useGame } from "../game/store";
 import TileView from "./Tile";
 
 export default function Board() {
-  const { state, dispatch } = useGame();
-
-  const handleClick = (index: number) => {
-    // example interaction: toggle placeholder tile for now
-    const existing = state.board[index]?.tile;
-    if (existing) {
-      dispatch({ type: "SET_BOARD_TILE", index, tile: null });
-    } else {
-      dispatch({
-        type: "SET_BOARD_TILE",
-        index,
-        tile: { id: `t-${index}`, letter: "A", score: 1 },
-      });
-    }
-  };
+  const { state } = useGame();
 
   return (
     <div
@@ -27,7 +14,7 @@ export default function Board() {
       }}
     >
       {state.board.map((cell) => (
-        <TileView key={cell.index} cell={cell} onClick={handleClick} />
+        <TileView key={cell.index} cell={cell} />
       ))}
     </div>
   );
