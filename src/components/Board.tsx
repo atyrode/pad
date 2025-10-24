@@ -10,8 +10,6 @@ export default function Board() {
     gridTemplateColumns: `repeat(${state.boardWidth}, minmax(0, 1fr))`,
     // make rows stretch evenly to fill the container
     gridTemplateRows: `repeat(${state.boardHeight}, 1fr)`,
-    width: "100%",
-    height: "100%",
   };
 
   return (
