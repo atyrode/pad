@@ -12,7 +12,6 @@ export default function Board() {
     gridTemplateRows: `repeat(${state.boardHeight}, 1fr)`,
     width: "100%",
     height: "100%",
-    minHeight: 0, // allows flex parents with constrained height to size correctly
   };
 
   return (

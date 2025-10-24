@@ -7,18 +7,11 @@ export default function Rack() {
   return (
     <div
       className="grid gap-1 p-2 mt-2"
-      style={{
-        gridTemplateColumns: `repeat(${state.rack.length}, var(--tile))`,
-      }}
     >
       {state.rack.map((tile, i) => (
         <div key={i}>
           <div
             className="select-none caret-transparent bg-white/90 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-sm flex items-center justify-center text-xs sm:text-sm outline-none"
-            style={{
-              width: "var(--tile)",
-              height: "var(--tile)",
-            }}
           >
             {tile ? (
               <div className="flex flex-col items-center">
