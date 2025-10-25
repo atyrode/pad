@@ -72,7 +72,7 @@ export default function Board() {
       <div className="w-full h-full flex items-center justify-center bg-blue-900 overflow-hidden">
         <div 
           id="boardGrid"
-          className="grid bg-blue-500" 
+          className="grid bg-blue-500 border-10" 
           style={gridStyle}
         >
         {state.board.map((cell) => (
