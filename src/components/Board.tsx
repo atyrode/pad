@@ -13,12 +13,13 @@ export default function Board() {
     const calculateCellSize = () => {
       if (!boardRef.current) return;
       
-      const container = boardRef.current.parentElement;
-      if (!container) return;
+      // Find the gameArea container directly
+      const gameArea = document.getElementById('gameArea');
+      if (!gameArea) return;
 
-      const containerRect = container.getBoundingClientRect();
+      const containerRect = gameArea.getBoundingClientRect();
       const padding = 32; // Account for board padding (16px) and margins (16px)
-      const gap = 8; // Account for grid gaps
+      const gap = 3; // Account for grid gaps
       
       const availableWidth = containerRect.width - padding;
       const availableHeight = containerRect.height - padding;
@@ -29,16 +30,16 @@ export default function Board() {
       
       // Use the smaller dimension to ensure board always fits
       const newCellSize = Math.floor(Math.min(maxCellWidth, maxCellHeight));
-      
-      // Set a reasonable minimum and maximum
-      setCellSize(Math.max(Math.min(newCellSize, 120), 20)); // Min 20px, Max 120px
+
+      setCellSize(newCellSize);
     };
 
     calculateCellSize();
     
     const resizeObserver = new ResizeObserver(calculateCellSize);
-    if (boardRef.current?.parentElement) {
-      resizeObserver.observe(boardRef.current.parentElement);
+    const gameArea = document.getElementById('gameArea');
+    if (gameArea) {
+      resizeObserver.observe(gameArea);
     }
     
     window.addEventListener('resize', calculateCellSize);
@@ -52,11 +53,11 @@ export default function Board() {
   const gridStyle: React.CSSProperties = {
     gridTemplateColumns: `repeat(${state.boardWidth}, ${cellSize}px)`,
     gridTemplateRows: `repeat(${state.boardHeight}, ${cellSize}px)`,
-    gap: '8px',
+    gap: '3px',
   };
 
   return (
-    <div id="board" className="bg-blue-900 w-full h-full flex items-center justify-center overflow-hidden">
+    <div id="board" className="bg-blue-900 flex items-center justify-center overflow-hidden">
         <div 
           ref={boardRef}
           id="boardGrid" 

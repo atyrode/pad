@@ -14,7 +14,6 @@ export default function Cell({
       onFocus={(e) => (e.currentTarget as HTMLElement).blur()}
       onDragStart={(e) => e.preventDefault()}
       className="select-none caret-transparent bg-white/90 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-sm outline-none aspect-square flex items-center justify-center"
-      style={{ aspectRatio: '1/1' }}
     >
       {cell.tile ? <TileView cell={cell} /> : null}
     </div>
