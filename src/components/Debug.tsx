@@ -5,8 +5,32 @@ export default function Debug() {
   const { state, dispatch } = useGame();
 
   const setDims = (w: number, h: number) => {
-    const width = Math.max(1, Math.min(50, Math.floor(w || 0)));
-    const height = Math.max(1, Math.min(50, Math.floor(h || 0)));
+    // Force odd numbers by rounding to nearest odd
+    let width = Math.max(1, Math.min(50, Math.floor(w || 0)));
+    let height = Math.max(1, Math.min(50, Math.floor(h || 0)));
+    
+    // Round to nearest odd number based on current state
+    if (width % 2 === 0) {
+      // If even, choose direction based on current state
+      if (width > state.boardWidth) {
+        // Going up - round up to next odd
+        width = Math.min(50, width + 1);
+      } else {
+        // Going down - round down to previous odd
+        width = Math.max(1, width - 1);
+      }
+    }
+    if (height % 2 === 0) {
+      // If even, choose direction based on current state
+      if (height > state.boardHeight) {
+        // Going up - round up to next odd
+        height = Math.min(50, height + 1);
+      } else {
+        // Going down - round down to previous odd
+        height = Math.max(1, height - 1);
+      }
+    }
+    
     dispatch({ type: "SET_BOARD_DIMS", width, height });
   };
 

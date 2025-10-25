@@ -50,7 +50,12 @@ export default function Board() {
           style={gridStyle}
         >
           {state.board.map((cell) => (
-              <BoardCell key={cell.index} cell={cell} />
+              <BoardCell 
+                key={cell.index} 
+                cell={cell} 
+                boardWidth={state.boardWidth}
+                boardHeight={state.boardHeight}
+              />
           ))}
         </div>
       </div>
