@@ -11,6 +11,9 @@ export const RACK_CONSTANTS = {
   
   // Rack container margin (in pixels)
   RACK_MARGIN: 0,
+
+  // Default rack size
+  DEFAULT_SIZE: 7,
 } as const;
 
 /**

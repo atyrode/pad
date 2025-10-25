@@ -1,6 +1,7 @@
 "use client";
 import React, { createContext, useContext, useReducer } from "react";
 import { BOARD_CONSTANTS } from "../constants/board";
+import { RACK_CONSTANTS } from "../constants/rack";
 
 export type TileModel = {
   id: string;
@@ -26,7 +27,6 @@ type Action =
   | { type: "SET_BOARD_DIMS"; width: number; height: number }
   | { type: "SET_RACK_SIZE"; size: number };
 
-const DEFAULT_RACK = 7;
 
 function makeBoard(
   width: number,
@@ -45,7 +45,7 @@ const initialState: GameState = {
   boardWidth: BOARD_CONSTANTS.DEFAULT_WIDTH,
   boardHeight: BOARD_CONSTANTS.DEFAULT_HEIGHT,
   board: makeBoard(BOARD_CONSTANTS.DEFAULT_WIDTH, BOARD_CONSTANTS.DEFAULT_HEIGHT),
-  rack: Array.from({ length: DEFAULT_RACK }).map(() => null),
+  rack: Array.from({ length: RACK_CONSTANTS.DEFAULT_SIZE }).map(() => null),
 };
 
 function reducer(state: GameState, action: Action): GameState {
