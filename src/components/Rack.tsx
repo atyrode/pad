@@ -17,11 +17,11 @@ export default function Rack() {
 
   return (
     <div 
-      className="w-full mt-2 overflow-x-auto flex-none"
+      className="w-full mt-2 overflow-x-auto flex-none bg-green-900"
       style={{ padding: getRackPaddingCSS() }}
     >
       <div 
-        className="grid transition-opacity duration-300 opacity-100"
+        className="grid transition-opacity duration-300 opacity-100 bg-green-700"
         style={gridStyle}
       >
         {state.rack.map((tile, i) => (

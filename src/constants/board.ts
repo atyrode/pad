@@ -7,7 +7,7 @@ export const BOARD_CONSTANTS = {
   GAP: 3,
   
   // Board padding (in pixels)
-  BOARD_PADDING: 0,
+  BOARD_PADDING: 3,
   
   // Board margin (in pixels)
   BOARD_MARGIN: 10,

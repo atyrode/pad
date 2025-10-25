@@ -11,7 +11,7 @@ export default function Debug() {
   };
 
   const setRack = (size: number) => {
-    const s = Math.max(0, Math.min(20, Math.floor(size || 0)));
+    const s = Math.max(0, Math.min(50, Math.floor(size || 0)));
     dispatch({ type: "SET_RACK_SIZE", size: s });
   };
 
@@ -45,8 +45,8 @@ export default function Debug() {
         value={state.rack.length}
         onChange={(e) => setRack(Number(e.target.value))}
         className="w-full mb-3 px-2 py-1 text-sm rounded border"
-        min={0}
-        max={20}
+        min={1}
+        max={50}
       />
 
       <div className="flex gap-2">
