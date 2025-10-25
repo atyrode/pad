@@ -7,7 +7,7 @@ import { getRackPaddingCSS } from "../constants/rack";
 
 export default function Rack() {
   const { state } = useGame();
-  const { cellSize } = useCellSize();
+  const { cellSize, boardGridWidth } = useCellSize();
 
   const gridStyle: React.CSSProperties = {
     gridTemplateColumns: `repeat(${state.rack.length}, ${cellSize}px)`,
@@ -17,11 +17,16 @@ export default function Rack() {
 
   return (
     <div 
-      className="w-full mt-2 overflow-x-auto flex-none bg-green-900"
-      style={{ padding: getRackPaddingCSS() }}
+      id="rack"
+      className="mt-2 flex-none bg-green-900 flex justify-center"
+      style={{ 
+        padding: getRackPaddingCSS(),
+        width: boardGridWidth > 0 ? `${boardGridWidth}px` : 'auto'
+      }}
     >
       <div 
-        className="grid transition-opacity duration-300 opacity-100 bg-green-700"
+        id="rackGrid"
+        className="grid w-full transition-opacity duration-300 opacity-100 bg-green-700 overflow-x-scroll justify-evenly"
         style={gridStyle}
       >
         {state.rack.map((tile, i) => (

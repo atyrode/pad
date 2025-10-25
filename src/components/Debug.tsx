@@ -45,7 +45,7 @@ export default function Debug() {
         value={state.rack.length}
         onChange={(e) => setRack(Number(e.target.value))}
         className="w-full mb-3 px-2 py-1 text-sm rounded border"
-        min={1}
+        min={0}
         max={50}
       />
 

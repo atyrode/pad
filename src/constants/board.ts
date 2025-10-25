@@ -12,6 +12,9 @@ export const BOARD_CONSTANTS = {
   // Board margin (in pixels)
   BOARD_MARGIN: 10,
   
+  // Board border width (in pixels)
+  BORDER_WIDTH: 10,
+  
   // Default cell size (fallback value)
   DEFAULT_CELL_SIZE: 60,
 

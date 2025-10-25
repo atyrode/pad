@@ -3,22 +3,29 @@ import React from "react";
 
 import { useGame } from "../game/store";
 import BoardCell from "./BoardCell";
-import { getGapCSS, getPaddingCSS, getMarginCSS } from "../constants/board";
+import { getGapCSS, getPaddingCSS, getMarginCSS, BOARD_CONSTANTS } from "../constants/board";
 import { useBoardInitialization } from "../hooks/useBoardInitialization";
 import { useCellSize } from "../contexts/CellSizeContext";
 
 export default function Board() {
   const { state } = useGame();
-  const { boardRef, cellSize, isInitialized } = useBoardInitialization(
+  const { boardRef, cellSize } = useBoardInitialization(
     state.boardWidth,
     state.boardHeight
   );
-  const { setCellSize } = useCellSize();
+  const { setCellSize, setBoardGridWidth } = useCellSize();
 
-  // Update context with the calculated cell size
+  // Update context with the calculated cell size and board grid width
   React.useEffect(() => {
     setCellSize(cellSize);
-  }, [cellSize, setCellSize]);
+    
+    // Calculate board grid width: (cellSize × boardWidth) + (gap × (boardWidth - 1)) + (border × 2)
+    const gap = BOARD_CONSTANTS.GAP;
+    const border = BOARD_CONSTANTS.BORDER_WIDTH;
+    const padding = BOARD_CONSTANTS.BOARD_PADDING;
+    const boardGridWidth = (cellSize * state.boardWidth) + (gap * (state.boardWidth - 1)) + (border * 2) + (padding * 2);
+    setBoardGridWidth(boardGridWidth);
+  }, [cellSize, setCellSize, setBoardGridWidth, state.boardWidth]);
 
   const gridStyle: React.CSSProperties = {
     gridTemplateColumns: `repeat(${state.boardWidth}, ${cellSize}px)`,
@@ -27,6 +34,7 @@ export default function Board() {
     padding: getPaddingCSS(),
     margin: getMarginCSS(),
     transition: 'grid-template-columns 0.3s ease-in-out, grid-template-rows 0.3s ease-in-out, gap 0.3s ease-in-out',
+    border: `${BOARD_CONSTANTS.BORDER_WIDTH}px solid white`,
   };
 
   return (
@@ -38,9 +46,7 @@ export default function Board() {
       <div className="w-full h-full flex items-center justify-center bg-blue-900 overflow-hidden">
         <div 
           id="boardGrid"
-          className={`grid bg-blue-500 border-10 transition-opacity duration-300 ${
-            isInitialized ? 'opacity-100' : 'opacity-0'
-          }`}
+          className="grid bg-blue-500 duration-300"
           style={gridStyle}
         >
           {state.board.map((cell) => (

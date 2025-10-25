@@ -6,7 +6,6 @@ export function useBoardInitialization(
   boardHeight: number
 ) {
   const [cellSize, setCellSize] = useState<number>(BOARD_CONSTANTS.DEFAULT_CELL_SIZE);
-  const [isInitialized, setIsInitialized] = useState<boolean>(false);
   const boardRef = useRef<HTMLDivElement>(null);
 
   const calculateCellSize = useCallback(() => {
@@ -32,7 +31,6 @@ export function useBoardInitialization(
       if (!boardRef.current) return;
 
       calculateCellSize();
-      setIsInitialized(true);
     });
   }, [boardWidth, boardHeight]);
 
@@ -54,6 +52,5 @@ export function useBoardInitialization(
   return {
     boardRef,
     cellSize,
-    isInitialized,
   };
 }
