@@ -41,14 +41,7 @@ export default function Debug() {
 
   return (
     <div className="w-1/2 p-3 bg-white/90 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-sm overflow-y-auto">
-      <div className="mb-3 font-medium text-sm">🎮 Game Debug Panel</div>
-
-      {/* Game State Info */}
-      <div className="mb-3 p-2 bg-gray-50 dark:bg-gray-800 rounded text-xs">
-        <div className="font-medium mb-1">Game State:</div>
-        <div>Board: {state.boardWidth}×{state.boardHeight}</div>
-      </div>
-
+      
       {/* Board Controls */}
       <div className="mb-3">
         <div className="text-xs font-medium mb-2">Board Controls</div>
