@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "My pad | tyrode.dev",
+  title: "Manifold  | tyrode.dev",
   description: "A simple and clean note-taking app.",
 };
 
