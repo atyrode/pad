@@ -18,6 +18,7 @@ export default function Board() {
     gap: getGapCSS(),
     padding: getPaddingCSS(),
     margin: getMarginCSS(),
+    transition: 'grid-template-columns 0.3s ease-in-out, grid-template-rows 0.3s ease-in-out, gap 0.3s ease-in-out',
   };
 
   return (
