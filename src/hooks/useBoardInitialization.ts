@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { BOARD_CONSTANTS, calculateOptimalCellSize } from "../constants/board";
 
 export function useBoardInitialization(
@@ -9,7 +9,7 @@ export function useBoardInitialization(
   const [isInitialized, setIsInitialized] = useState<boolean>(false);
   const boardRef = useRef<HTMLDivElement>(null);
 
-  const calculateCellSize = () => {
+  const calculateCellSize = useCallback(() => {
     if (!boardRef.current) return;
 
     const containerRect = boardRef.current.getBoundingClientRect();
@@ -21,7 +21,7 @@ export function useBoardInitialization(
     );
 
     setCellSize(newCellSize);
-  };
+  }, [boardWidth, boardHeight]);
 
   // Calculate correct size before browser paint to prevent flash
   useEffect(() => {
@@ -49,7 +49,7 @@ export function useBoardInitialization(
       resizeObserver.disconnect();
       window.removeEventListener('resize', calculateCellSize);
     };
-  }, [boardWidth, boardHeight]);
+  }, [calculateCellSize]);
 
   return {
     boardRef,

@@ -1,9 +1,11 @@
 "use client";
+import React from "react";
 
 import { useGame } from "../game/store";
-import Cell from "./Cell";
+import BoardCell from "./BoardCell";
 import { getGapCSS, getPaddingCSS, getMarginCSS } from "../constants/board";
 import { useBoardInitialization } from "../hooks/useBoardInitialization";
+import { useCellSize } from "../contexts/CellSizeContext";
 
 export default function Board() {
   const { state } = useGame();
@@ -11,6 +13,12 @@ export default function Board() {
     state.boardWidth,
     state.boardHeight
   );
+  const { setCellSize } = useCellSize();
+
+  // Update context with the calculated cell size
+  React.useEffect(() => {
+    setCellSize(cellSize);
+  }, [cellSize, setCellSize]);
 
   const gridStyle: React.CSSProperties = {
     gridTemplateColumns: `repeat(${state.boardWidth}, ${cellSize}px)`,
@@ -36,7 +44,7 @@ export default function Board() {
           style={gridStyle}
         >
           {state.board.map((cell) => (
-              <Cell key={cell.index} cell={cell} />
+              <BoardCell key={cell.index} cell={cell} />
           ))}
         </div>
       </div>

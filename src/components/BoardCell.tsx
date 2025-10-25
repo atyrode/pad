@@ -2,7 +2,7 @@
 import type { BoardCell } from "../game/store";
 import TileView from "./Tile";
 
-export default function Cell({
+export default function BoardCell({
     cell,
 }: {
   cell: BoardCell;
