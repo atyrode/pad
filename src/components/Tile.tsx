@@ -14,7 +14,7 @@ export default function TileView({
   const isBlank = isBlankTile(tile);
   
   return (
-    <div id="tile" className="relative w-full h-full flex items-center justify-center pointer-events-none">
+    <div id="tile-content" className="relative w-full h-full flex items-center justify-center pointer-events-none">
       <div id="tile-letter" className={`text-4xl font-bold ${isBlank ? 'text-gray-500 italic' : 'text-black'}`}>
         {displayLetter}
       </div>
