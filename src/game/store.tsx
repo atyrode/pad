@@ -25,7 +25,8 @@ type Action =
   | { type: "INIT"; payload?: Partial<GameState> }
   | { type: "RESET" }
   | { type: "SET_BOARD_DIMS"; width: number; height: number }
-  | { type: "DRAW_TILES"; quantity: number };
+  | { type: "DRAW_TILES"; quantity: number }
+  | { type: "CLEAR_RACK" };
 
 
 function makeBoard(
@@ -68,6 +69,9 @@ function reducer(state: GameState, action: Action): GameState {
         score: 1
       }));
       return { ...state, rack: [...state.rack, ...newTiles] };
+    }
+    case "CLEAR_RACK": {
+      return { ...state, rack: [] };
     }
     case "RESET":
       return initialState;

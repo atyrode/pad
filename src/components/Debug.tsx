@@ -71,13 +71,25 @@ export default function Debug() {
         max={10}
       />
 
-      <div className="flex gap-2">
+      <div className="flex gap-2 mb-2">
         <button
           onClick={() => dispatch({ type: "DRAW_TILES", quantity: drawQuantity })}
           className="flex-1 py-1 text-sm bg-blue-100 dark:bg-blue-800 rounded"
         >
           Draw Tiles
         </button>
+        <button
+          onClick={() => {
+            dispatch({ type: "CLEAR_RACK" });
+            dispatch({ type: "DRAW_TILES", quantity: drawQuantity });
+          }}
+          className="flex-1 py-1 text-sm bg-green-100 dark:bg-green-800 rounded"
+        >
+          Redraw
+        </button>
+      </div>
+
+      <div className="flex gap-2">
         <button
           onClick={() => dispatch({ type: "RESET" })}
           className="flex-1 py-1 text-sm bg-zinc-100 dark:bg-zinc-800 rounded"
