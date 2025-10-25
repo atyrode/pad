@@ -25,7 +25,7 @@ type Action =
   | { type: "INIT"; payload?: Partial<GameState> }
   | { type: "RESET" }
   | { type: "SET_BOARD_DIMS"; width: number; height: number }
-  | { type: "SET_RACK_SIZE"; size: number };
+  | { type: "DRAW_TILES"; quantity: number };
 
 
 function makeBoard(
@@ -45,7 +45,7 @@ const initialState: GameState = {
   boardWidth: BOARD_CONSTANTS.DEFAULT_WIDTH,
   boardHeight: BOARD_CONSTANTS.DEFAULT_HEIGHT,
   board: makeBoard(BOARD_CONSTANTS.DEFAULT_WIDTH, BOARD_CONSTANTS.DEFAULT_HEIGHT),
-  rack: Array.from({ length: RACK_CONSTANTS.DEFAULT_SIZE }).map(() => null),
+  rack: [],
 };
 
 function reducer(state: GameState, action: Action): GameState {
@@ -60,13 +60,14 @@ function reducer(state: GameState, action: Action): GameState {
       const board = makeBoard(width, height, state.board);
       return { ...state, boardWidth: width, boardHeight: height, board };
     }
-    case "SET_RACK_SIZE": {
-      const size = Math.max(0, action.size | 0);
-      const old = state.rack;
-      const rack = Array.from({ length: size }).map((_, i) =>
-        i < old.length ? old[i] : null
-      );
-      return { ...state, rack };
+    case "DRAW_TILES": {
+      const quantity = Math.max(1, Math.min(10, action.quantity));
+      const newTiles: TileModel[] = Array.from({ length: quantity }, () => ({
+        id: crypto.randomUUID(),
+        letter: 'A',
+        score: 1
+      }));
+      return { ...state, rack: [...state.rack, ...newTiles] };
     }
     case "RESET":
       return initialState;

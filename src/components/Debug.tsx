@@ -1,8 +1,10 @@
 "use client";
 import { useGame } from "../game/store";
+import { useState } from "react";
 
 export default function Debug() {
   const { state, dispatch } = useGame();
+  const [drawQuantity, setDrawQuantity] = useState(7);
 
   const setDims = (w: number, h: number) => {
     // Force odd numbers by rounding to nearest odd
@@ -34,10 +36,6 @@ export default function Debug() {
     dispatch({ type: "SET_BOARD_DIMS", width, height });
   };
 
-  const setRack = (size: number) => {
-    const s = Math.max(0, Math.min(50, Math.floor(size || 0)));
-    dispatch({ type: "SET_RACK_SIZE", size: s });
-  };
 
   return (
     <div className="w-48 p-3 bg-white/90 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-sm">
@@ -63,17 +61,23 @@ export default function Debug() {
         max={50}
       />
 
-      <label className="text-xs">Rack Size</label>
+      <label className="text-xs">Draw Quantity</label>
       <input
         type="number"
-        value={state.rack.length}
-        onChange={(e) => setRack(Number(e.target.value))}
+        value={drawQuantity}
+        onChange={(e) => setDrawQuantity(Number(e.target.value))}
         className="w-full mb-3 px-2 py-1 text-sm rounded border"
-        min={0}
-        max={50}
+        min={1}
+        max={10}
       />
 
       <div className="flex gap-2">
+        <button
+          onClick={() => dispatch({ type: "DRAW_TILES", quantity: drawQuantity })}
+          className="flex-1 py-1 text-sm bg-blue-100 dark:bg-blue-800 rounded"
+        >
+          Draw Tiles
+        </button>
         <button
           onClick={() => dispatch({ type: "RESET" })}
           className="flex-1 py-1 text-sm bg-zinc-100 dark:bg-zinc-800 rounded"
