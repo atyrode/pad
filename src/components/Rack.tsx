@@ -19,7 +19,7 @@ export default function Rack() {
   return (
     <div 
       id="rack"
-      className="mt-2 flex-none bg-green-900 flex justify-center"
+      className="m-2 flex-none bg-green-900 flex justify-center"
       style={{ 
         padding: getRackPaddingCSS(),
         width: boardGridWidth > 0 ? `${boardGridWidth}px` : 'auto'

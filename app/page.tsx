@@ -12,7 +12,7 @@ export default function Home() {
         <div id="game-area" className="w-[95%] h-[95%] flex items-center justify-center bg-red-800">
             <GameProvider>
                 <CellSizeProvider>
-                    <div id="board-and-rack" className="flex flex-col items-center justify-center gap-2 w-full h-full min-w-0 flex-shrink">
+                    <div id="board-and-rack" className="flex flex-col items-center justify-center w-full h-full min-w-0 flex-shrink">
                       <Board />
                       <Rack />
                     </div>
