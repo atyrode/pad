@@ -13,6 +13,7 @@ export default function Rack() {
     gridTemplateColumns: `repeat(${state.rack.length}, ${cellSize}px)`,
     gap: getGapCSS(),
     transition: 'grid-template-columns 0.3s ease-in-out, gap 0.3s ease-in-out',
+    minHeight: `${cellSize}px`,
   };
 
   return (
