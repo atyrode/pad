@@ -16,6 +16,7 @@ export const BOARD_CONSTANTS = {
   DEFAULT_CELL_SIZE: 60,
 } as const;
 
+
 /**
  * Get the gap value as a CSS string
  */
@@ -35,3 +36,27 @@ export const getPaddingCSS = (): string => `${BOARD_CONSTANTS.BOARD_PADDING}px`;
  * Get the margin value as a CSS string
  */
 export const getMarginCSS = (): string => `${BOARD_CONSTANTS.BOARD_MARGIN}px`;
+
+/**
+ * Calculate optimal cell size for given container dimensions and board size
+ * This can be used to pre-compute the cell size before rendering
+ */
+export const calculateOptimalCellSize = (
+  containerWidth: number,
+  containerHeight: number,
+  boardWidth: number,
+  boardHeight: number
+): number => {
+  const padding = getTotalPadding();
+  const gap = BOARD_CONSTANTS.GAP;
+  
+  const availableWidth = containerWidth - padding;
+  const availableHeight = containerHeight - padding;
+  
+  // Calculate maximum cell size that fits both dimensions
+  const maxCellWidth = (availableWidth - (gap * (boardWidth - 1))) / boardWidth;
+  const maxCellHeight = (availableHeight - (gap * (boardHeight - 1))) / boardHeight;
+  
+  // Use the smaller dimension to ensure board always fits
+  return Math.floor(Math.min(maxCellWidth, maxCellHeight));
+};

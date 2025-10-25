@@ -2,40 +2,48 @@
 
 import { useGame } from "../game/store";
 import Cell from "./Cell";
-import { useEffect, useRef, useState } from "react";
-import { BOARD_CONSTANTS, getGapCSS, getTotalPadding, getPaddingCSS, getMarginCSS } from "../constants/board";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { BOARD_CONSTANTS, getGapCSS, getPaddingCSS, getMarginCSS, calculateOptimalCellSize } from "../constants/board";
+import { LAYOUT_CONSTANTS } from "../constants/layout";
 
 export default function Board() {
   const { state } = useGame();
   const boardRef = useRef<HTMLDivElement>(null);
+  
   const [cellSize, setCellSize] = useState<number>(BOARD_CONSTANTS.DEFAULT_CELL_SIZE);
 
+  // Calculate correct size before browser paint to prevent flash
+  useLayoutEffect(() => {
+    const gameArea = document.getElementById('gameArea');
+    if (!gameArea) return;
+
+    const containerRect = gameArea.getBoundingClientRect();
+    const newCellSize = calculateOptimalCellSize(
+      containerRect.width,
+      containerRect.height,
+      state.boardWidth,
+      state.boardHeight
+    );
+
+    setCellSize(newCellSize);
+  }, [state.boardWidth, state.boardHeight]);
+
+  // Set up resize observers for dynamic updates
   useEffect(() => {
     const calculateCellSize = () => {
-      if (!boardRef.current) return;
-      
-      // Find the gameArea container directly
       const gameArea = document.getElementById('gameArea');
       if (!gameArea) return;
 
       const containerRect = gameArea.getBoundingClientRect();
-      const padding = getTotalPadding();
-      const gap = BOARD_CONSTANTS.GAP;
-      
-      const availableWidth = containerRect.width - padding;
-      const availableHeight = containerRect.height - padding;
-      
-      // Calculate maximum cell size that fits both dimensions
-      const maxCellWidth = (availableWidth - (gap * (state.boardWidth - 1))) / state.boardWidth;
-      const maxCellHeight = (availableHeight - (gap * (state.boardHeight - 1))) / state.boardHeight;
-      
-      // Use the smaller dimension to ensure board always fits
-      const newCellSize = Math.floor(Math.min(maxCellWidth, maxCellHeight));
+      const newCellSize = calculateOptimalCellSize(
+        containerRect.width,
+        containerRect.height,
+        state.boardWidth,
+        state.boardHeight
+      );
 
       setCellSize(newCellSize);
     };
-
-    calculateCellSize();
     
     const resizeObserver = new ResizeObserver(calculateCellSize);
     const gameArea = document.getElementById('gameArea');
@@ -49,7 +57,7 @@ export default function Board() {
       resizeObserver.disconnect();
       window.removeEventListener('resize', calculateCellSize);
     };
-  }, [state.boardWidth, state.boardHeight, BOARD_CONSTANTS.GAP, BOARD_CONSTANTS.BOARD_PADDING, BOARD_CONSTANTS.BOARD_MARGIN]);
+  }, [state.boardWidth, state.boardHeight]);
 
   const gridStyle: React.CSSProperties = {
     gridTemplateColumns: `repeat(${state.boardWidth}, ${cellSize}px)`,
