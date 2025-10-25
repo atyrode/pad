@@ -13,10 +13,9 @@ export default function Board() {
 
   // Calculate correct size before browser paint to prevent flash
   useLayoutEffect(() => {
-    const gameArea = document.getElementById('gameArea');
-    if (!gameArea) return;
+    if (!boardRef.current) return;
 
-    const containerRect = gameArea.getBoundingClientRect();
+    const containerRect = boardRef.current.getBoundingClientRect();
     const newCellSize = calculateOptimalCellSize(
       containerRect.width,
       containerRect.height,
@@ -30,10 +29,9 @@ export default function Board() {
   // Set up resize observers for dynamic updates
   useEffect(() => {
     const calculateCellSize = () => {
-      const gameArea = document.getElementById('gameArea');
-      if (!gameArea) return;
+      if (!boardRef.current) return;
 
-      const containerRect = gameArea.getBoundingClientRect();
+      const containerRect = boardRef.current.getBoundingClientRect();
       const newCellSize = calculateOptimalCellSize(
         containerRect.width,
         containerRect.height,
@@ -45,9 +43,8 @@ export default function Board() {
     };
     
     const resizeObserver = new ResizeObserver(calculateCellSize);
-    const gameArea = document.getElementById('gameArea');
-    if (gameArea) {
-      resizeObserver.observe(gameArea);
+    if (boardRef.current) {
+      resizeObserver.observe(boardRef.current);
     }
     
     window.addEventListener('resize', calculateCellSize);
@@ -67,10 +64,14 @@ export default function Board() {
   };
 
   return (
-    <div id="board" className="bg-blue-900 flex items-center justify-center overflow-hidden">
+    <div 
+      ref={boardRef}
+      id="board" 
+      className="flex-1 min-w-0 min-h-0 w-full h-full"
+    >
+      <div className="w-full h-full flex items-center justify-center bg-blue-900 overflow-hidden">
         <div 
-          ref={boardRef}
-          id="boardGrid" 
+          id="boardGrid"
           className="grid bg-blue-500" 
           style={gridStyle}
         >
@@ -78,6 +79,7 @@ export default function Board() {
             <Cell key={cell.index} cell={cell} />
         ))}
         </div>
+      </div>
     </div>
   );
 }
