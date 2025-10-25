@@ -13,19 +13,20 @@ export default function Rack() {
     gridTemplateColumns: `repeat(${state.rack.length}, ${cellSize}px)`,
     gap: getGapCSS(),
     transition: 'grid-template-columns 0.3s ease-in-out, gap 0.3s ease-in-out',
+    minHeight: `${cellSize}px`,
   };
 
   return (
     <div 
       id="rack"
-      className="mt-2 flex-none bg-green-900 flex justify-center"
+      className="m-2 flex-none bg-green-900 flex justify-center"
       style={{ 
         padding: getRackPaddingCSS(),
         width: boardGridWidth > 0 ? `${boardGridWidth}px` : 'auto'
       }}
     >
       <div 
-        id="rackGrid"
+        id="rack-grid"
         className="grid w-full transition-opacity duration-300 opacity-100 bg-green-700 overflow-x-hidden justify-evenly"
         style={gridStyle}
       >

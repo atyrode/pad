@@ -1,5 +1,7 @@
 "use client";
 import type { BoardCell } from "../game/store";
+import { getTileDisplay, isBlankTile } from "../game/mechanics/tile";
+import { TILE_STYLING } from "../constants/tiles";
 
 export default function TileView({
   cell,
@@ -8,10 +10,18 @@ export default function TileView({
 }) {
   const tile = cell.tile;
   if (!tile) return null;
+  
+  const displayLetter = getTileDisplay(tile);
+  const isBlank = isBlankTile(tile);
+  
   return (
-    <div className="flex flex-col items-center pointer-events-none">
-      <div className="font-medium">{tile.letter}</div>
-      <div className="text-[0.6rem] opacity-60">{tile.score}</div>
+    <div id="tile" className={`relative w-full h-full flex items-center justify-center pointer-events-none bg-white/90 dark:bg-zinc-300 border border-zinc-200 dark:border-zinc-700 ${TILE_STYLING.BORDER_RADIUS}`}>
+      <div id="tile-letter" className={`text-4xl font-bold ${isBlank ? 'text-gray-500 italic' : 'text-black'}`}>
+        {displayLetter}
+      </div>
+      <div id="tile-score" className="absolute bottom-1 right-2 text-[0.7rem] font-medium text-gray-600">
+        {tile.score}
+      </div>
     </div>
   );
 }
