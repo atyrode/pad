@@ -37,6 +37,11 @@ export const getGapCSS = (): string => `${BOARD_CONSTANTS.GAP}px`;
 export const getTotalPadding = (): number => (BOARD_CONSTANTS.BOARD_PADDING + BOARD_CONSTANTS.BOARD_MARGIN) * 2;
 
 /**
+ * Get the total margin value for calculations (margin) × 2 sides
+ */
+export const getTotalMargin = (): number => BOARD_CONSTANTS.BOARD_MARGIN * 2;
+
+/**
  * Get the padding value as a CSS string
  */
 export const getPaddingCSS = (): string => `${BOARD_CONSTANTS.BOARD_PADDING}px`;
@@ -57,10 +62,11 @@ export const calculateOptimalCellSize = (
   boardHeight: number
 ): number => {
   const padding = getTotalPadding();
+  const margin = getTotalMargin();
   const gap = BOARD_CONSTANTS.GAP;
   
-  const availableWidth = containerWidth - padding;
-  const availableHeight = containerHeight - padding;
+  const availableWidth = containerWidth - padding - margin;
+  const availableHeight = containerHeight - padding - margin;
   
   // Calculate maximum cell size that fits both dimensions
   const maxCellWidth = (availableWidth - (gap * (boardWidth - 1))) / boardWidth;
