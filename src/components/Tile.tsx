@@ -19,7 +19,7 @@ export default function TileView({
       <div id="tile-letter" className={`text-4xl font-bold ${isBlank ? 'text-gray-500 italic' : 'text-black'}`}>
         {displayLetter}
       </div>
-      <div id="tile-score" className="absolute bottom-1 right-1 text-[0.6rem] font-medium text-gray-600">
+      <div id="tile-score" className="absolute bottom-1 right-2 text-[0.7rem] font-medium text-gray-600">
         {tile.score}
       </div>
     </div>
