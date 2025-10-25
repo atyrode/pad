@@ -47,9 +47,6 @@ export default function Debug() {
       <div className="mb-3 p-2 bg-gray-50 dark:bg-gray-800 rounded text-xs">
         <div className="font-medium mb-1">Game State:</div>
         <div>Board: {state.boardWidth}×{state.boardHeight}</div>
-        <div>Rack: {state.rack.length} tiles</div>
-        <div>Bag: {state.bag.remaining()} tiles remaining</div>
-        <div>Bag Empty: {state.bag.isEmpty() ? "Yes" : "No"}</div>
       </div>
 
       {/* Board Controls */}
@@ -99,9 +96,9 @@ export default function Debug() {
           </button>
         </div>
         <div className="text-xs text-gray-600 dark:text-gray-400">
-          <div>Bag contents:</div>
+          {state.bag.peek().length > 0 ? <div>Bag contents ({state.bag.peek().length} tiles):</div> : <div>Bag is empty</div>}
           <div className="grid grid-cols-20 gap-1 p-2">
-            {state.bag.peek().map((tile, i) => (
+            {state.bag.peek().reverse().map((tile, i) => (
               <div key={tile.id} className="border rounded text-center">
                 {tile.letter}
               </div>
@@ -146,53 +143,15 @@ export default function Debug() {
             Redraw
           </button>
         </div>
-      </div>
-
-      {/* Return Tiles */}
-      <div className="mb-3">
-        <div className="text-xs font-medium mb-2">Return Tiles</div>
-        <div className="flex gap-1 mb-2">
-          <input
-            type="text"
-            value={returnTiles}
-            onChange={(e) => setReturnTiles(e.target.value)}
-            placeholder="Tile IDs (comma separated)"
-            className="flex-1 px-2 py-1 text-xs rounded border"
-          />
-          <button
-            onClick={() => {
-              if (returnTiles.trim()) {
-                const tileIds = returnTiles.split(',').map(id => id.trim());
-                const tilesToReturn = state.rack.filter(tile => 
-                  tile && tileIds.includes(tile.id)
-                ) as Tile[];
-                if (tilesToReturn.length > 0) {
-                  dispatch({ type: "RETURN_TILES", tiles: tilesToReturn });
-                  dispatch({ type: "CLEAR_RACK" });
-                  setReturnTiles("");
-                }
-              }
-            }}
-            className="py-1 px-2 text-xs bg-yellow-100 dark:bg-yellow-800 rounded"
-          >
-            Return
-          </button>
-        </div>
-      </div>
-
-      {/* Rack Display */}
-      <div className="mb-3">
-        <div className="text-xs font-medium mb-2">Current Rack ({state.rack.length} tiles)</div>
-        <div className="max-h-20 overflow-y-auto text-xs">
-          {state.rack.map((tile, index) => (
-            <div key={tile?.id || index} className="flex items-center gap-1 mb-1">
-              <span className="text-gray-500">#{index + 1}:</span>
-              <span className="font-mono">{tile ? tileToString(tile) : "null"}</span>
-              {tile && isBlankTile(tile) && (
-                <span className="text-orange-500">(blank)</span>
-              )}
-            </div>
-          ))}
+        <div className="text-xs text-gray-600 dark:text-gray-400 mt-2">
+          {state.rack.length > 0 ? <div>Rack contents ({state.rack.length} tiles):</div> : <div>Rack is empty</div>}
+          <div className="grid grid-cols-20 gap-1 p-2">
+            {state.rack.map((tile, i) => (
+              <div key={tile?.id || i} className="border rounded text-center">
+                {tile?.letter}
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
