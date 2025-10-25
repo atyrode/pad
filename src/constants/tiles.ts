@@ -3,6 +3,15 @@
  * Defines the available tiles and their properties
  */
 
+/**
+ * Tile styling constants
+ * Defines visual properties for tiles
+ */
+export const TILE_STYLING = {
+  // Border radius for tiles (in Tailwind classes)
+  BORDER_RADIUS: 'rounded-sm',
+} as const;
+
 import { Tile, createTile } from '../game/mechanics/tile';
 
 export interface TileDistribution {

@@ -16,8 +16,8 @@ export default function RackCell({
 
   return (
     <div
-      id="rack-tile"
-      className="select-none caret-transparent bg-white/90 dark:bg-zinc-300 border border-zinc-200 dark:border-zinc-700 rounded-sm flex items-center justify-center text-xs sm:text-sm outline-none"
+      id="rack-cell"
+      className="select-none caret-transparent flex items-center justify-center text-xs sm:text-sm outline-none"
       style={cellStyle}
     >
       {tile ? (

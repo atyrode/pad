@@ -1,6 +1,7 @@
 "use client";
 import type { BoardCell } from "../game/store";
 import TileView from "./Tile";
+import { TILE_STYLING } from "../constants/tiles";
 
 export default function BoardCell({
     cell,
@@ -24,7 +25,7 @@ export default function BoardCell({
       onPointerDown={(e) => e.preventDefault()}
       onFocus={(e) => (e.currentTarget as HTMLElement).blur()}
       onDragStart={(e) => e.preventDefault()}
-      className={`select-none caret-transparent border border-zinc-200 dark:border-zinc-700 rounded-sm outline-none aspect-square flex items-center justify-center ${
+      className={`select-none caret-transparent outline-none aspect-square flex items-center justify-center ${TILE_STYLING.BORDER_RADIUS} ${
         isCenter 
           ? "bg-gray-300 dark:bg-gray-600" 
           : "bg-white/90 dark:bg-zinc-900"
