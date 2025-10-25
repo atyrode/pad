@@ -14,6 +14,12 @@ export const BOARD_CONSTANTS = {
   
   // Default cell size (fallback value)
   DEFAULT_CELL_SIZE: 60,
+
+  // Default board width
+  DEFAULT_WIDTH: 11,
+
+  // Default board height
+  DEFAULT_HEIGHT: 11,
 } as const;
 
 
