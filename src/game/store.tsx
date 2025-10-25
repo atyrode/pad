@@ -1,13 +1,11 @@
 "use client";
 import React, { createContext, useContext, useReducer } from "react";
 import { BOARD_CONSTANTS } from "../constants/board";
-import { RACK_CONSTANTS } from "../constants/rack";
+import { Tile } from "./mechanics/tile";
+import { TileBag } from "./mechanics/bag";
+import { createTileDistribution } from "../constants/tiles";
 
-export type TileModel = {
-  id: string;
-  letter?: string;
-  score?: number;
-};
+export type TileModel = Tile;
 
 export type BoardCell = {
   index: number;
@@ -19,14 +17,18 @@ export type GameState = {
   boardHeight: number;
   board: BoardCell[];
   rack: (TileModel | null)[];
+  bag: TileBag;
 };
 
 type Action =
   | { type: "INIT"; payload?: Partial<GameState> }
   | { type: "RESET" }
   | { type: "SET_BOARD_DIMS"; width: number; height: number }
+  | { type: "INIT_BAG" }
   | { type: "DRAW_TILES"; quantity: number }
-  | { type: "CLEAR_RACK" };
+  | { type: "CLEAR_RACK" }
+  | { type: "SHUFFLE_BAG" }
+  | { type: "RETURN_TILES"; tiles: Tile[] };
 
 
 function makeBoard(
@@ -47,6 +49,7 @@ const initialState: GameState = {
   boardHeight: BOARD_CONSTANTS.DEFAULT_HEIGHT,
   board: makeBoard(BOARD_CONSTANTS.DEFAULT_WIDTH, BOARD_CONSTANTS.DEFAULT_HEIGHT),
   rack: [],
+  bag: new TileBag(),
 };
 
 function reducer(state: GameState, action: Action): GameState {
@@ -61,17 +64,31 @@ function reducer(state: GameState, action: Action): GameState {
       const board = makeBoard(width, height, state.board);
       return { ...state, boardWidth: width, boardHeight: height, board };
     }
+    case "INIT_BAG": {
+      const tiles = createTileDistribution();
+      const newBag = new TileBag(tiles);
+      newBag.shuffle();
+      return { ...state, bag: newBag };
+    }
     case "DRAW_TILES": {
       const quantity = Math.max(1, Math.min(10, action.quantity));
-      const newTiles: TileModel[] = Array.from({ length: quantity }, () => ({
-        id: crypto.randomUUID(),
-        letter: 'A',
-        score: 1
-      }));
-      return { ...state, rack: [...state.rack, ...newTiles] };
+      // Create a new bag instance to avoid mutation
+      const newBag = new TileBag([...state.bag.peek()]);
+      const drawnTiles = newBag.draw(quantity);
+      return { ...state, bag: newBag, rack: [...state.rack, ...drawnTiles] };
     }
     case "CLEAR_RACK": {
       return { ...state, rack: [] };
+    }
+    case "SHUFFLE_BAG": {
+      const newBag = new TileBag([...state.bag.peek()]);
+      newBag.shuffle();
+      return { ...state, bag: newBag };
+    }
+    case "RETURN_TILES": {
+      const newBag = new TileBag([...state.bag.peek()]);
+      newBag.return(action.tiles);
+      return { ...state, bag: newBag };
     }
     case "RESET":
       return initialState;
