@@ -14,18 +14,13 @@ export default function TileView({
   const isBlank = isBlankTile(tile);
   
   return (
-    <div className="flex flex-col items-center pointer-events-none">
-      <div className={`font-medium ${isBlank ? 'text-gray-500 italic' : ''}`}>
+    <div id="tile" className="relative w-full h-full flex items-center justify-center pointer-events-none">
+      <div id="tile-letter" className={`text-4xl font-bold ${isBlank ? 'text-gray-500 italic' : 'text-black'}`}>
         {displayLetter}
       </div>
-      <div className="text-[0.6rem] opacity-60">
+      <div id="tile-score" className="absolute bottom-1 right-1 text-[0.6rem] font-medium text-gray-600">
         {tile.score}
       </div>
-      {tile.effect && (
-        <div className="text-[0.5rem] opacity-40">
-          {tile.effect}
-        </div>
-      )}
     </div>
   );
 }

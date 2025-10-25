@@ -45,7 +45,7 @@ export default function Board() {
     >
       <div className="w-full h-full flex items-center justify-center bg-blue-900 overflow-hidden">
         <div 
-          id="boardGrid"
+          id="board-grid"
           className="grid bg-blue-500 duration-300"
           style={gridStyle}
         >

@@ -9,10 +9,10 @@ import { CellSizeProvider } from "../src/contexts/CellSizeContext";
 export default function Home() {
   return (
     <div id="main" className="h-screen w-screen flex items-center justify-center bg-zinc-50 dark:bg-black">
-        <div id="gameArea" className="w-[95%] h-[95%] flex items-center justify-center bg-red-800">
+        <div id="game-area" className="w-[95%] h-[95%] flex items-center justify-center bg-red-800">
             <GameProvider>
                 <CellSizeProvider>
-                    <div id="boardAndRack" className="flex flex-col items-center justify-center gap-2 w-full h-full min-w-0 flex-shrink">
+                    <div id="board-and-rack" className="flex flex-col items-center justify-center gap-2 w-full h-full min-w-0 flex-shrink">
                       <Board />
                       <Rack />
                     </div>
