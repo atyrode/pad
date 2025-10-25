@@ -26,7 +26,7 @@ export default function Rack() {
     >
       <div 
         id="rackGrid"
-        className="grid w-full transition-opacity duration-300 opacity-100 bg-green-700 overflow-x-scroll justify-evenly"
+        className="grid w-full transition-opacity duration-300 opacity-100 bg-green-700 overflow-x-hidden justify-evenly"
         style={gridStyle}
       >
         {state.rack.map((tile, i) => (
