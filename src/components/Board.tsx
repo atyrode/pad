@@ -3,11 +3,12 @@
 import { useGame } from "../game/store";
 import Cell from "./Cell";
 import { useEffect, useRef, useState } from "react";
+import { BOARD_CONSTANTS, getGapCSS, getTotalPadding, getPaddingCSS, getMarginCSS } from "../constants/board";
 
 export default function Board() {
   const { state } = useGame();
   const boardRef = useRef<HTMLDivElement>(null);
-  const [cellSize, setCellSize] = useState(60); // Default cell size
+  const [cellSize, setCellSize] = useState<number>(BOARD_CONSTANTS.DEFAULT_CELL_SIZE);
 
   useEffect(() => {
     const calculateCellSize = () => {
@@ -18,8 +19,8 @@ export default function Board() {
       if (!gameArea) return;
 
       const containerRect = gameArea.getBoundingClientRect();
-      const padding = 32; // Account for board padding (16px) and margins (16px)
-      const gap = 3; // Account for grid gaps
+      const padding = getTotalPadding();
+      const gap = BOARD_CONSTANTS.GAP;
       
       const availableWidth = containerRect.width - padding;
       const availableHeight = containerRect.height - padding;
@@ -48,12 +49,14 @@ export default function Board() {
       resizeObserver.disconnect();
       window.removeEventListener('resize', calculateCellSize);
     };
-  }, [state.boardWidth, state.boardHeight]);
+  }, [state.boardWidth, state.boardHeight, BOARD_CONSTANTS.GAP, BOARD_CONSTANTS.BOARD_PADDING, BOARD_CONSTANTS.BOARD_MARGIN]);
 
   const gridStyle: React.CSSProperties = {
     gridTemplateColumns: `repeat(${state.boardWidth}, ${cellSize}px)`,
     gridTemplateRows: `repeat(${state.boardHeight}, ${cellSize}px)`,
-    gap: '3px',
+    gap: getGapCSS(),
+    padding: getPaddingCSS(),
+    margin: getMarginCSS(),
   };
 
   return (
@@ -61,7 +64,7 @@ export default function Board() {
         <div 
           ref={boardRef}
           id="boardGrid" 
-          className="grid p-2 m-2 bg-blue-500" 
+          className="grid bg-blue-500" 
           style={gridStyle}
         >
         {state.board.map((cell) => (
