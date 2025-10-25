@@ -4,7 +4,6 @@ import { useGame } from "../game/store";
 import Cell from "./Cell";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { BOARD_CONSTANTS, getGapCSS, getPaddingCSS, getMarginCSS, calculateOptimalCellSize } from "../constants/board";
-import { LAYOUT_CONSTANTS } from "../constants/layout";
 
 export default function Board() {
   const { state } = useGame();

@@ -2,6 +2,7 @@
 
 import Board from "../src/components/Board";
 import { GameProvider } from "../src/game/store";
+import Debug from "../src/components/Debug";
 
 export default function Home() {
   return (
@@ -9,6 +10,7 @@ export default function Home() {
         <div id="gameArea" className="w-[95%] h-[95%] flex items-center justify-center bg-red-800">
             <GameProvider>
                 <Board />
+                <Debug />
             </GameProvider>
         </div>
     </div>
