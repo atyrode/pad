@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
     DndContext,
     DragEndEvent,
@@ -30,6 +30,9 @@ interface BoardCellProps {
 }
 
 function BoardCell({ tile, row, col }: BoardCellProps) {
+    const cellRef = useRef<HTMLDivElement>(null);
+    const [cellSize, setCellSize] = useState(44); // Default fallback
+    
     const { attributes, listeners, setNodeRef: setDraggableRef, transform } = useDraggable({
         id: tile ? tile.id : `empty-${row}-${col}`,
         disabled: !tile, // Only tiles can be dragged, not empty slots
@@ -42,11 +45,52 @@ function BoardCell({ tile, row, col }: BoardCellProps) {
     const setNodeRef = (node: HTMLElement | null) => {
         setDraggableRef(node);
         setDroppableRef(node);
+        cellRef.current = node as HTMLDivElement | null;
     };
 
-    const tileStyle = transform ? {
-        transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
-    } : undefined;
+    // Measure actual cell size on mount and resize
+    useEffect(() => {
+        const measureCellSize = () => {
+            if (cellRef.current) {
+                // offsetWidth gives us the cell width, but we need cell + gap for snapping
+                const cellWidth = cellRef.current.offsetWidth;
+                const gap = 4; // gap-1 = 4px from CSS
+                setCellSize(cellWidth + gap);
+            }
+        };
+
+        measureCellSize();
+        
+        // Re-measure on window resize
+        window.addEventListener('resize', measureCellSize);
+        return () => window.removeEventListener('resize', measureCellSize);
+    }, []);
+
+    // Calculate grid-constrained transform
+    const getGridConstrainedTransform = () => {
+        if (!transform) return undefined;
+        
+        // Use dynamically measured cell size
+        const totalCellSize = cellSize;
+        
+        // Calculate which grid cell the cursor is closest to relative to current position
+        const targetCol = Math.round(transform.x / totalCellSize);
+        const targetRow = Math.round(transform.y / totalCellSize);
+        
+        // Constrain to valid grid positions relative to current cell
+        const constrainedCol = Math.max(-col, Math.min(10 - col, targetCol));
+        const constrainedRow = Math.max(-row, Math.min(10 - row, targetRow));
+        
+        // Calculate the snapped position relative to original position
+        const snappedX = constrainedCol * totalCellSize;
+        const snappedY = constrainedRow * totalCellSize;
+        
+        return {
+            transform: `translate3d(${snappedX}px, ${snappedY}px, 0)`,
+        };
+    };
+
+    const tileStyle = getGridConstrainedTransform();
 
     return (
         <div
@@ -168,7 +212,7 @@ export default function Board() {
             onDragStart={handleDragStart}
             onDragEnd={handleDragEnd}
         >
-            <div className="grow max-w-3/4 grid grid-cols-11 gap-1 p-1 bg-green-800 border border-10 border-green-900 rounded-lg">
+            <div className="grow max-w-4/5 grid grid-cols-11 gap-1 p-1 bg-green-800 border border-10 border-green-900 rounded-lg">
                 {board.map((row, rowIndex) =>
                     row.map((tile, colIndex) => (
                         <BoardCell
@@ -181,14 +225,6 @@ export default function Board() {
                 )}
             </div>
 
-            <DragOverlay>
-                {activeId ? (
-                    <Tile
-                        value={getActiveTile()?.value || ''}
-                        score={getActiveTile()?.score || 0}
-                    />
-                ) : null}
-            </DragOverlay>
         </DndContext>
     );
 }
