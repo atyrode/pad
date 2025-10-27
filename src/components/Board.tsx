@@ -96,7 +96,7 @@ function BoardCell({ tile, row, col }: BoardCellProps) {
         <div
             id="board-cell"
             ref={setNodeRef}
-            className={`aspect-square border rounded-sm flex items-center justify-center min-w-[40px] min-h-[40px] ${tile
+            className={`aspect-square border border-zinc-100/70 rounded-sm flex items-center justify-center min-w-[40px] min-h-[40px] ${tile
                     ? 'cursor-grab active:cursor-grabbing select-none'
                     : ''
                 }`}
@@ -105,7 +105,18 @@ function BoardCell({ tile, row, col }: BoardCellProps) {
             {...(tile ? attributes : {})}
         >
             {tile && (
-                <div className="w-full h-full bg-white" style={tileStyle}>
+                <div 
+                    className="w-full h-full bg-white rounded-sm" 
+                    style={{
+                        ...tileStyle,
+                        // Ensure tile is visible during drag by maintaining opacity
+                        opacity: transform ? 1 : 1,
+                        // Add a subtle shadow when dragging to show it's being moved
+                        boxShadow: transform ? '0px 0px 25px rgba(0, 0, 0, 0.49)' : 'none',
+                        zIndex: transform ? 10 : 'auto',
+                        transition: 'all 0.1s linear'
+                    }}
+                >
                     <Tile value={tile.value} score={tile.score} />
                 </div>
             )}
@@ -114,6 +125,8 @@ function BoardCell({ tile, row, col }: BoardCellProps) {
 }
 
 export default function Board() {
+    const [isClient, setIsClient] = useState(false);
+
     // Initialize 11x11 board with some sample tiles
     const [board, setBoard] = useState<BoardState>(() => {
         const initialBoard: BoardState = Array(11).fill(null).map(() => Array(11).fill(null));
@@ -127,6 +140,11 @@ export default function Board() {
 
         return initialBoard;
     });
+
+    // Ensure we're on the client side before rendering drag and drop
+    useEffect(() => {
+        setIsClient(true);
+    }, []);
 
     const [activeId, setActiveId] = useState<string | null>(null);
 
@@ -204,6 +222,28 @@ export default function Board() {
         }
         return null;
     };
+
+    // Show loading state during SSR
+    if (!isClient) {
+        return (
+            <div className="grow max-w-4/5 grid grid-cols-11 gap-1 p-1 bg-green-800 border border-10 border-green-900 rounded-lg">
+                {board.map((row, rowIndex) =>
+                    row.map((tile, colIndex) => (
+                        <div
+                            key={`${rowIndex}-${colIndex}`}
+                            className="aspect-square border border-zinc-100/70 rounded-sm flex items-center justify-center min-w-[40px] min-h-[40px]"
+                        >
+                            {tile && (
+                                <div className="w-full h-full bg-white">
+                                    <Tile value={tile.value} score={tile.score} />
+                                </div>
+                            )}
+                        </div>
+                    ))
+                )}
+            </div>
+        );
+    }
 
     return (
         <DndContext
