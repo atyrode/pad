@@ -68,21 +68,10 @@ export default function Board() {
         setActiveId(null);
     };
 
-    const getActiveTile = (): TileData | null => {
-        if (!activeId) return null;
-
-        const position = findTilePosition(board, activeId);
-        return position ? board[position.row][position.col] : null;
-    };
-
     // Show loading state during SSR
     if (!isClient) {
         return (
-            <div className="grow max-w-4/5 grid grid-cols-11 gap-1 p-1 bg-green-800 border border-10 border-green-900 rounded-lg">
-                <div className="col-span-full flex items-center justify-center text-white">
-                    Loading board...
-                </div>
-            </div>
+            <div>Loading board...</div>
         );
     }
 
