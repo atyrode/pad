@@ -13,8 +13,8 @@ export function getGridConstrainedTransform(
     const targetRow = Math.round(transform.y / cellSize);
     
     // Constrain to valid grid positions relative to current cell
-    const constrainedCol = Math.max(-col, Math.min(BOARD_SIZE - col, targetCol));
-    const constrainedRow = Math.max(-row, Math.min(BOARD_SIZE - row, targetRow));
+    const constrainedCol = Math.max(-col, Math.min(BOARD_SIZE - 1 - col, targetCol));
+    const constrainedRow = Math.max(-row, Math.min(BOARD_SIZE - 1 - row, targetRow));
     
     // Calculate the snapped position relative to original position
     const snappedX = constrainedCol * cellSize;
