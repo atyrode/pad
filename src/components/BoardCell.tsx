@@ -1,8 +1,9 @@
 import React, { useRef, useState } from 'react';
 import { useDraggable, useDroppable } from '@dnd-kit/core';
+import { ArrowBigRightDash, ArrowBigDownDash } from 'lucide-react';
 import Tile from './Tile';
 import StickerOverlay from './Sticker';
-import { BoardCellProps } from '../types/board';
+import { BoardCellProps, Direction } from '../types/board';
 import { useCellSize } from '../hooks/useCellSize';
 import { getGridConstrainedTransform, getTileTransformOverRack } from '../utils/transformUtils';
 import { MIN_CELL_SIZE } from '../constants/board';
@@ -16,7 +17,7 @@ const shakeKeyframes = `
 }
 `;
 
-export default function BoardCell({ tile, locked, row, col, overRackIndex, rackRef, gameAreaRef, onRightClick, sticker, tileOpacity, showCoordinates }: BoardCellProps) {
+export default function BoardCell({ tile, locked, row, col, overRackIndex, rackRef, gameAreaRef, onRightClick, sticker, tileOpacity, showCoordinates, isSelected, selectorDirection }: BoardCellProps) {
     const cellRef = useRef<HTMLDivElement>(null);
     const cellSize = useCellSize(cellRef as React.RefObject<HTMLDivElement | null>);
     const [isShaking, setIsShaking] = useState(false);
@@ -82,6 +83,36 @@ export default function BoardCell({ tile, locked, row, col, overRackIndex, rackR
             >
                 {/* Sticker layer - positioned absolutely to not interfere with drag/drop */}
                 <StickerOverlay sticker={sticker || null} />
+                
+                {/* Keyboard selector overlay */}
+                {isSelected && (
+                    <div 
+                        className="absolute inset-0 pointer-events-none"
+                        style={{ zIndex: 5 }}
+                    >
+                        {/* Highlighted border */}
+                        <div 
+                            className="absolute inset-0 border-4 border-black rounded-sm"
+                            style={{ 
+                                boxShadow: '0 0 8px rgba(0, 0, 0, 0.6)',
+                            }}
+                        />
+                        
+                        {/* Directional arrow */}
+                        {selectorDirection && (
+                            <div 
+                                className="absolute inset-0 flex items-center justify-center"
+                                style={{ 
+                                    color: 'rgb(0, 0, 0)',
+                                    filter: 'drop-shadow(0 0 4px rgba(0, 0, 0, 0.8))',
+                                }}
+                            >
+                                {selectorDirection === 'right' && <ArrowBigRightDash size={32} />}
+                                {selectorDirection === 'down' && <ArrowBigDownDash size={32} />}
+                            </div>
+                        )}
+                    </div>
+                )}
                 
                 {tile && (
                     <div 

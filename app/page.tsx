@@ -19,6 +19,7 @@ import { preloadDictionary, isValidWordSync } from '../src/utils/dictionaryUtils
 import { calculateCurrentPlayScore, calculateTotalScore } from '../src/utils/scoreUtils';
 import { createInitialStickers, consumeSticker, isStartStickerConsumed, doesWordCoverStartSticker } from '../src/utils/stickerUtils';
 import { useDragAndDrop } from '../src/hooks/useDragAndDrop';
+import { useKeyboardSelector } from '../src/hooks/useKeyboardSelector';
 import { TileData } from '../src/types/tile';
 import { Position } from '../src/types/board';
 import { Shuffle, Play } from 'lucide-react';
@@ -63,6 +64,8 @@ export default function Home() {
         overRackIndex,
         activeId,
     } = useDragAndDrop({ board, setBoard, rack, setRack, gameAreaRef });
+
+    const { selectedCell, selectorDirection } = useKeyboardSelector();
 
     const handleRightClick = (tile: TileData, position: Position): boolean => {
         // Find first empty slot in rack
@@ -203,6 +206,8 @@ export default function Home() {
                             stickers={stickers}
                             tileOpacity={tileOpacity}
                             showCoordinates={showCoordinates}
+                            selectedCell={selectedCell}
+                            selectorDirection={selectorDirection}
                         />
                         <div className="relative">
                             <Rack 
