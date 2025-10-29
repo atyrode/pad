@@ -4,7 +4,7 @@ import { RackState } from '../types/rack';
 import { BoardState } from '../types/board';
 import { drawTileFromBag, createTileBag, shuffleBag } from '../utils/bagUtils';
 import { findFirstEmptySlot, moveTileToRack } from '../utils/rackUtils';
-import { createInitialBoard } from '../utils/boardUtils';
+import { createInitialBoard, findAllWords } from '../utils/boardUtils';
 
 interface DebugMenuProps {
   bag: Bag;
@@ -118,6 +118,8 @@ export default function DebugMenu({ bag, rack, board, setRack, setBag, setBoard 
   const isDrawAllDisabled = bag.length === 0 || findFirstEmptySlot(rack) === null;
   const isRedrawDisabled = bag.length === 0 || rack.every(tile => tile === null);
 
+  // Find all words on the board
+  const words = findAllWords(board);
 
   return (
     <div id="debug-menu" className="w-1/4 h-full bg-zinc-600 p-4 overflow-y-auto">
@@ -151,6 +153,24 @@ export default function DebugMenu({ bag, rack, board, setRack, setBag, setBoard 
             Bag
           </button>
         </div>
+      </div>
+
+      <div className="bg-zinc-700 rounded-lg p-4 mt-4">
+        <h3 className="text-white text-lg font-semibold mb-3">Current turn</h3>
+        {words.length === 0 ? (
+          <p className="text-zinc-400 text-sm text-center">No words found</p>
+        ) : (
+          <div className="space-y-1">
+            {words.map((wordInfo, index) => (
+              <div
+                key={index}
+                className="text-white text-sm font-mono bg-zinc-800 rounded px-2 py-1"
+              >
+                {wordInfo.word.toUpperCase()} at ({wordInfo.position.row},{wordInfo.position.col}) {wordInfo.direction}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="bg-zinc-700 rounded-lg p-4 mt-4">

@@ -49,3 +49,77 @@ export function placeTileOnBoard(board: BoardState, tile: TileData, pos: Positio
     newBoard[pos.row][pos.col] = tile;
     return newBoard;
 }
+
+export interface WordInfo {
+    word: string;
+    position: Position;
+    direction: 'horizontal' | 'vertical';
+}
+
+export function findAllWords(board: BoardState): WordInfo[] {
+    const words: WordInfo[] = [];
+
+    // Find horizontal words
+    for (let row = 0; row < BOARD_SIZE; row++) {
+        for (let col = 0; col < BOARD_SIZE; col++) {
+            const tile = board[row][col];
+            
+            // Check if this tile is the start of a horizontal word
+            // It's a start if: it's at column 0, or the cell to the left is empty
+            const isLeftmost = col === 0 || board[row][col - 1] === null;
+            
+            if (tile !== null && isLeftmost) {
+                // Collect consecutive tiles to the right
+                let word = '';
+                let currentCol = col;
+                
+                while (currentCol < BOARD_SIZE && board[row][currentCol] !== null) {
+                    word += board[row][currentCol]!.value;
+                    currentCol++;
+                }
+                
+                // Add word only if it has 2+ tiles (single letters are not valid words)
+                if (word.length >= 2) {
+                    words.push({
+                        word,
+                        position: { row, col },
+                        direction: 'horizontal'
+                    });
+                }
+            }
+        }
+    }
+
+    // Find vertical words
+    for (let row = 0; row < BOARD_SIZE; row++) {
+        for (let col = 0; col < BOARD_SIZE; col++) {
+            const tile = board[row][col];
+            
+            // Check if this tile is the start of a vertical word
+            // It's a start if: it's at row 0, or the cell above is empty
+            const isTopmost = row === 0 || board[row - 1][col] === null;
+            
+            if (tile !== null && isTopmost) {
+                // Collect consecutive tiles below
+                let word = '';
+                let currentRow = row;
+                
+                while (currentRow < BOARD_SIZE && board[currentRow][col] !== null) {
+                    word += board[currentRow][col]!.value;
+                    currentRow++;
+                }
+                
+                // Add word only if it has 2+ tiles (single letters are not valid words)
+                if (word.length >= 2) {
+                    words.push({
+                        word,
+                        position: { row, col },
+                        direction: 'vertical'
+                    });
+                }
+            }
+        }
+    }
+
+    return words;
+}
