@@ -12,7 +12,7 @@ import { BoardState } from '../src/types/board';
 import { RackState } from '../src/types/rack';
 import { Bag } from '../src/types/bag';
 import { StickerState } from '../src/types/sticker';
-import { createInitialBoard, removeTileFromBoard, findAllWords } from '../src/utils/boardUtils';
+import { createInitialBoard, removeTileFromBoard, findAllWords, areUnlockedTilesInSingleLine } from '../src/utils/boardUtils';
 import { createInitialRack, findTileInRack, findFirstEmptySlot, moveTileToRack, shuffleRack } from '../src/utils/rackUtils';
 import { createTileBag } from '../src/utils/bagUtils';
 import { preloadDictionary, isValidWordSync } from '../src/utils/dictionaryUtils';
@@ -138,6 +138,11 @@ export default function Home() {
         
         // Disable if no current words (nothing to play)
         if (currentWords.length === 0) {
+            return false;
+        }
+
+        // Check if all unlocked tiles form a single contiguous line (Scrabble rule)
+        if (!areUnlockedTilesInSingleLine(board)) {
             return false;
         }
 

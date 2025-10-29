@@ -140,3 +140,93 @@ export function findAllWords(board: BoardState): WordInfo[] {
 
     return words;
 }
+
+/**
+ * Check if all unlocked tiles on the board form a single contiguous line
+ * (either all in one row OR all in one column, allowing gaps filled by locked tiles)
+ * Returns true if no unlocked tiles exist (empty board)
+ */
+export function areUnlockedTilesInSingleLine(board: BoardState): boolean {
+    // Collect all unlocked tile positions
+    const unlockedPositions: Position[] = [];
+    
+    for (let row = 0; row < BOARD_SIZE; row++) {
+        for (let col = 0; col < BOARD_SIZE; col++) {
+            const cell = board[row][col];
+            if (cell.tile && !cell.locked) {
+                unlockedPositions.push({ row, col });
+            }
+        }
+    }
+    
+    // If no unlocked tiles, this is valid (empty board)
+    if (unlockedPositions.length === 0) {
+        return true;
+    }
+    
+    // If only one tile, it's always valid
+    if (unlockedPositions.length === 1) {
+        return true;
+    }
+    
+    // Check if all tiles are in the same row
+    const allSameRow = unlockedPositions.every(pos => pos.row === unlockedPositions[0].row);
+    if (allSameRow) {
+        // Sort by column and check for gaps
+        const sortedByCol = unlockedPositions.sort((a, b) => a.col - b.col);
+        const row = sortedByCol[0].row;
+        
+        for (let i = 1; i < sortedByCol.length; i++) {
+            const currentCol = sortedByCol[i].col;
+            const prevCol = sortedByCol[i-1].col;
+            
+            // Check if there's a gap between consecutive unlocked tiles
+            if (currentCol - prevCol > 1) {
+                // Check if the gap is filled by locked tiles
+                let hasLockedTileInGap = false;
+                for (let col = prevCol + 1; col < currentCol; col++) {
+                    if (board[row][col].tile && board[row][col].locked) {
+                        hasLockedTileInGap = true;
+                        break;
+                    }
+                }
+                if (!hasLockedTileInGap) {
+                    return false; // Gap not filled by locked tiles
+                }
+            }
+        }
+        return true; // All tiles in same row with gaps filled by locked tiles
+    }
+    
+    // Check if all tiles are in the same column
+    const allSameCol = unlockedPositions.every(pos => pos.col === unlockedPositions[0].col);
+    if (allSameCol) {
+        // Sort by row and check for gaps
+        const sortedByRow = unlockedPositions.sort((a, b) => a.row - b.row);
+        const col = sortedByRow[0].col;
+        
+        for (let i = 1; i < sortedByRow.length; i++) {
+            const currentRow = sortedByRow[i].row;
+            const prevRow = sortedByRow[i-1].row;
+            
+            // Check if there's a gap between consecutive unlocked tiles
+            if (currentRow - prevRow > 1) {
+                // Check if the gap is filled by locked tiles
+                let hasLockedTileInGap = false;
+                for (let row = prevRow + 1; row < currentRow; row++) {
+                    if (board[row][col].tile && board[row][col].locked) {
+                        hasLockedTileInGap = true;
+                        break;
+                    }
+                }
+                if (!hasLockedTileInGap) {
+                    return false; // Gap not filled by locked tiles
+                }
+            }
+        }
+        return true; // All tiles in same column with gaps filled by locked tiles
+    }
+    
+    // Tiles are scattered across multiple rows AND columns
+    return false;
+}
