@@ -2,7 +2,8 @@
 
 import React, { useEffect, useRef } from 'react';
 import BoardCell from './BoardCell';
-import { BoardState, TileData, Position } from '../types/board';
+import { BoardState, Position } from '../types/board';
+import { TileData } from '../types/tile';
 import { BOARD_SIZE, CELL_GAP, BOARD_WIDTH, BOARD_MAX_WIDTH } from '../constants/board';
 
 interface BoardProps {
@@ -14,9 +15,10 @@ interface BoardProps {
     boardRef?: React.RefObject<HTMLDivElement | null>;
     rackRef?: React.RefObject<HTMLDivElement | null>;
     gameAreaRef?: React.RefObject<HTMLDivElement | null>;
+    onRightClick?: (tile: TileData, position: Position) => boolean;
 }
 
-export default function Board({ board, boardCellSize, overBoardPos, onCellSizeChange, overRackIndex, boardRef: externalBoardRef, rackRef, gameAreaRef }: BoardProps) {
+export default function Board({ board, boardCellSize, overBoardPos, onCellSizeChange, overRackIndex, boardRef: externalBoardRef, rackRef, gameAreaRef, onRightClick }: BoardProps) {
     const internalBoardRef = useRef<HTMLDivElement>(null);
     const boardRef = externalBoardRef || internalBoardRef;
 
@@ -57,6 +59,7 @@ export default function Board({ board, boardCellSize, overBoardPos, onCellSizeCh
                         overRackIndex={overRackIndex}
                         rackRef={rackRef}
                         gameAreaRef={gameAreaRef}
+                        onRightClick={onRightClick}
                     />
                 ))
             )}

@@ -1,10 +1,5 @@
 import React from 'react';
-
-export interface TileData {
-    id: string;
-    value: string;
-    score: number;
-}
+import { TileData } from './tile';
 
 export type BoardState = (TileData | null)[][];
 
@@ -15,26 +10,10 @@ export interface BoardCellProps {
     overRackIndex: number | null;
     rackRef?: React.RefObject<HTMLDivElement | null>;
     gameAreaRef?: React.RefObject<HTMLDivElement | null>;
+    onRightClick?: (tile: TileData, position: Position) => boolean;
 }
 
 export interface Position {
     row: number;
     col: number;
-}
-
-export type RackState = (TileData | null)[];
-
-export interface RackCellProps {
-    tile: TileData | null;
-    index: number;
-    boardCellSize: number;
-    overBoardPos: Position | null;
-    overRackIndex: number | null;
-    boardRef?: React.RefObject<HTMLDivElement | null>;
-    rackRef?: React.RefObject<HTMLDivElement | null>;
-    gameAreaRef?: React.RefObject<HTMLDivElement | null>;
-}
-
-export interface RackPosition {
-    index: number;
 }

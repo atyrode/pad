@@ -1,4 +1,5 @@
-import { BoardState, TileData, Position } from '../types/board';
+import { BoardState, Position } from '../types/board';
+import { TileData } from '../types/tile';
 import { BOARD_SIZE } from '../constants/board';
 
 export function findTilePosition(board: BoardState, tileId: string): Position | null {
@@ -34,14 +35,6 @@ export function swapBoardTiles(board: BoardState, pos1: Position, pos2: Position
 
 export function createInitialBoard(): BoardState {
     const initialBoard: BoardState = Array(BOARD_SIZE).fill(null).map(() => Array(BOARD_SIZE).fill(null));
-
-    // Add some sample tiles for testing
-    initialBoard[5][5] = { id: 'tile-1', value: 'A', score: 1 };
-    initialBoard[5][6] = { id: 'tile-2', value: 'B', score: 3 };
-    initialBoard[6][5] = { id: 'tile-3', value: 'C', score: 3 };
-    initialBoard[6][6] = { id: 'tile-4', value: 'D', score: 2 };
-    initialBoard[4][5] = { id: 'tile-5', value: 'E', score: 1 };
-
     return initialBoard;
 }
 

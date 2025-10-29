@@ -1,7 +1,7 @@
 import React, { useRef } from 'react';
 import { useDraggable, useDroppable } from '@dnd-kit/core';
 import Tile from './Tile';
-import { RackCellProps } from '../types/board';
+import { RackCellProps } from '../types/rack';
 import { getRackTileTransformOverBoard, getTileTransformOverRack } from '../utils/transformUtils';
 import { CELL_GAP } from '../constants/board';
 

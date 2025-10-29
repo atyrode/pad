@@ -2,7 +2,8 @@
 
 import React from 'react';
 import RackCell from './RackCell';
-import { RackState, BoardState, Position } from '../types/board';
+import { RackState } from '../types/rack';
+import { Position } from '../types/board';
 
 interface RackProps {
     rack: RackState;

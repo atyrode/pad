@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import { useDraggable, useDroppable } from '@dnd-kit/core';
 import Tile from './Tile';
 import { BoardCellProps } from '../types/board';
@@ -6,9 +6,19 @@ import { useCellSize } from '../hooks/useCellSize';
 import { getGridConstrainedTransform, getTileTransformOverRack } from '../utils/transformUtils';
 import { MIN_CELL_SIZE } from '../constants/board';
 
-export default function BoardCell({ tile, row, col, overRackIndex, rackRef, gameAreaRef }: BoardCellProps) {
+// Add shake animation keyframes
+const shakeKeyframes = `
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  10%, 30%, 50%, 70%, 90% { transform: translateX(-2px); }
+  20%, 40%, 60%, 80% { transform: translateX(2px); }
+}
+`;
+
+export default function BoardCell({ tile, row, col, overRackIndex, rackRef, gameAreaRef, onRightClick }: BoardCellProps) {
     const cellRef = useRef<HTMLDivElement>(null);
     const cellSize = useCellSize(cellRef as React.RefObject<HTMLDivElement | null>);
+    const [isShaking, setIsShaking] = useState(false);
     
     const { attributes, listeners, setNodeRef: setDraggableRef, transform } = useDraggable({
         id: tile ? tile.id : `empty-${row}-${col}`,
@@ -25,6 +35,18 @@ export default function BoardCell({ tile, row, col, overRackIndex, rackRef, game
         cellRef.current = node as HTMLDivElement | null;
     };
 
+    const handleRightClick = (e: React.MouseEvent) => {
+        e.preventDefault(); // Prevent default context menu
+        if (tile && onRightClick) {
+            const success = onRightClick(tile, { row, col });
+            if (!success) {
+                // Trigger shake animation if rack is full
+                setIsShaking(true);
+                setTimeout(() => setIsShaking(false), 500); // Animation duration
+            }
+        }
+    };
+
     // Prioritize rack snapping when dragging over a rack cell
     // Otherwise, use board grid snapping (existing behavior)
     let tileStyle;
@@ -37,21 +59,25 @@ export default function BoardCell({ tile, row, col, overRackIndex, rackRef, game
     }
 
     return (
-        <div
-            id="board-cell"
-            ref={setNodeRef}
-            className={`aspect-square border border-zinc-100/70 rounded-sm flex items-center justify-center ${tile
-                    ? 'cursor-grab active:cursor-grabbing select-none'
-                    : ''
-                }`}
-            style={{ 
-                userSelect: 'none',
-                minWidth: `${MIN_CELL_SIZE}px`,
-                minHeight: `${MIN_CELL_SIZE}px`
-            }}
-            {...(tile ? listeners : {})}
-            {...(tile ? attributes : {})}
-        >
+        <>
+            <style>{shakeKeyframes}</style>
+            <div
+                id="board-cell"
+                ref={setNodeRef}
+                className={`aspect-square border border-zinc-100/70 rounded-sm flex items-center justify-center ${tile
+                        ? 'cursor-grab active:cursor-grabbing select-none'
+                        : ''
+                    }`}
+                style={{ 
+                    userSelect: 'none',
+                    minWidth: `${MIN_CELL_SIZE}px`,
+                    minHeight: `${MIN_CELL_SIZE}px`,
+                    animation: isShaking ? 'shake 0.5s ease-in-out' : undefined
+                }}
+                onContextMenu={handleRightClick}
+                {...(tile ? listeners : {})}
+                {...(tile ? attributes : {})}
+            >
             {tile && (
                 <div 
                     className="w-full h-full bg-white rounded-sm" 
@@ -68,6 +94,7 @@ export default function BoardCell({ tile, row, col, overRackIndex, rackRef, game
                     <Tile value={tile.value} score={tile.score} />
                 </div>
             )}
-        </div>
+            </div>
+        </>
     );
 }

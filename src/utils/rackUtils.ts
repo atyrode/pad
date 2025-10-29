@@ -1,4 +1,5 @@
-import { RackState, TileData } from '../types/board';
+import { RackState } from '../types/rack';
+import { TileData } from '../types/tile';
 
 export const RACK_SIZE = 7;
 
@@ -52,5 +53,14 @@ export function swapRackTiles(rack: RackState, index1: number, index2: number): 
         newRack[index2] = tile1;
     }
     return newRack;
+}
+
+export function findFirstEmptySlot(rack: RackState): number | null {
+    for (let i = 0; i < rack.length; i++) {
+        if (rack[i] === null) {
+            return i;
+        }
+    }
+    return null;
 }
 
