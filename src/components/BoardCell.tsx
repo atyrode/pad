@@ -16,7 +16,7 @@ const shakeKeyframes = `
 }
 `;
 
-export default function BoardCell({ tile, locked, row, col, overRackIndex, rackRef, gameAreaRef, onRightClick, sticker }: BoardCellProps) {
+export default function BoardCell({ tile, locked, row, col, overRackIndex, rackRef, gameAreaRef, onRightClick, sticker, tileOpacity, showCoordinates }: BoardCellProps) {
     const cellRef = useRef<HTMLDivElement>(null);
     const cellSize = useCellSize(cellRef as React.RefObject<HTMLDivElement | null>);
     const [isShaking, setIsShaking] = useState(false);
@@ -88,8 +88,8 @@ export default function BoardCell({ tile, locked, row, col, overRackIndex, rackR
                         className="w-full h-full rounded-sm relative z-10"
                         style={{
                             ...tileStyle,
-                            // Ensure tile is visible during drag by maintaining opacity
-                            opacity: transform ? 1 : 1,
+                            // Apply tile opacity (default to 100% if not provided)
+                            opacity: transform ? 1 : (tileOpacity !== undefined ? tileOpacity / 100 : 1),
                             // Add a subtle shadow when dragging to show it's being moved
                             boxShadow: transform ? '0px 0px 25px rgba(0, 0, 0, 0.49)' : 'none',
                             zIndex: transform ? 10 : 'auto',
@@ -97,6 +97,18 @@ export default function BoardCell({ tile, locked, row, col, overRackIndex, rackR
                         }}
                     >
                         <Tile value={tile.value} score={tile.score} locked={locked} />
+                    </div>
+                )}
+
+                {/* Coordinate display - positioned below stickers */}
+                {showCoordinates && (
+                    <div 
+                        className="absolute inset-0 flex items-center justify-center pointer-events-none bg-white"
+                        style={{ zIndex: 1 }}
+                    >
+                        <span className="text-zinc-900 text-xs font-mono">
+                            ({row},{col})
+                        </span>
                     </div>
                 )}
             </div>

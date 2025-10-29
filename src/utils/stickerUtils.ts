@@ -16,18 +16,18 @@ export function createInitialStickers(): StickerState {
     // For 11x11 board (center at index 5)
     // Multi stickers near corners - 4-way rotational symmetry
     const multiPositions: Position[] = [
-        { row: 2, col: 2 },   // Top-left
-        { row: 2, col: 8 },   // Top-right
-        { row: 8, col: 2 },   // Bottom-left
-        { row: 8, col: 8 },   // Bottom-right
+        { row: 1, col: 1 },   // Top-left
+        { row: 1, col: 9 },   // Top-right
+        { row: 9, col: 1 },   // Bottom-left
+        { row: 9, col: 9 },   // Bottom-right
     ];
 
     // Points stickers closer to center - 4-way rotational symmetry
     const pointsPositions: Position[] = [
-        { row: 3, col: 5 },   // Top-center
-        { row: 5, col: 3 },   // Left-center
-        { row: 5, col: 7 },   // Right-center
-        { row: 7, col: 5 },   // Bottom-center
+        { row: 3, col: 3 },   // Top-left
+        { row: 3, col: 7 },   // Top-right
+        { row: 7, col: 3 },   // Bottom-left
+        { row: 7, col: 7 },   // Bottom-right
     ];
 
     // Place multi stickers

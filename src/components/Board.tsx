@@ -18,9 +18,11 @@ interface BoardProps {
     gameAreaRef?: React.RefObject<HTMLDivElement | null>;
     onRightClick?: (tile: TileData, position: Position) => boolean;
     stickers?: StickerState;
+    tileOpacity?: number;
+    showCoordinates?: boolean;
 }
 
-export default function Board({ board, boardCellSize, overBoardPos, onCellSizeChange, overRackIndex, boardRef: externalBoardRef, rackRef, gameAreaRef, onRightClick, stickers }: BoardProps) {
+export default function Board({ board, boardCellSize, overBoardPos, onCellSizeChange, overRackIndex, boardRef: externalBoardRef, rackRef, gameAreaRef, onRightClick, stickers, tileOpacity, showCoordinates }: BoardProps) {
     const internalBoardRef = useRef<HTMLDivElement>(null);
     const boardRef = externalBoardRef || internalBoardRef;
 
@@ -64,6 +66,8 @@ export default function Board({ board, boardCellSize, overBoardPos, onCellSizeCh
                         gameAreaRef={gameAreaRef}
                         onRightClick={onRightClick}
                         sticker={stickers?.[rowIndex]?.[colIndex] || null}
+                        tileOpacity={tileOpacity}
+                        showCoordinates={showCoordinates}
                     />
                 ))
             )}

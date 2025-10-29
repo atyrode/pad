@@ -19,6 +19,8 @@ export interface BoardCellProps {
     gameAreaRef?: React.RefObject<HTMLDivElement | null>;
     onRightClick?: (tile: TileData, position: Position) => boolean;
     sticker?: Sticker | null;
+    tileOpacity?: number;
+    showCoordinates?: boolean;
 }
 
 export interface Position {

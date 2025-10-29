@@ -21,9 +21,13 @@ interface DebugMenuProps {
   setTotalScore: React.Dispatch<React.SetStateAction<number>>;
   stickers: StickerState;
   setStickers: React.Dispatch<React.SetStateAction<StickerState>>;
+  tileOpacity: number;
+  setTileOpacity: React.Dispatch<React.SetStateAction<number>>;
+  showCoordinates: boolean;
+  setShowCoordinates: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
-export default function DebugMenu({ bag, rack, board, setRack, setBag, setBoard, totalScore, setTotalScore, stickers, setStickers }: DebugMenuProps) {
+export default function DebugMenu({ bag, rack, board, setRack, setBag, setBoard, totalScore, setTotalScore, stickers, setStickers, tileOpacity, setTileOpacity, showCoordinates, setShowCoordinates }: DebugMenuProps) {
   const [isDictionaryLoaded, setIsDictionaryLoaded] = useState(false);
 
   // Load dictionary on component mount
@@ -489,6 +493,44 @@ export default function DebugMenu({ bag, rack, board, setRack, setBag, setBoard,
 
         <div className="text-xs text-zinc-400 text-center">
           Active / Consumed
+        </div>
+      </div>
+
+      {/* Visual Settings */}
+      <div className="bg-zinc-700 rounded-lg p-4 mt-4">
+        <h3 className="text-white text-lg font-semibold mb-3">Visual Settings</h3>
+
+        {/* Tile Opacity Slider */}
+        <div className="mb-4">
+          <div className="text-white text-sm font-medium mb-2">Tile Opacity</div>
+          <div className="flex items-center gap-3">
+            <input
+              type="range"
+              min="0"
+              max="100"
+              value={tileOpacity}
+              onChange={(e) => setTileOpacity(Number(e.target.value))}
+              className="flex-1 h-2 bg-zinc-600 rounded-lg appearance-none cursor-pointer slider"
+            />
+            <span className="text-white text-sm font-mono w-12 text-right">
+              {tileOpacity}%
+            </span>
+          </div>
+        </div>
+
+        {/* Coordinates Toggle */}
+        <div>
+          <div className="text-white text-sm font-medium mb-2">Show Coordinates</div>
+          <button
+            onClick={() => setShowCoordinates(!showCoordinates)}
+            className={`w-full py-2 px-3 rounded-lg text-white font-semibold text-sm transition-opacity ${
+              showCoordinates
+                ? 'bg-green-600 hover:opacity-80 hover:bg-green-500'
+                : 'bg-zinc-600 hover:opacity-80 hover:bg-zinc-500'
+            }`}
+          >
+            {showCoordinates ? 'Hide' : 'Show'} Coordinates
+          </button>
         </div>
       </div>
 

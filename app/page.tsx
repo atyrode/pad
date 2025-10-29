@@ -45,6 +45,10 @@ export default function Home() {
     // Score tracking
     const [totalScore, setTotalScore] = useState(0);
 
+    // Visual settings
+    const [tileOpacity, setTileOpacity] = useState(100);
+    const [showCoordinates, setShowCoordinates] = useState(false);
+
     const [boardCellSize, setBoardCellSize] = useState(44);
     const boardRef = useRef<HTMLDivElement>(null);
     const rackRef = useRef<HTMLDivElement>(null);
@@ -174,7 +178,7 @@ export default function Home() {
                     onDragOver={handleDragOver}
                     onDragEnd={handleDragEnd}
                 >
-                    <DebugMenu bag={bag} rack={rack} board={board} setRack={setRack} setBag={setBag} setBoard={setBoard} totalScore={totalScore} setTotalScore={setTotalScore} stickers={stickers} setStickers={setStickers} />
+                    <DebugMenu bag={bag} rack={rack} board={board} setRack={setRack} setBag={setBag} setBoard={setBoard} totalScore={totalScore} setTotalScore={setTotalScore} stickers={stickers} setStickers={setStickers} tileOpacity={tileOpacity} setTileOpacity={setTileOpacity} showCoordinates={showCoordinates} setShowCoordinates={setShowCoordinates} />
                     <div 
                         ref={gameAreaRef}
                         id="game-area" 
@@ -192,6 +196,8 @@ export default function Home() {
                             gameAreaRef={gameAreaRef}
                             onRightClick={handleRightClick}
                             stickers={stickers}
+                            tileOpacity={tileOpacity}
+                            showCoordinates={showCoordinates}
                         />
                         <div className="relative">
                             <Rack 
@@ -234,7 +240,7 @@ export default function Home() {
                 </DndContext>
             ) : (
                 <>
-                    <DebugMenu bag={bag} rack={rack} board={board} setRack={setRack} setBag={setBag} setBoard={setBoard} totalScore={totalScore} setTotalScore={setTotalScore} stickers={stickers} setStickers={setStickers} />
+                    <DebugMenu bag={bag} rack={rack} board={board} setRack={setRack} setBag={setBag} setBoard={setBoard} totalScore={totalScore} setTotalScore={setTotalScore} stickers={stickers} setStickers={setStickers} tileOpacity={tileOpacity} setTileOpacity={setTileOpacity} showCoordinates={showCoordinates} setShowCoordinates={setShowCoordinates} />
                     <div id="game-area" className="grow bg-zinc-500 flex flex-col items-center justify-center gap-4" />
                 </>
             )}
