@@ -65,12 +65,21 @@ export function findFirstEmptySlot(rack: RackState): number | null {
 }
 
 export function shuffleRack(rack: RackState): RackState {
-    const newRack = [...rack];
-    // Fisher-Yates shuffle algorithm
-    for (let i = newRack.length - 1; i > 0; i--) {
+    // Extract all non-null tiles
+    const tiles = rack.filter(tile => tile !== null);
+    
+    // Shuffle the tiles using Fisher-Yates algorithm
+    for (let i = tiles.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
-        [newRack[i], newRack[j]] = [newRack[j], newRack[i]];
+        [tiles[i], tiles[j]] = [tiles[j], tiles[i]];
     }
+    
+    // Create new rack with shuffled tiles placed from left to right
+    const newRack: RackState = new Array(rack.length).fill(null);
+    for (let i = 0; i < tiles.length; i++) {
+        newRack[i] = tiles[i];
+    }
+    
     return newRack;
 }
 
