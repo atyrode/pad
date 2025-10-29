@@ -25,6 +25,7 @@ export default function Home() {
 
     const [boardCellSize, setBoardCellSize] = useState(44);
     const boardRef = useRef<HTMLDivElement>(null);
+    const rackRef = useRef<HTMLDivElement>(null);
     const gameAreaRef = useRef<HTMLDivElement>(null);
 
     const {
@@ -33,6 +34,7 @@ export default function Home() {
         handleDragOver,
         handleDragEnd,
         overBoardPos,
+        overRackIndex,
         activeId,
     } = useDragAndDrop({ board, setBoard, rack, setRack, gameAreaRef });
 
@@ -63,7 +65,9 @@ export default function Home() {
                             boardCellSize={boardCellSize}
                             overBoardPos={overBoardPos}
                             onCellSizeChange={setBoardCellSize}
+                            overRackIndex={overRackIndex}
                             boardRef={boardRef}
+                            rackRef={rackRef}
                             gameAreaRef={gameAreaRef}
                         />
                         <Rack 
@@ -71,7 +75,9 @@ export default function Home() {
                             setRack={setRack}
                             boardCellSize={boardCellSize}
                             overBoardPos={activeId && findTileInRack(rack, activeId) !== null ? overBoardPos : null}
+                            overRackIndex={overRackIndex}
                             boardRef={boardRef}
+                            rackRef={rackRef}
                             gameAreaRef={gameAreaRef}
                         />
                     </div>

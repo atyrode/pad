@@ -158,3 +158,61 @@ export function getRackTileTransformOverBoard(
         transform: `translate3d(${clampedTransform.x}px, ${clampedTransform.y}px, 0)`,
     };
 }
+
+/**
+ * Calculate grid-snapped transform when dragging a tile over a rack cell
+ * Snaps directly to the target rack cell position when over a rack cell
+ * Works for both rack → rack and board → rack scenarios
+ * @param transform - The drag transform (relative to tile's original position)
+ * @param overRackIndex - Index of the rack cell being dragged over, or null if not over rack
+ * @param sourceCellRef - Ref to the source cell DOM element (rack or board cell)
+ * @param rackRef - Ref to the rack container DOM element
+ * @param sourceIndex - Index of the source rack cell (for rack → rack), or null for board → rack
+ * @param gameAreaRef - Ref to the game area container for boundary clamping
+ * @returns Transform style object or undefined
+ */
+export function getTileTransformOverRack(
+    transform: { x: number; y: number } | null,
+    overRackIndex: number | null,
+    sourceCellRef: React.RefObject<HTMLDivElement | null>,
+    rackRef?: React.RefObject<HTMLDivElement | null>,
+    sourceIndex?: number | null,
+    gameAreaRef?: React.RefObject<HTMLElement | null>
+): { transform?: string } | undefined {
+    if (!transform) return undefined;
+    
+    // If dragging over a rack cell, calculate absolute position to snap to that cell
+    if (overRackIndex !== null && sourceCellRef.current && rackRef?.current) {
+        // Find the actual rack cell element at the target position
+        const rackCells = rackRef.current.querySelectorAll('[id="rack-cell"]');
+        const targetRackCell = Array.from(rackCells)[overRackIndex] as HTMLElement;
+        
+        if (targetRackCell) {
+            // Get positions of both elements
+            const sourceCellRect = sourceCellRef.current.getBoundingClientRect();
+            const targetRackCellRect = targetRackCell.getBoundingClientRect();
+            
+            // Calculate center positions
+            const sourceCenterX = sourceCellRect.left + sourceCellRect.width / 2;
+            const sourceCenterY = sourceCellRect.top + sourceCellRect.height / 2;
+            
+            const targetCenterX = targetRackCellRect.left + targetRackCellRect.width / 2;
+            const targetCenterY = targetRackCellRect.top + targetRackCellRect.height / 2;
+            
+            // Calculate the transform needed to move from source center to target center
+            // CSS transforms are relative to the element's original position
+            const snapX = targetCenterX - sourceCenterX;
+            const snapY = targetCenterY - sourceCenterY;
+            
+            return {
+                transform: `translate3d(${snapX}px, ${snapY}px, 0)`,
+            };
+        }
+    }
+    
+    // Otherwise, free-floating (use the raw transform with boundary clamping)
+    const clampedTransform = clampTransformToContainer(transform, sourceCellRef, gameAreaRef);
+    return {
+        transform: `translate3d(${clampedTransform.x}px, ${clampedTransform.y}px, 0)`,
+    };
+}

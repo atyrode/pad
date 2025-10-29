@@ -12,6 +12,8 @@ export interface BoardCellProps {
     tile: TileData | null;
     row: number;
     col: number;
+    overRackIndex: number | null;
+    rackRef?: React.RefObject<HTMLDivElement | null>;
     gameAreaRef?: React.RefObject<HTMLDivElement | null>;
 }
 
@@ -27,7 +29,9 @@ export interface RackCellProps {
     index: number;
     boardCellSize: number;
     overBoardPos: Position | null;
+    overRackIndex: number | null;
     boardRef?: React.RefObject<HTMLDivElement | null>;
+    rackRef?: React.RefObject<HTMLDivElement | null>;
     gameAreaRef?: React.RefObject<HTMLDivElement | null>;
 }
 

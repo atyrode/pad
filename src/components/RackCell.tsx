@@ -2,10 +2,10 @@ import React, { useRef } from 'react';
 import { useDraggable, useDroppable } from '@dnd-kit/core';
 import Tile from './Tile';
 import { RackCellProps } from '../types/board';
-import { getRackTileTransformOverBoard } from '../utils/transformUtils';
+import { getRackTileTransformOverBoard, getTileTransformOverRack } from '../utils/transformUtils';
 import { CELL_GAP } from '../constants/board';
 
-export default function RackCell({ tile, index, boardCellSize, overBoardPos, boardRef, gameAreaRef }: RackCellProps) {
+export default function RackCell({ tile, index, boardCellSize, overBoardPos, overRackIndex, boardRef, rackRef, gameAreaRef }: RackCellProps) {
     const rackCellRef = useRef<HTMLDivElement>(null);
     const { attributes, listeners, setNodeRef: setDraggableRef, transform } = useDraggable({
         id: tile ? tile.id : `rack-${index}`,
@@ -22,8 +22,16 @@ export default function RackCell({ tile, index, boardCellSize, overBoardPos, boa
         rackCellRef.current = node as HTMLDivElement | null;
     };
 
-    // Calculate transform with grid snapping when over board
-    const tileStyle = getRackTileTransformOverBoard(transform, boardCellSize, overBoardPos, rackCellRef, boardRef, gameAreaRef);
+    // Prioritize rack snapping when dragging over a rack cell
+    // Otherwise, use board snapping (existing behavior)
+    let tileStyle;
+    if (transform && overRackIndex !== null) {
+        // Use rack snapping when hovering over any rack cell while dragging this tile
+        tileStyle = getTileTransformOverRack(transform, overRackIndex, rackCellRef, rackRef, index, gameAreaRef);
+    } else {
+        // Fall back to board snapping (or free-floating)
+        tileStyle = getRackTileTransformOverBoard(transform, boardCellSize, overBoardPos, rackCellRef, boardRef, gameAreaRef);
+    }
 
     // Match BoardCell size: boardCellSize includes gap, so subtract it to get actual cell size
     const cellSize = boardCellSize - CELL_GAP;

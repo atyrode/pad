@@ -3,10 +3,10 @@ import { useDraggable, useDroppable } from '@dnd-kit/core';
 import Tile from './Tile';
 import { BoardCellProps } from '../types/board';
 import { useCellSize } from '../hooks/useCellSize';
-import { getGridConstrainedTransform } from '../utils/transformUtils';
+import { getGridConstrainedTransform, getTileTransformOverRack } from '../utils/transformUtils';
 import { MIN_CELL_SIZE } from '../constants/board';
 
-export default function BoardCell({ tile, row, col, gameAreaRef }: BoardCellProps) {
+export default function BoardCell({ tile, row, col, overRackIndex, rackRef, gameAreaRef }: BoardCellProps) {
     const cellRef = useRef<HTMLDivElement>(null);
     const cellSize = useCellSize(cellRef as React.RefObject<HTMLDivElement | null>);
     
@@ -25,7 +25,16 @@ export default function BoardCell({ tile, row, col, gameAreaRef }: BoardCellProp
         cellRef.current = node as HTMLDivElement | null;
     };
 
-    const tileStyle = getGridConstrainedTransform(transform, row, col, cellSize, cellRef, gameAreaRef);
+    // Prioritize rack snapping when dragging over a rack cell
+    // Otherwise, use board grid snapping (existing behavior)
+    let tileStyle;
+    if (transform && overRackIndex !== null) {
+        // Use rack snapping when hovering over a rack cell
+        tileStyle = getTileTransformOverRack(transform, overRackIndex, cellRef, rackRef, null, gameAreaRef);
+    } else {
+        // Fall back to board grid snapping
+        tileStyle = getGridConstrainedTransform(transform, row, col, cellSize, cellRef, gameAreaRef);
+    }
 
     return (
         <div

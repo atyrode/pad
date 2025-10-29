@@ -23,6 +23,7 @@ interface UseDragAndDropProps {
 export function useDragAndDrop({ board, setBoard, rack, setRack, gameAreaRef }: UseDragAndDropProps) {
     // Track what's being dragged over
     const [overBoardPos, setOverBoardPos] = useState<Position | null>(null);
+    const [overRackIndex, setOverRackIndex] = useState<number | null>(null);
     const [activeId, setActiveId] = useState<string | null>(null);
 
     const sensors = useSensors(
@@ -36,20 +37,27 @@ export function useDragAndDrop({ board, setBoard, rack, setRack, gameAreaRef }: 
     const handleDragStart = (event: DragStartEvent) => {
         setActiveId(event.active.id as string);
         setOverBoardPos(null);
+        setOverRackIndex(null);
     };
 
     const handleDragOver = (event: DragOverEvent) => {
         const { over } = event;
         if (!over) {
             setOverBoardPos(null);
+            setOverRackIndex(null);
             return;
         }
 
         const overId = over.id as string;
         
-        // Explicitly check if we're over a rack cell - if so, clear overBoardPos
-        if (isRackSlotId(overId) || findTileInRack(rack, overId) !== null) {
+        // Check if we're over a rack cell or rack tile
+        const rackIndex = parseRackSlotId(overId);
+        const rackTileIndex = findTileInRack(rack, overId);
+        
+        if (rackIndex !== null || rackTileIndex !== null) {
+            // We're over a rack cell
             setOverBoardPos(null);
+            setOverRackIndex(rackIndex !== null ? rackIndex : rackTileIndex);
             return;
         }
         
@@ -59,8 +67,10 @@ export function useDragAndDrop({ board, setBoard, rack, setRack, gameAreaRef }: 
         
         if (boardPos || emptyPos) {
             setOverBoardPos(boardPos || emptyPos);
+            setOverRackIndex(null);
         } else {
             setOverBoardPos(null);
+            setOverRackIndex(null);
         }
     };
 
@@ -70,6 +80,7 @@ export function useDragAndDrop({ board, setBoard, rack, setRack, gameAreaRef }: 
         if (!over) {
             setActiveId(null);
             setOverBoardPos(null);
+            setOverRackIndex(null);
             return;
         }
 
@@ -127,6 +138,7 @@ export function useDragAndDrop({ board, setBoard, rack, setRack, gameAreaRef }: 
 
         setActiveId(null);
         setOverBoardPos(null);
+        setOverRackIndex(null);
     };
 
     return {
@@ -135,6 +147,7 @@ export function useDragAndDrop({ board, setBoard, rack, setRack, gameAreaRef }: 
         handleDragOver,
         handleDragEnd,
         overBoardPos,
+        overRackIndex,
         activeId,
         gameAreaRef,
     };
