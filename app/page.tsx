@@ -11,11 +11,13 @@ import Rack from "../src/components/Rack";
 import { BoardState } from '../src/types/board';
 import { RackState } from '../src/types/rack';
 import { Bag } from '../src/types/bag';
+import { StickerState } from '../src/types/sticker';
 import { createInitialBoard, removeTileFromBoard, findAllWords } from '../src/utils/boardUtils';
 import { createInitialRack, findTileInRack, findFirstEmptySlot, moveTileToRack, shuffleRack } from '../src/utils/rackUtils';
 import { createTileBag } from '../src/utils/bagUtils';
 import { preloadDictionary, isValidWordSync } from '../src/utils/dictionaryUtils';
 import { calculateCurrentPlayScore, calculateTotalScore } from '../src/utils/scoreUtils';
+import { createInitialStickers, consumeSticker } from '../src/utils/stickerUtils';
 import { useDragAndDrop } from '../src/hooks/useDragAndDrop';
 import { TileData } from '../src/types/tile';
 import { Position } from '../src/types/board';
@@ -33,6 +35,9 @@ export default function Home() {
 
     // Initialize tile bag as empty array initially
     const [bag, setBag] = useState<Bag>([]);
+
+    // Initialize stickers
+    const [stickers, setStickers] = useState<StickerState>(createInitialStickers());
 
     // Dictionary loading state
     const [isDictionaryLoaded, setIsDictionaryLoaded] = useState(false);
@@ -75,12 +80,12 @@ export default function Home() {
 
     const handlePlay = () => {
         // Calculate current play score before locking tiles
-        const currentPlayScore = calculateCurrentPlayScore(board);
+        const currentPlayScore = calculateCurrentPlayScore(board, stickers);
         
         // Add current play score to total
         setTotalScore(prevTotal => prevTotal + currentPlayScore.totalScore);
         
-        // Lock the tiles
+        // Lock the tiles and consume stickers
         setBoard((prevBoard: BoardState) => 
             prevBoard.map(row => 
                 row.map(cell => 
@@ -90,6 +95,21 @@ export default function Home() {
                 )
             )
         );
+        
+        // Consume stickers where tiles were locked
+        setStickers((prevStickers: StickerState) => {
+            let newStickers = prevStickers;
+            for (let row = 0; row < board.length; row++) {
+                for (let col = 0; col < board[row].length; col++) {
+                    const cell = board[row][col];
+                    if (cell.tile && !cell.locked) {
+                        // This tile will be locked, so consume the sticker if it exists
+                        newStickers = consumeSticker(newStickers, { row, col });
+                    }
+                }
+            }
+            return newStickers;
+        });
     };
 
     // Set mounted to true after client-side hydration and initialize bag
@@ -136,7 +156,7 @@ export default function Home() {
                     onDragOver={handleDragOver}
                     onDragEnd={handleDragEnd}
                 >
-                    <DebugMenu bag={bag} rack={rack} board={board} setRack={setRack} setBag={setBag} setBoard={setBoard} totalScore={totalScore} setTotalScore={setTotalScore} />
+                    <DebugMenu bag={bag} rack={rack} board={board} setRack={setRack} setBag={setBag} setBoard={setBoard} totalScore={totalScore} setTotalScore={setTotalScore} stickers={stickers} setStickers={setStickers} />
                     <div 
                         ref={gameAreaRef}
                         id="game-area" 
@@ -153,6 +173,7 @@ export default function Home() {
                             rackRef={rackRef}
                             gameAreaRef={gameAreaRef}
                             onRightClick={handleRightClick}
+                            stickers={stickers}
                         />
                         <div className="relative">
                             <Rack 
@@ -195,7 +216,7 @@ export default function Home() {
                 </DndContext>
             ) : (
                 <>
-                    <DebugMenu bag={bag} rack={rack} board={board} setRack={setRack} setBag={setBag} setBoard={setBoard} totalScore={totalScore} setTotalScore={setTotalScore} />
+                    <DebugMenu bag={bag} rack={rack} board={board} setRack={setRack} setBag={setBag} setBoard={setBoard} totalScore={totalScore} setTotalScore={setTotalScore} stickers={stickers} setStickers={setStickers} />
                     <div id="game-area" className="grow bg-zinc-500 flex flex-col items-center justify-center gap-4" />
                 </>
             )}

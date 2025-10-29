@@ -1,5 +1,6 @@
 import React from 'react';
 import { TileData } from './tile';
+import { Sticker } from './sticker';
 
 export interface BoardCellState {
     tile: TileData | null;
@@ -17,6 +18,7 @@ export interface BoardCellProps {
     rackRef?: React.RefObject<HTMLDivElement | null>;
     gameAreaRef?: React.RefObject<HTMLDivElement | null>;
     onRightClick?: (tile: TileData, position: Position) => boolean;
+    sticker?: Sticker | null;
 }
 
 export interface Position {

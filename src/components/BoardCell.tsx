@@ -15,7 +15,7 @@ const shakeKeyframes = `
 }
 `;
 
-export default function BoardCell({ tile, locked, row, col, overRackIndex, rackRef, gameAreaRef, onRightClick }: BoardCellProps) {
+export default function BoardCell({ tile, locked, row, col, overRackIndex, rackRef, gameAreaRef, onRightClick, sticker }: BoardCellProps) {
     const cellRef = useRef<HTMLDivElement>(null);
     const cellSize = useCellSize(cellRef as React.RefObject<HTMLDivElement | null>);
     const [isShaking, setIsShaking] = useState(false);
@@ -58,13 +58,26 @@ export default function BoardCell({ tile, locked, row, col, overRackIndex, rackR
         tileStyle = getGridConstrainedTransform(transform, row, col, cellSize, cellRef, gameAreaRef);
     }
 
+    // Get sticker background color and opacity
+    const getStickerStyle = () => {
+        if (!sticker) return {};
+        
+        const baseColor = sticker.type === 'multi' ? '#e9d5ff' : '#dbeafe'; // purple-200 and blue-200
+        const opacity = sticker.consumed ? 0.4 : 1;
+        
+        return {
+            backgroundColor: baseColor,
+            opacity: opacity
+        };
+    };
+
     return (
         <>
             <style>{shakeKeyframes}</style>
             <div
                 id="board-cell"
                 ref={setNodeRef}
-                className={`aspect-square border border-zinc-100/70 rounded-sm flex items-center justify-center ${tile && !locked
+                className={`aspect-square border border-zinc-100/70 rounded-sm flex items-center justify-center relative ${tile && !locked
                         ? 'cursor-grab active:cursor-grabbing select-none'
                         : ''
                     }`}
@@ -78,22 +91,35 @@ export default function BoardCell({ tile, locked, row, col, overRackIndex, rackR
                 {...(tile && !locked ? listeners : {})}
                 {...(tile && !locked ? attributes : {})}
             >
-            {tile && (
-                <div 
-                    className="w-full h-full rounded-sm"
-                    style={{
-                        ...tileStyle,
-                        // Ensure tile is visible during drag by maintaining opacity
-                        opacity: transform ? 1 : 1,
-                        // Add a subtle shadow when dragging to show it's being moved
-                        boxShadow: transform ? '0px 0px 25px rgba(0, 0, 0, 0.49)' : 'none',
-                        zIndex: transform ? 10 : 'auto',
-                        transition: transform ? 'none' : 'all 0.1s linear'
-                    }}
-                >
-                    <Tile value={tile.value} score={tile.score} locked={locked} />
-                </div>
-            )}
+                {/* Sticker layer - positioned absolutely to not interfere with drag/drop */}
+                {sticker && (
+                    <div 
+                        className="absolute inset-0 rounded-sm pointer-events-none flex items-center justify-center"
+                        style={getStickerStyle()}
+                    >
+                        {/* Sticker effect text */}
+                        <span className="text-zinc-500 text-xs font-bold opacity-50 pointer-events-none">
+                            +{sticker.value}
+                        </span>
+                    </div>
+                )}
+                
+                {tile && (
+                    <div 
+                        className="w-full h-full rounded-sm relative z-10"
+                        style={{
+                            ...tileStyle,
+                            // Ensure tile is visible during drag by maintaining opacity
+                            opacity: transform ? 1 : 1,
+                            // Add a subtle shadow when dragging to show it's being moved
+                            boxShadow: transform ? '0px 0px 25px rgba(0, 0, 0, 0.49)' : 'none',
+                            zIndex: transform ? 10 : 'auto',
+                            transition: transform ? 'none' : 'all 0.1s linear'
+                        }}
+                    >
+                        <Tile value={tile.value} score={tile.score} locked={locked} />
+                    </div>
+                )}
             </div>
         </>
     );
