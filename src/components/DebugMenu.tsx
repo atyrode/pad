@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Bag } from '../types/bag';
 import { RackState } from '../types/rack';
 import { BoardState } from '../types/board';
-import { drawTileFromBag, createTileBag, shuffleBag } from '../utils/bagUtils';
+import { drawTileFromBag, createTileBag, shuffleBag, getFullBagSize } from '../utils/bagUtils';
 import { findFirstEmptySlot, moveTileToRack } from '../utils/rackUtils';
 import { createInitialBoard, findAllWords } from '../utils/boardUtils';
+import { isValidWordSync, preloadDictionary } from '../utils/dictionaryUtils';
+import { calculateCurrentPlayScore } from '../utils/scoreUtils';
 
 interface DebugMenuProps {
   bag: Bag;
@@ -13,9 +15,19 @@ interface DebugMenuProps {
   setRack: React.Dispatch<React.SetStateAction<RackState>>;
   setBag: React.Dispatch<React.SetStateAction<Bag>>;
   setBoard: React.Dispatch<React.SetStateAction<BoardState>>;
+  totalScore: number;
+  setTotalScore: React.Dispatch<React.SetStateAction<number>>;
 }
 
-export default function DebugMenu({ bag, rack, board, setRack, setBag, setBoard }: DebugMenuProps) {
+export default function DebugMenu({ bag, rack, board, setRack, setBag, setBoard, totalScore, setTotalScore }: DebugMenuProps) {
+  const [isDictionaryLoaded, setIsDictionaryLoaded] = useState(false);
+
+  // Load dictionary on component mount
+  useEffect(() => {
+    preloadDictionary().then(() => {
+      setIsDictionaryLoaded(true);
+    });
+  }, []);
 
   const handleDraw = () => {
     // Check if bag has tiles and rack has space
@@ -86,13 +98,19 @@ export default function DebugMenu({ bag, rack, board, setRack, setBag, setBoard 
   };
 
   const handleResetGame = () => {
-    // Clear the board, rack, and refill the bag
+    // Clear the board, rack, refill the bag, and reset score
     const emptyBoard = createInitialBoard();
     const emptyRack = Array(rack.length).fill(null);
     const newBag = createTileBag();
     setBoard(emptyBoard);
     setRack(emptyRack);
     setBag(newBag);
+    setTotalScore(0);
+  };
+
+  const handleResetScore = () => {
+    // Reset only the score
+    setTotalScore(0);
   };
 
   const handleResetBoard = () => {
@@ -118,45 +136,153 @@ export default function DebugMenu({ bag, rack, board, setRack, setBag, setBoard 
   const isDrawAllDisabled = bag.length === 0 || findFirstEmptySlot(rack) === null;
   const isRedrawDisabled = bag.length === 0 || rack.every(tile => tile === null);
 
+  // Helper function to get validation icon
+  const getValidationIcon = (word: string) => {
+    if (!isDictionaryLoaded) {
+      return <span className="text-zinc-500 text-xs">⏳</span>;
+    }
+    
+    const isValid = isValidWordSync(word);
+    if (isValid === true) {
+      return <span className="text-green-500 text-xs">✓</span>;
+    } else if (isValid === false) {
+      return <span className="text-red-500 text-xs">✗</span>;
+    } else {
+      return <span className="text-zinc-500 text-xs">?</span>;
+    }
+  };
+
   // Find all words on the board
   const words = findAllWords(board);
   const currentWords = words.filter(w => !w.isLocked);
   const playedWords = words.filter(w => w.isLocked);
 
+  // Calculate current play score
+  const currentPlayScore = calculateCurrentPlayScore(board);
+
+  // Check if board is empty (no tiles placed)
+  const isBoardEmpty = board.every(row => 
+    row.every(cell => cell.tile === null)
+  );
+
+  // Check if rack is empty (all slots are null)
+  const isRackEmpty = rack.every(tile => tile === null);
+
+  // Full bag size (calculated from TILE_DISTRIBUTION)
+  const FULL_BAG_SIZE = getFullBagSize();
+  const isBagFull = bag.length >= FULL_BAG_SIZE;
+
+  // Check if score is zero
+  const isScoreZero = totalScore === 0;
+
+  // Calculate disabled states for reset buttons
+  const isBoardResetDisabled = isBoardEmpty;
+  const isRackResetDisabled = isRackEmpty;
+  const isBagResetDisabled = isBagFull;
+  const isScoreResetDisabled = isScoreZero;
+  
+  // Game reset is disabled if all other reset buttons are disabled
+  const isGameResetDisabled = isBoardResetDisabled && 
+                               isRackResetDisabled && 
+                               isBagResetDisabled && 
+                               isScoreResetDisabled;
+
   return (
     <div id="debug-menu" className="w-1/4 h-full bg-zinc-600 p-4 overflow-y-auto">
       <h2 className="text-white text-xl font-bold mb-4">Debug Menu</h2>
 
+      {/* Reset */}
       <div className="bg-zinc-700 rounded-lg p-4 mb-4">
         <h3 className="text-white text-lg font-semibold mb-3">Reset</h3>
+        <div className="flex flex-row gap-2 justify-center mb-2">
+          <button
+              onClick={handleResetGame}
+              disabled={isGameResetDisabled}
+              className={`py-2 px-3 rounded-lg text-white font-semibold text-sm transition-opacity grow ${isGameResetDisabled
+                  ? 'bg-zinc-800 opacity-50 cursor-not-allowed'
+                  : 'bg-red-600 hover:opacity-80 hover:bg-red-500'
+                }`}
+            >
+              Game
+          </button>
+        </div>
         <div className="flex flex-row gap-2 justify-center">
           <button
-            onClick={handleResetGame}
-            className="py-2 px-3 rounded-lg text-white font-semibold text-sm bg-red-600 hover:opacity-80 hover:bg-red-500 transition-opacity grow"
-          >
-            Game
-          </button>
-          <button
             onClick={handleResetBoard}
-            className="py-2 px-3 rounded-lg text-white font-semibold text-sm bg-orange-600 hover:opacity-80 hover:bg-orange-500 transition-opacity grow"
+            disabled={isBoardResetDisabled}
+            className={`py-2 px-3 rounded-lg text-white font-semibold text-sm transition-opacity grow ${isBoardResetDisabled
+                ? 'bg-zinc-800 opacity-50 cursor-not-allowed'
+                : 'bg-orange-600 hover:opacity-80 hover:bg-orange-500'
+              }`}
           >
             Board
           </button>
           <button
             onClick={handleClear}
-            className="py-2 px-3 rounded-lg text-white font-semibold text-sm bg-yellow-600 hover:opacity-80 hover:bg-yellow-500 transition-opacity grow"
+            disabled={isRackResetDisabled}
+            className={`py-2 px-3 rounded-lg text-white font-semibold text-sm transition-opacity grow ${isRackResetDisabled
+                ? 'bg-zinc-800 opacity-50 cursor-not-allowed'
+                : 'bg-yellow-600 hover:opacity-80 hover:bg-yellow-500'
+              }`}
           >
             Rack
           </button>
           <button
             onClick={handleResetBag}
-            className="py-2 px-3 rounded-lg text-white font-semibold text-sm bg-green-600 hover:opacity-80 hover:bg-green-500 transition-opacity grow"
+            disabled={isBagResetDisabled}
+            className={`py-2 px-3 rounded-lg text-white font-semibold text-sm transition-opacity grow ${isBagResetDisabled
+                ? 'bg-zinc-800 opacity-50 cursor-not-allowed'
+                : 'bg-green-600 hover:opacity-80 hover:bg-green-500'
+              }`}
           >
             Bag
+          </button>
+          <button
+            onClick={handleResetScore}
+            disabled={isScoreResetDisabled}
+            className={`py-2 px-3 rounded-lg text-white font-semibold text-sm transition-opacity grow ${isScoreResetDisabled
+                ? 'bg-zinc-800 opacity-50 cursor-not-allowed'
+                : 'bg-purple-600 hover:opacity-80 hover:bg-purple-500'
+              }`}
+          >
+            Score
           </button>
         </div>
       </div>
 
+      {/* Score */}
+      <div className="bg-zinc-700 rounded-lg p-4 mb-4">
+        <h3 className="text-white text-lg font-semibold mb-3">Score</h3>
+        
+        {/* Total Score */}
+        <div className="mb-3">
+          <div className="text-white text-sm font-medium mb-1">Total Score</div>
+          <div className="text-green-400 text-2xl font-bold">
+            {totalScore}
+          </div>
+        </div>
+
+        {/* Current Play Score */}
+        <div className="mb-3">
+          <div className="text-white text-sm font-medium mb-2">Current Play</div>
+          <div className="bg-zinc-800 rounded px-3 py-2">
+            <div className="flex justify-between items-center mb-1">
+              <span className="text-zinc-300 text-xs">Points:</span>
+              <span className="text-white text-sm font-mono">{currentPlayScore.breakdown.points}</span>
+            </div>
+            <div className="flex justify-between items-center mb-1">
+              <span className="text-zinc-300 text-xs">Multi:</span>
+              <span className="text-white text-sm font-mono">{currentPlayScore.breakdown.multi}</span>
+            </div>
+            <div className="flex justify-between items-center border-t border-zinc-600 pt-1">
+              <span className="text-zinc-300 text-xs font-medium">Total:</span>
+              <span className="text-green-400 text-sm font-bold font-mono">{currentPlayScore.breakdown.total}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Board */}
       <div className="bg-zinc-700 rounded-lg p-4 mt-4">
         <h3 className="text-white text-lg font-semibold mb-3">Board</h3>
         
@@ -170,9 +296,12 @@ export default function DebugMenu({ bag, rack, board, setRack, setBag, setBoard 
               {currentWords.map((wordInfo, index) => (
                 <div
                   key={`current-${index}`}
-                  className="text-white text-sm font-mono bg-zinc-800 rounded px-2 py-1"
+                  className="text-white text-sm font-mono bg-zinc-800 rounded px-2 py-1 flex justify-between items-center"
                 >
-                  {wordInfo.word.toUpperCase()} at ({wordInfo.position.row},{wordInfo.position.col}) {wordInfo.direction}
+                  <span>
+                    {wordInfo.word.toUpperCase()} at ({wordInfo.position.row},{wordInfo.position.col}) {wordInfo.direction}
+                  </span>
+                  {getValidationIcon(wordInfo.word)}
                 </div>
               ))}
             </div>
@@ -189,9 +318,12 @@ export default function DebugMenu({ bag, rack, board, setRack, setBag, setBoard 
               {playedWords.map((wordInfo, index) => (
                 <div
                   key={`played-${index}`}
-                  className="text-white text-sm font-mono bg-zinc-800 rounded px-2 py-1"
+                  className="text-white text-sm font-mono bg-zinc-800 rounded px-2 py-1 flex justify-between items-center"
                 >
-                  {wordInfo.word.toUpperCase()} at ({wordInfo.position.row},{wordInfo.position.col}) {wordInfo.direction}
+                  <span>
+                    {wordInfo.word.toUpperCase()} at ({wordInfo.position.row},{wordInfo.position.col}) {wordInfo.direction}
+                  </span>
+                  {getValidationIcon(wordInfo.word)}
                 </div>
               ))}
             </div>
@@ -199,6 +331,7 @@ export default function DebugMenu({ bag, rack, board, setRack, setBag, setBoard 
         </div>
       </div>
 
+      {/* Draw */}
       <div className="bg-zinc-700 rounded-lg p-4 mt-4">
         <h3 className="text-white text-lg font-semibold mb-3">Draw</h3>
         <div className="flex flex-row gap-2 justify-center">
@@ -241,6 +374,7 @@ export default function DebugMenu({ bag, rack, board, setRack, setBag, setBoard 
         )}
       </div>
 
+      {/* Tile Bag */}
       <div className="bg-zinc-700 rounded-lg p-4 mt-4">
         <h3 className="text-white text-lg font-semibold mb-3">
           Tile Bag ({bag.length} tiles)

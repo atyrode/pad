@@ -11,9 +11,11 @@ import Rack from "../src/components/Rack";
 import { BoardState } from '../src/types/board';
 import { RackState } from '../src/types/rack';
 import { Bag } from '../src/types/bag';
-import { createInitialBoard, removeTileFromBoard } from '../src/utils/boardUtils';
+import { createInitialBoard, removeTileFromBoard, findAllWords } from '../src/utils/boardUtils';
 import { createInitialRack, findTileInRack, findFirstEmptySlot, moveTileToRack, shuffleRack } from '../src/utils/rackUtils';
 import { createTileBag } from '../src/utils/bagUtils';
+import { preloadDictionary, isValidWordSync } from '../src/utils/dictionaryUtils';
+import { calculateCurrentPlayScore, calculateTotalScore } from '../src/utils/scoreUtils';
 import { useDragAndDrop } from '../src/hooks/useDragAndDrop';
 import { TileData } from '../src/types/tile';
 import { Position } from '../src/types/board';
@@ -31,6 +33,12 @@ export default function Home() {
 
     // Initialize tile bag as empty array initially
     const [bag, setBag] = useState<Bag>([]);
+
+    // Dictionary loading state
+    const [isDictionaryLoaded, setIsDictionaryLoaded] = useState(false);
+
+    // Score tracking
+    const [totalScore, setTotalScore] = useState(0);
 
     const [boardCellSize, setBoardCellSize] = useState(44);
     const boardRef = useRef<HTMLDivElement>(null);
@@ -66,6 +74,13 @@ export default function Home() {
     };
 
     const handlePlay = () => {
+        // Calculate current play score before locking tiles
+        const currentPlayScore = calculateCurrentPlayScore(board);
+        
+        // Add current play score to total
+        setTotalScore(prevTotal => prevTotal + currentPlayScore.totalScore);
+        
+        // Lock the tiles
         setBoard((prevBoard: BoardState) => 
             prevBoard.map(row => 
                 row.map(cell => 
@@ -82,7 +97,34 @@ export default function Home() {
         setMounted(true);
         // Initialize the bag only on the client side
         setBag(createTileBag());
+        // Load dictionary
+        preloadDictionary().then(() => {
+            setIsDictionaryLoaded(true);
+        });
     }, []);
+
+    // Helper function to check if all current words are valid
+    const areAllCurrentWordsValid = (): boolean => {
+        if (!isDictionaryLoaded) {
+            return false; // Disable if dictionary not loaded
+        }
+
+        const words = findAllWords(board);
+        const currentWords = words.filter(w => !w.isLocked);
+        
+        // Disable if no current words (nothing to play)
+        if (currentWords.length === 0) {
+            return false;
+        }
+
+        // Check if all current words are valid
+        return currentWords.every(wordInfo => {
+            const isValid = isValidWordSync(wordInfo.word);
+            return isValid === true; // Only true if explicitly valid
+        });
+    };
+
+    const canPlay = areAllCurrentWordsValid();
 
     return (
         <div id="main" className="h-screen w-screen bg-zinc-500 flex">
@@ -94,7 +136,7 @@ export default function Home() {
                     onDragOver={handleDragOver}
                     onDragEnd={handleDragEnd}
                 >
-                    <DebugMenu bag={bag} rack={rack} board={board} setRack={setRack} setBag={setBag} setBoard={setBoard} />
+                    <DebugMenu bag={bag} rack={rack} board={board} setRack={setRack} setBag={setBag} setBoard={setBoard} totalScore={totalScore} setTotalScore={setTotalScore} />
                     <div 
                         ref={gameAreaRef}
                         id="game-area" 
@@ -132,8 +174,19 @@ export default function Home() {
                             </button>
                             <button 
                                 onClick={handlePlay}
-                                className="absolute left-full ml-14 top-1/2 -translate-y-1/2 p-2 bg-green-600 hover:bg-green-500 border border-green-500 rounded-lg transition-colors duration-200 flex items-center justify-center"
-                                title="Play - lock placed tiles"
+                                disabled={!canPlay}
+                                className={`absolute left-full ml-14 top-1/2 -translate-y-1/2 p-2 border rounded-lg transition-colors duration-200 flex items-center justify-center ${
+                                    canPlay 
+                                        ? 'bg-green-600 hover:bg-green-500 border-green-500 cursor-pointer' 
+                                        : 'bg-zinc-600 border-zinc-500 cursor-not-allowed opacity-50'
+                                }`}
+                                title={
+                                    canPlay 
+                                        ? "Play - lock placed tiles" 
+                                        : isDictionaryLoaded 
+                                            ? "Play - no valid words to lock" 
+                                            : "Play - loading dictionary..."
+                                }
                             >
                                 <Play className="w-5 h-5 text-white" />
                             </button>
@@ -142,7 +195,7 @@ export default function Home() {
                 </DndContext>
             ) : (
                 <>
-                    <DebugMenu bag={bag} rack={rack} board={board} setRack={setRack} setBag={setBag} setBoard={setBoard} />
+                    <DebugMenu bag={bag} rack={rack} board={board} setRack={setRack} setBag={setBag} setBoard={setBoard} totalScore={totalScore} setTotalScore={setTotalScore} />
                     <div id="game-area" className="grow bg-zinc-500 flex flex-col items-center justify-center gap-4" />
                 </>
             )}
