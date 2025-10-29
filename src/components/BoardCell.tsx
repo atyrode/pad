@@ -6,7 +6,7 @@ import { useCellSize } from '../hooks/useCellSize';
 import { getGridConstrainedTransform } from '../utils/transformUtils';
 import { MIN_CELL_SIZE } from '../constants/board';
 
-export default function BoardCell({ tile, row, col }: BoardCellProps) {
+export default function BoardCell({ tile, row, col, gameAreaRef }: BoardCellProps) {
     const cellRef = useRef<HTMLDivElement>(null);
     const cellSize = useCellSize(cellRef as React.RefObject<HTMLDivElement | null>);
     
@@ -25,7 +25,7 @@ export default function BoardCell({ tile, row, col }: BoardCellProps) {
         cellRef.current = node as HTMLDivElement | null;
     };
 
-    const tileStyle = getGridConstrainedTransform(transform, row, col, cellSize);
+    const tileStyle = getGridConstrainedTransform(transform, row, col, cellSize, cellRef, gameAreaRef);
 
     return (
         <div

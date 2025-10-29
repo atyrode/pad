@@ -17,9 +17,10 @@ interface UseDragAndDropProps {
     setBoard: React.Dispatch<React.SetStateAction<BoardState>>;
     rack: RackState;
     setRack: React.Dispatch<React.SetStateAction<RackState>>;
+    gameAreaRef?: React.RefObject<HTMLDivElement | null>;
 }
 
-export function useDragAndDrop({ board, setBoard, rack, setRack }: UseDragAndDropProps) {
+export function useDragAndDrop({ board, setBoard, rack, setRack, gameAreaRef }: UseDragAndDropProps) {
     // Track what's being dragged over
     const [overBoardPos, setOverBoardPos] = useState<Position | null>(null);
     const [activeId, setActiveId] = useState<string | null>(null);
@@ -135,6 +136,7 @@ export function useDragAndDrop({ board, setBoard, rack, setRack }: UseDragAndDro
         handleDragEnd,
         overBoardPos,
         activeId,
+        gameAreaRef,
     };
 }
 

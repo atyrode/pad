@@ -11,9 +11,10 @@ interface BoardProps {
     overBoardPos: Position | null;
     onCellSizeChange: (size: number) => void;
     boardRef?: React.RefObject<HTMLDivElement | null>;
+    gameAreaRef?: React.RefObject<HTMLDivElement | null>;
 }
 
-export default function Board({ board, boardCellSize, overBoardPos, onCellSizeChange, boardRef: externalBoardRef }: BoardProps) {
+export default function Board({ board, boardCellSize, overBoardPos, onCellSizeChange, boardRef: externalBoardRef, gameAreaRef }: BoardProps) {
     const internalBoardRef = useRef<HTMLDivElement>(null);
     const boardRef = externalBoardRef || internalBoardRef;
 
@@ -51,6 +52,7 @@ export default function Board({ board, boardCellSize, overBoardPos, onCellSizeCh
                         tile={tile}
                         row={rowIndex}
                         col={colIndex}
+                        gameAreaRef={gameAreaRef}
                     />
                 ))
             )}

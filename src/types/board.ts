@@ -1,3 +1,5 @@
+import React from 'react';
+
 export interface TileData {
     id: string;
     value: string;
@@ -10,6 +12,7 @@ export interface BoardCellProps {
     tile: TileData | null;
     row: number;
     col: number;
+    gameAreaRef?: React.RefObject<HTMLDivElement | null>;
 }
 
 export interface Position {
@@ -25,6 +28,7 @@ export interface RackCellProps {
     boardCellSize: number;
     overBoardPos: Position | null;
     boardRef?: React.RefObject<HTMLDivElement | null>;
+    gameAreaRef?: React.RefObject<HTMLDivElement | null>;
 }
 
 export interface RackPosition {

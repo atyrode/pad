@@ -5,7 +5,7 @@ import { RackCellProps } from '../types/board';
 import { getRackTileTransformOverBoard } from '../utils/transformUtils';
 import { CELL_GAP } from '../constants/board';
 
-export default function RackCell({ tile, index, boardCellSize, overBoardPos, boardRef }: RackCellProps) {
+export default function RackCell({ tile, index, boardCellSize, overBoardPos, boardRef, gameAreaRef }: RackCellProps) {
     const rackCellRef = useRef<HTMLDivElement>(null);
     const { attributes, listeners, setNodeRef: setDraggableRef, transform } = useDraggable({
         id: tile ? tile.id : `rack-${index}`,
@@ -23,7 +23,7 @@ export default function RackCell({ tile, index, boardCellSize, overBoardPos, boa
     };
 
     // Calculate transform with grid snapping when over board
-    const tileStyle = getRackTileTransformOverBoard(transform, boardCellSize, overBoardPos, rackCellRef, boardRef);
+    const tileStyle = getRackTileTransformOverBoard(transform, boardCellSize, overBoardPos, rackCellRef, boardRef, gameAreaRef);
 
     // Match BoardCell size: boardCellSize includes gap, so subtract it to get actual cell size
     const cellSize = boardCellSize - CELL_GAP;

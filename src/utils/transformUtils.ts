@@ -2,11 +2,59 @@ import React from 'react';
 import { BOARD_SIZE } from '../constants/board';
 import { Position } from '../types/board';
 
+/**
+ * Clamps transform values to keep the dragged element within container boundaries
+ * @param transform - The drag transform {x, y}
+ * @param elementRef - Ref to the element being dragged
+ * @param containerRef - Ref to the container that should bound the drag
+ * @returns Clamped {x, y} transform values
+ */
+export function clampTransformToContainer(
+    transform: { x: number; y: number },
+    elementRef: React.RefObject<HTMLElement | null>,
+    containerRef?: React.RefObject<HTMLElement | null>
+): { x: number; y: number } {
+    if (!containerRef?.current || !elementRef.current) {
+        return transform;
+    }
+
+    const containerRect = containerRef.current.getBoundingClientRect();
+    const elementRect = elementRef.current.getBoundingClientRect();
+
+    // Calculate the element's position if the transform was applied
+    const newLeft = elementRect.left + transform.x;
+    const newTop = elementRect.top + transform.y;
+    const newRight = newLeft + elementRect.width;
+    const newBottom = newTop + elementRect.height;
+
+    // Calculate how much we need to clamp by
+    let clampedX = transform.x;
+    let clampedY = transform.y;
+
+    // Clamp horizontally
+    if (newLeft < containerRect.left) {
+        clampedX = transform.x + (containerRect.left - newLeft);
+    } else if (newRight > containerRect.right) {
+        clampedX = transform.x - (newRight - containerRect.right);
+    }
+
+    // Clamp vertically
+    if (newTop < containerRect.top) {
+        clampedY = transform.y + (containerRect.top - newTop);
+    } else if (newBottom > containerRect.bottom) {
+        clampedY = transform.y - (newBottom - containerRect.bottom);
+    }
+
+    return { x: clampedX, y: clampedY };
+}
+
 export function getGridConstrainedTransform(
     transform: { x: number; y: number } | null,
     row: number,
     col: number,
-    cellSize: number
+    cellSize: number,
+    cellRef?: React.RefObject<HTMLElement | null>,
+    gameAreaRef?: React.RefObject<HTMLElement | null>
 ) {
     if (!transform) return undefined;
     
@@ -26,10 +74,13 @@ export function getGridConstrainedTransform(
     const isOutsideBoard = targetCol < (minCol - threshold) || targetCol > (maxCol + threshold) || 
                            targetRow < (minRow - threshold) || targetRow > (maxRow + threshold);
     
-    // If outside board, use free-floating transform
+    // If outside board, use free-floating transform (with boundary clamping)
     if (isOutsideBoard) {
+        const clampedTransform = cellRef 
+            ? clampTransformToContainer(transform, cellRef, gameAreaRef)
+            : transform;
         return {
-            transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
+            transform: `translate3d(${clampedTransform.x}px, ${clampedTransform.y}px, 0)`,
         };
     }
     
@@ -54,6 +105,7 @@ export function getGridConstrainedTransform(
  * @param overBoardPos - Position of the board cell being dragged over, or null if not over board
  * @param rackCellRef - Ref to the rack cell DOM element
  * @param boardRef - Ref to the board container DOM element
+ * @param gameAreaRef - Ref to the game area container for boundary clamping
  * @returns Transform style object or undefined
  */
 export function getRackTileTransformOverBoard(
@@ -61,7 +113,8 @@ export function getRackTileTransformOverBoard(
     boardCellSize: number,
     overBoardPos: Position | null,
     rackCellRef: React.RefObject<HTMLDivElement | null>,
-    boardRef?: React.RefObject<HTMLDivElement | null>
+    boardRef?: React.RefObject<HTMLDivElement | null>,
+    gameAreaRef?: React.RefObject<HTMLElement | null>
 ): { transform?: string } | undefined {
     if (!transform) return undefined;
     
@@ -99,8 +152,9 @@ export function getRackTileTransformOverBoard(
         }
     }
     
-    // Otherwise, free-floating (use the raw transform)
+    // Otherwise, free-floating (use the raw transform with boundary clamping)
+    const clampedTransform = clampTransformToContainer(transform, rackCellRef, gameAreaRef);
     return {
-        transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
+        transform: `translate3d(${clampedTransform.x}px, ${clampedTransform.y}px, 0)`,
     };
 }
