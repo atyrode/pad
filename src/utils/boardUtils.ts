@@ -5,7 +5,7 @@ import { BOARD_SIZE } from '../constants/board';
 export function findTilePosition(board: BoardState, tileId: string): Position | null {
     for (let row = 0; row < BOARD_SIZE; row++) {
         for (let col = 0; col < BOARD_SIZE; col++) {
-            if (board[row][col]?.id === tileId) {
+            if (board[row][col]?.tile?.id === tileId) {
                 return { row, col };
             }
         }
@@ -34,19 +34,21 @@ export function swapBoardTiles(board: BoardState, pos1: Position, pos2: Position
 }
 
 export function createInitialBoard(): BoardState {
-    const initialBoard: BoardState = Array(BOARD_SIZE).fill(null).map(() => Array(BOARD_SIZE).fill(null));
+    const initialBoard: BoardState = Array(BOARD_SIZE).fill(null).map(() => 
+        Array(BOARD_SIZE).fill(null).map(() => ({ tile: null, locked: false }))
+    );
     return initialBoard;
 }
 
 export function removeTileFromBoard(board: BoardState, pos: Position): BoardState {
     const newBoard = board.map(row => [...row]);
-    newBoard[pos.row][pos.col] = null;
+    newBoard[pos.row][pos.col] = { tile: null, locked: false };
     return newBoard;
 }
 
 export function placeTileOnBoard(board: BoardState, tile: TileData, pos: Position): BoardState {
     const newBoard = board.map(row => [...row]);
-    newBoard[pos.row][pos.col] = tile;
+    newBoard[pos.row][pos.col] = { tile, locked: false };
     return newBoard;
 }
 
@@ -62,19 +64,20 @@ export function findAllWords(board: BoardState): WordInfo[] {
     // Find horizontal words
     for (let row = 0; row < BOARD_SIZE; row++) {
         for (let col = 0; col < BOARD_SIZE; col++) {
-            const tile = board[row][col];
+            const cell = board[row][col];
+            const tile = cell.tile;
             
             // Check if this tile is the start of a horizontal word
             // It's a start if: it's at column 0, or the cell to the left is empty
-            const isLeftmost = col === 0 || board[row][col - 1] === null;
+            const isLeftmost = col === 0 || board[row][col - 1].tile === null;
             
             if (tile !== null && isLeftmost) {
                 // Collect consecutive tiles to the right
                 let word = '';
                 let currentCol = col;
                 
-                while (currentCol < BOARD_SIZE && board[row][currentCol] !== null) {
-                    word += board[row][currentCol]!.value;
+                while (currentCol < BOARD_SIZE && board[row][currentCol].tile !== null) {
+                    word += board[row][currentCol].tile!.value;
                     currentCol++;
                 }
                 
@@ -93,19 +96,20 @@ export function findAllWords(board: BoardState): WordInfo[] {
     // Find vertical words
     for (let row = 0; row < BOARD_SIZE; row++) {
         for (let col = 0; col < BOARD_SIZE; col++) {
-            const tile = board[row][col];
+            const cell = board[row][col];
+            const tile = cell.tile;
             
             // Check if this tile is the start of a vertical word
             // It's a start if: it's at row 0, or the cell above is empty
-            const isTopmost = row === 0 || board[row - 1][col] === null;
+            const isTopmost = row === 0 || board[row - 1][col].tile === null;
             
             if (tile !== null && isTopmost) {
                 // Collect consecutive tiles below
                 let word = '';
                 let currentRow = row;
                 
-                while (currentRow < BOARD_SIZE && board[currentRow][col] !== null) {
-                    word += board[currentRow][col]!.value;
+                while (currentRow < BOARD_SIZE && board[currentRow][col].tile !== null) {
+                    word += board[currentRow][col].tile!.value;
                     currentRow++;
                 }
                 

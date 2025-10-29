@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef } from 'react';
 import BoardCell from './BoardCell';
-import { BoardState, Position } from '../types/board';
+import { BoardState, BoardCellState, Position } from '../types/board';
 import { TileData } from '../types/tile';
 import { BOARD_SIZE, CELL_GAP, BOARD_WIDTH, BOARD_MAX_WIDTH } from '../constants/board';
 
@@ -49,11 +49,12 @@ export default function Board({ board, boardCellSize, overBoardPos, onCellSizeCh
                 gridTemplateColumns: `repeat(${BOARD_SIZE}, minmax(0, 1fr))`
             }}
         >
-            {board.map((row: (TileData | null)[], rowIndex: number) =>
-                row.map((tile: TileData | null, colIndex: number) => (
+            {board.map((row: BoardCellState[], rowIndex: number) =>
+                row.map((cell: BoardCellState, colIndex: number) => (
                     <BoardCell
                         key={`${rowIndex}-${colIndex}`}
-                        tile={tile}
+                        tile={cell.tile}
+                        locked={cell.locked}
                         row={rowIndex}
                         col={colIndex}
                         overRackIndex={overRackIndex}

@@ -17,7 +17,7 @@ import { createTileBag } from '../src/utils/bagUtils';
 import { useDragAndDrop } from '../src/hooks/useDragAndDrop';
 import { TileData } from '../src/types/tile';
 import { Position } from '../src/types/board';
-import { Shuffle } from 'lucide-react';
+import { Shuffle, Play } from 'lucide-react';
 
 export default function Home() {
     // Track client-side mount to prevent hydration mismatch
@@ -63,6 +63,18 @@ export default function Home() {
 
     const handleShuffle = () => {
         setRack((prevRack: RackState) => shuffleRack(prevRack));
+    };
+
+    const handlePlay = () => {
+        setBoard((prevBoard: BoardState) => 
+            prevBoard.map(row => 
+                row.map(cell => 
+                    cell.tile && !cell.locked 
+                        ? { ...cell, locked: true } 
+                        : cell
+                )
+            )
+        );
     };
 
     // Set mounted to true after client-side hydration and initialize bag
@@ -117,6 +129,13 @@ export default function Home() {
                                 title="Shuffle rack"
                             >
                                 <Shuffle className="w-5 h-5 text-white" />
+                            </button>
+                            <button 
+                                onClick={handlePlay}
+                                className="absolute left-full ml-14 top-1/2 -translate-y-1/2 p-2 bg-green-600 hover:bg-green-500 border border-green-500 rounded-lg transition-colors duration-200 flex items-center justify-center"
+                                title="Play - lock placed tiles"
+                            >
+                                <Play className="w-5 h-5 text-white" />
                             </button>
                         </div>
                     </div>

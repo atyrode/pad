@@ -101,15 +101,19 @@ export function useDragAndDrop({ board, setBoard, rack, setRack, gameAreaRef }: 
         if (activeBoardPos && (overBoardPos || parseEmptySlotId(overId))) {
             const targetPos = overBoardPos || parseEmptySlotId(overId);
             if (targetPos) {
-                setBoard((prevBoard: BoardState) => swapBoardTiles(prevBoard, activeBoardPos, targetPos));
+                // Check if source tile is locked
+                const sourceTile = board[activeBoardPos.row][activeBoardPos.col];
+                if (sourceTile && !sourceTile.locked) {
+                    setBoard((prevBoard: BoardState) => swapBoardTiles(prevBoard, activeBoardPos, targetPos));
+                }
             }
         }
         // Case 2: Board → Rack
         else if (activeBoardPos && overRackIndex !== null) {
-            const tile = board[activeBoardPos.row][activeBoardPos.col];
-            if (tile) {
+            const cell = board[activeBoardPos.row][activeBoardPos.col];
+            if (cell && cell.tile && !cell.locked) {
                 setBoard((prevBoard: BoardState) => removeTileFromBoard(prevBoard, activeBoardPos));
-                setRack((prevRack: RackState) => moveTileToRack(prevRack, tile, overRackIndex));
+                setRack((prevRack: RackState) => moveTileToRack(prevRack, cell.tile!, overRackIndex));
             }
         }
         // Case 3: Rack → Board
@@ -117,16 +121,19 @@ export function useDragAndDrop({ board, setBoard, rack, setRack, gameAreaRef }: 
             const tile = rack[activeRackIndex];
             const targetPos = overBoardPos || parseEmptySlotId(overId);
             if (tile && targetPos) {
-                const existingTile = board[targetPos.row][targetPos.col];
-                setRack((prevRack: RackState) => {
-                    const newRack = removeTileFromRack(prevRack, activeRackIndex);
-                    // If there's an existing tile on board, swap it to rack
-                    if (existingTile) {
-                        return moveTileToRack(newRack, existingTile, activeRackIndex);
-                    }
-                    return newRack;
-                });
-                setBoard((prevBoard: BoardState) => placeTileOnBoard(prevBoard, tile, targetPos));
+                const targetCell = board[targetPos.row][targetPos.col];
+                // Only allow placement if target is empty or has an unlocked tile
+                if (!targetCell.tile || !targetCell.locked) {
+                    setRack((prevRack: RackState) => {
+                        const newRack = removeTileFromRack(prevRack, activeRackIndex);
+                        // If there's an existing unlocked tile on board, swap it to rack
+                        if (targetCell.tile && !targetCell.locked) {
+                            return moveTileToRack(newRack, targetCell.tile, activeRackIndex);
+                        }
+                        return newRack;
+                    });
+                    setBoard((prevBoard: BoardState) => placeTileOnBoard(prevBoard, tile, targetPos));
+                }
             }
         }
         // Case 4: Rack → Rack (reordering)
