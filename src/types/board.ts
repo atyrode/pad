@@ -24,6 +24,7 @@ export interface RackCellProps {
     index: number;
     boardCellSize: number;
     overBoardPos: Position | null;
+    boardRef?: React.RefObject<HTMLDivElement | null>;
 }
 
 export interface RackPosition {

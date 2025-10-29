@@ -1,11 +1,12 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { useDraggable, useDroppable } from '@dnd-kit/core';
 import Tile from './Tile';
 import { RackCellProps } from '../types/board';
 import { getRackTileTransformOverBoard } from '../utils/transformUtils';
 import { CELL_GAP } from '../constants/board';
 
-export default function RackCell({ tile, index, boardCellSize, overBoardPos }: RackCellProps) {
+export default function RackCell({ tile, index, boardCellSize, overBoardPos, boardRef }: RackCellProps) {
+    const rackCellRef = useRef<HTMLDivElement>(null);
     const { attributes, listeners, setNodeRef: setDraggableRef, transform } = useDraggable({
         id: tile ? tile.id : `rack-${index}`,
         disabled: !tile, // Only tiles can be dragged, not empty slots
@@ -18,10 +19,11 @@ export default function RackCell({ tile, index, boardCellSize, overBoardPos }: R
     const setNodeRef = (node: HTMLElement | null) => {
         setDraggableRef(node);
         setDroppableRef(node);
+        rackCellRef.current = node as HTMLDivElement | null;
     };
 
     // Calculate transform with grid snapping when over board
-    const tileStyle = getRackTileTransformOverBoard(transform, boardCellSize, overBoardPos);
+    const tileStyle = getRackTileTransformOverBoard(transform, boardCellSize, overBoardPos, rackCellRef, boardRef);
 
     // Match BoardCell size: boardCellSize includes gap, so subtract it to get actual cell size
     const cellSize = boardCellSize - CELL_GAP;

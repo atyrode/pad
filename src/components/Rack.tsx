@@ -9,9 +9,10 @@ interface RackProps {
     setRack: React.Dispatch<React.SetStateAction<RackState>>;
     boardCellSize: number;
     overBoardPos: Position | null;
+    boardRef?: React.RefObject<HTMLDivElement | null>;
 }
 
-export default function Rack({ rack, setRack, boardCellSize, overBoardPos }: RackProps) {
+export default function Rack({ rack, setRack, boardCellSize, overBoardPos, boardRef }: RackProps) {
     return (
         <div className="flex gap-1 p-1 bg-zinc-700 border border-zinc-600 rounded-lg justify-center">
             {rack.map((tile, index) => (
@@ -21,6 +22,7 @@ export default function Rack({ rack, setRack, boardCellSize, overBoardPos }: Rac
                     index={index}
                     boardCellSize={boardCellSize}
                     overBoardPos={overBoardPos}
+                    boardRef={boardRef}
                 />
             ))}
         </div>

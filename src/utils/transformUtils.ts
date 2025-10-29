@@ -1,3 +1,4 @@
+import React from 'react';
 import { BOARD_SIZE } from '../constants/board';
 import { Position } from '../types/board';
 
@@ -51,30 +52,54 @@ export function getGridConstrainedTransform(
  * @param transform - The drag transform (relative to rack tile's original position)
  * @param boardCellSize - Size of board cells (including gap)
  * @param overBoardPos - Position of the board cell being dragged over, or null if not over board
+ * @param rackCellRef - Ref to the rack cell DOM element
+ * @param boardRef - Ref to the board container DOM element
  * @returns Transform style object or undefined
  */
 export function getRackTileTransformOverBoard(
     transform: { x: number; y: number } | null,
     boardCellSize: number,
-    overBoardPos: Position | null
+    overBoardPos: Position | null,
+    rackCellRef: React.RefObject<HTMLDivElement | null>,
+    boardRef?: React.RefObject<HTMLDivElement | null>
 ): { transform?: string } | undefined {
     if (!transform) return undefined;
     
-    // If dragging over a board cell, reuse the same grid snapping logic as board-to-board
-    // We treat the target board cell as if the drag started from there, then use the transform
-    // to calculate grid offsets. This reuses the proven working logic from board tiles.
-    if (overBoardPos !== null) {
-        // Use the same grid-constrained transform logic as board tiles
-        // This ensures consistent snapping behavior
-        return getGridConstrainedTransform(
-            transform,
-            overBoardPos.row,
-            overBoardPos.col,
-            boardCellSize
-        );
+    // If dragging over a board cell, calculate absolute position to snap to that cell
+    if (overBoardPos !== null && rackCellRef.current && boardRef?.current) {
+        // Find the actual board cell element at the target position
+        const boardCells = boardRef.current.querySelectorAll('[id="board-cell"]');
+        const targetBoardCell = Array.from(boardCells)[overBoardPos.row * BOARD_SIZE + overBoardPos.col] as HTMLElement;
+        
+        if (targetBoardCell) {
+            // Get positions of both elements
+            // The rackCellRef points to the outer container, which doesn't move
+            // The transform will be applied to the inner tile div
+            const rackCellRect = rackCellRef.current.getBoundingClientRect();
+            const boardCellRect = targetBoardCell.getBoundingClientRect();
+            
+            // Calculate center positions
+            const rackCenterX = rackCellRect.left + rackCellRect.width / 2;
+            const rackCenterY = rackCellRect.top + rackCellRect.height / 2;
+            
+            const boardCenterX = boardCellRect.left + boardCellRect.width / 2;
+            const boardCenterY = boardCellRect.top + boardCellRect.height / 2;
+            
+            // Calculate the transform needed to move from rack center to board center
+            // CSS transforms are relative to the element's original position
+            // Since the tile div is positioned at (0,0) relative to the rack cell container,
+            // we need to calculate: target position - rack cell position
+            // But we need to account for the fact that the tile fills the rack cell
+            const snapX = boardCenterX - rackCenterX;
+            const snapY = boardCenterY - rackCenterY;
+            
+            return {
+                transform: `translate3d(${snapX}px, ${snapY}px, 0)`,
+            };
+        }
     }
     
-    // Otherwise, free-floating
+    // Otherwise, free-floating (use the raw transform)
     return {
         transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
     };
