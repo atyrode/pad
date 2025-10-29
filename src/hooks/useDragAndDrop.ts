@@ -103,7 +103,9 @@ export function useDragAndDrop({ board, setBoard, rack, setRack, gameAreaRef }: 
             if (targetPos) {
                 // Check if source tile is locked
                 const sourceTile = board[activeBoardPos.row][activeBoardPos.col];
-                if (sourceTile && !sourceTile.locked) {
+                const targetCell = board[targetPos.row][targetPos.col];
+                // Only allow swap if source is unlocked AND target is either empty or unlocked
+                if (sourceTile && !sourceTile.locked && (!targetCell.tile || !targetCell.locked)) {
                     setBoard((prevBoard: BoardState) => swapBoardTiles(prevBoard, activeBoardPos, targetPos));
                 }
             }
