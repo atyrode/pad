@@ -1,10 +1,16 @@
 import React from 'react';
 import { TileData } from './tile';
 
-export type BoardState = (TileData | null)[][];
+export interface BoardCellState {
+    tile: TileData | null;
+    locked: boolean;
+}
+
+export type BoardState = BoardCellState[][];
 
 export interface BoardCellProps {
     tile: TileData | null;
+    locked: boolean;
     row: number;
     col: number;
     overRackIndex: number | null;

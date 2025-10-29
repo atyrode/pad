@@ -89,3 +89,7 @@ export function drawTileFromBag(bag: Bag): { tile: TileData | null; newBag: Bag 
     return { tile: drawnTile, newBag };
 }
 
+export function getFullBagSize(): number {
+    return TILE_DISTRIBUTION.reduce((total, tile) => total + tile.count, 0);
+}
+
