@@ -1,39 +1,31 @@
 "use client";
-import { useGame } from "../game/store";
-import RackCell from "./RackCell";
-import { getGapCSS } from "../constants/board";
-import { useCellSize } from "../contexts/CellSizeContext";
-import { getRackPaddingCSS } from "../constants/rack";
 
-export default function Rack() {
-  const { state } = useGame();
-  const { cellSize, boardGridWidth } = useCellSize();
+import React from 'react';
+import RackCell from './RackCell';
+import { RackState, BoardState, Position } from '../types/board';
 
-  const gridStyle: React.CSSProperties = {
-    gridTemplateColumns: `repeat(${state.rack.length}, ${cellSize}px)`,
-    gap: getGapCSS(),
-    transition: 'grid-template-columns 0.3s ease-in-out, gap 0.3s ease-in-out',
-    minHeight: `${cellSize}px`,
-  };
-
-  return (
-    <div 
-      id="rack"
-      className="m-2 flex-none bg-green-900 flex justify-center"
-      style={{ 
-        padding: getRackPaddingCSS(),
-        width: boardGridWidth > 0 ? `${boardGridWidth}px` : 'auto'
-      }}
-    >
-      <div 
-        id="rack-grid"
-        className="grid w-full transition-opacity duration-300 opacity-100 bg-green-700 overflow-x-hidden justify-evenly"
-        style={gridStyle}
-      >
-        {state.rack.map((tile, i) => (
-          <RackCell key={i} tile={tile} cellSize={cellSize} />
-        ))}
-      </div>
-    </div>
-  );
+interface RackProps {
+    rack: RackState;
+    setRack: React.Dispatch<React.SetStateAction<RackState>>;
+    boardCellSize: number;
+    overBoardPos: Position | null;
+    boardRef?: React.RefObject<HTMLDivElement | null>;
 }
+
+export default function Rack({ rack, setRack, boardCellSize, overBoardPos, boardRef }: RackProps) {
+    return (
+        <div className="flex gap-1 p-1 bg-zinc-700 border border-zinc-600 rounded-lg justify-center">
+            {rack.map((tile, index) => (
+                <RackCell
+                    key={`rack-${index}`}
+                    tile={tile}
+                    index={index}
+                    boardCellSize={boardCellSize}
+                    overBoardPos={overBoardPos}
+                    boardRef={boardRef}
+                />
+            ))}
+        </div>
+    );
+}
+

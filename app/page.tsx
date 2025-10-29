@@ -1,25 +1,64 @@
 "use client";
 
+import { useState, useRef } from 'react';
+import {
+    DndContext,
+    closestCenter,
+} from '@dnd-kit/core';
+import DebugMenu from "../src/components/DebugMenu";
 import Board from "../src/components/Board";
-import { GameProvider } from "../src/game/store";
-import Debug from "../src/components/Debug";
 import Rack from "../src/components/Rack";
-import { CellSizeProvider } from "../src/contexts/CellSizeContext";
+import { BoardState, RackState } from '../src/types/board';
+import { createInitialBoard } from '../src/utils/boardUtils';
+import { createInitialRack, findTileInRack } from '../src/utils/rackUtils';
+import { useDragAndDrop } from '../src/hooks/useDragAndDrop';
 
 export default function Home() {
-  return (
-    <div id="main" className="h-screen w-screen flex items-center justify-center bg-zinc-50 dark:bg-black">
-        <div id="game-area" className="w-[95%] h-[95%] flex items-center justify-center bg-red-800">
-            <GameProvider>
-                <CellSizeProvider>
-                    <div id="board-and-rack" className="flex flex-col items-center justify-center w-full h-full min-w-0 flex-shrink">
-                      <Board />
-                      <Rack />
-                    </div>
-                    <Debug />
-                </CellSizeProvider>
-            </GameProvider>
-        </div>
-    </div>
-  );
+    // Initialize board with sample tiles
+    const [board, setBoard] = useState<BoardState>(createInitialBoard);
+
+    // Initialize rack
+    const [rack, setRack] = useState<RackState>(createInitialRack);
+
+    const [boardCellSize, setBoardCellSize] = useState(44);
+    const boardRef = useRef<HTMLDivElement>(null);
+
+    const {
+        sensors,
+        handleDragStart,
+        handleDragOver,
+        handleDragEnd,
+        overBoardPos,
+        activeId,
+    } = useDragAndDrop({ board, setBoard, rack, setRack });
+
+    return (
+        <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragStart={handleDragStart}
+            onDragOver={handleDragOver}
+            onDragEnd={handleDragEnd}
+        >
+            <div id="main" className="h-screen w-screen bg-zinc-500 flex">
+                <DebugMenu />
+                <div id="game-area" className="grow bg-zinc-500 flex flex-col items-center justify-center gap-4">
+                    <Board 
+                        board={board}
+                        boardCellSize={boardCellSize}
+                        overBoardPos={overBoardPos}
+                        onCellSizeChange={setBoardCellSize}
+                        boardRef={boardRef}
+                    />
+                    <Rack 
+                        rack={rack} 
+                        setRack={setRack}
+                        boardCellSize={boardCellSize}
+                        overBoardPos={activeId && findTileInRack(rack, activeId) !== null ? overBoardPos : null}
+                        boardRef={boardRef}
+                    />
+                </div>
+            </div>
+        </DndContext>
+    );
 }
