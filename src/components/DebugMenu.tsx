@@ -20,14 +20,14 @@ export default function DebugMenu({ bag, rack, board, setRack, setBag, setBoard 
   const handleDraw = () => {
     // Check if bag has tiles and rack has space
     if (bag.length === 0) return;
-    
+
     const emptySlot = findFirstEmptySlot(rack);
     if (emptySlot === null) return; // Rack is full
-    
+
     // Draw tile from bag
     const { tile, newBag } = drawTileFromBag(bag);
     if (tile === null) return;
-    
+
     // Update states
     setBag(newBag);
     setRack((prevRack) => moveTileToRack(prevRack, tile, emptySlot));
@@ -35,10 +35,10 @@ export default function DebugMenu({ bag, rack, board, setRack, setBag, setBoard 
 
   const handleDrawAll = () => {
     if (bag.length === 0) return;
-    
+
     let currentBag = bag;
     let newRack = [...rack];
-    
+
     // Fill all empty slots
     for (let i = 0; i < newRack.length; i++) {
       if (newRack[i] === null && currentBag.length > 0) {
@@ -49,24 +49,24 @@ export default function DebugMenu({ bag, rack, board, setRack, setBag, setBoard 
         }
       }
     }
-    
+
     setBag(currentBag);
     setRack(newRack);
   };
 
   const handleRedraw = () => {
     if (bag.length === 0) return;
-    
+
     // Count how many tiles are currently in the rack
     const currentTileCount = rack.filter(tile => tile !== null).length;
-    
+
     // Empty the rack
     const emptyRack = Array(rack.length).fill(null);
-    
+
     // Draw the same number of tiles
     let currentBag = bag;
     let newRack = [...emptyRack];
-    
+
     for (let i = 0; i < currentTileCount && currentBag.length > 0; i++) {
       const { tile, newBag } = drawTileFromBag(currentBag);
       if (tile) {
@@ -74,7 +74,7 @@ export default function DebugMenu({ bag, rack, board, setRack, setBag, setBoard 
         currentBag = newBag;
       }
     }
-    
+
     setBag(currentBag);
     setRack(newRack);
   };
@@ -116,13 +116,13 @@ export default function DebugMenu({ bag, rack, board, setRack, setBag, setBoard 
   // Check if buttons should be disabled
   const isDrawDisabled = bag.length === 0 || findFirstEmptySlot(rack) === null;
   const isDrawAllDisabled = bag.length === 0 || findFirstEmptySlot(rack) === null;
-  const isRedrawDisabled = bag.length === 0;
+  const isRedrawDisabled = bag.length === 0 || rack.every(tile => tile === null);
 
 
   return (
     <div id="debug-menu" className="w-1/4 h-full bg-zinc-600 p-4 overflow-y-auto">
       <h2 className="text-white text-xl font-bold mb-4">Debug Menu</h2>
-      
+
       <div className="bg-zinc-700 rounded-lg p-4 mb-4">
         <h3 className="text-white text-lg font-semibold mb-3">Reset</h3>
         <div className="flex flex-row gap-2 justify-center">
@@ -152,12 +152,54 @@ export default function DebugMenu({ bag, rack, board, setRack, setBag, setBoard 
           </button>
         </div>
       </div>
-      
-      <div className="bg-zinc-700 rounded-lg p-4">
+
+      <div className="bg-zinc-700 rounded-lg p-4 mt-4">
+        <h3 className="text-white text-lg font-semibold mb-3">Draw</h3>
+        <div className="flex flex-row gap-2 justify-center">
+          <button
+            onClick={handleDraw}
+            disabled={isDrawDisabled}
+            className={`py-2 px-3 rounded-lg text-white font-semibold text-sm transition-opacity grow ${isDrawDisabled
+                ? 'bg-zinc-800 opacity-50 cursor-not-allowed'
+                : 'bg-zinc-600 hover:opacity-80 hover:bg-zinc-500'
+              }`}
+          >
+            Draw
+          </button>
+          <button
+            onClick={handleDrawAll}
+            disabled={isDrawAllDisabled}
+            className={`py-2 px-3 rounded-lg text-white font-semibold text-sm transition-opacity grow ${isDrawAllDisabled
+                ? 'bg-zinc-800 opacity-50 cursor-not-allowed'
+                : 'bg-zinc-600 hover:opacity-80 hover:bg-zinc-500'
+              }`}
+          >
+            Draw All
+          </button>
+          <button
+            onClick={handleRedraw}
+            disabled={isRedrawDisabled}
+            className={`py-2 px-3 rounded-lg text-white font-semibold text-sm transition-opacity grow ${isRedrawDisabled
+                ? 'bg-zinc-800 opacity-50 cursor-not-allowed'
+                : 'bg-zinc-600 hover:opacity-80 hover:bg-zinc-500'
+              }`}
+          >
+            Redraw
+          </button>
+        </div>
+        {(isDrawDisabled || isDrawAllDisabled || isRedrawDisabled) && (
+          <p className="text-zinc-400 text-xs mt-2 text-center">
+            {bag.length === 0 ? 'Bag is empty' : 
+             isRedrawDisabled && rack.every(tile => tile === null) ? 'Rack is empty' : 'Rack is full'}
+          </p>
+        )}
+      </div>
+
+      <div className="bg-zinc-700 rounded-lg p-4 mt-4">
         <h3 className="text-white text-lg font-semibold mb-3">
           Tile Bag ({bag.length} tiles)
         </h3>
-        
+
         <div className="grid grid-cols-8 gap-1 overflow-y-auto mb-3">
           {bag.map((tile, index) => (
             <div
@@ -172,59 +214,15 @@ export default function DebugMenu({ bag, rack, board, setRack, setBag, setBoard 
         <button
           onClick={handleShuffle}
           disabled={bag.length === 0}
-          className={`w-full py-2 px-3 rounded-lg text-white font-semibold text-sm transition-opacity ${
-            bag.length === 0
+          className={`w-full py-2 px-3 rounded-lg text-white font-semibold text-sm transition-opacity ${bag.length === 0
               ? 'bg-zinc-800 opacity-50 cursor-not-allowed'
               : 'bg-zinc-600 hover:opacity-80 hover:bg-zinc-500'
-          }`}
+            }`}
         >
           Shuffle
         </button>
       </div>
 
-      <div className="bg-zinc-700 rounded-lg p-4 mt-4">
-        <h3 className="text-white text-lg font-semibold mb-3">Draw</h3>
-        <div className="flex flex-row gap-2 justify-center">
-          <button
-            onClick={handleDraw}
-            disabled={isDrawDisabled}
-            className={`py-2 px-3 rounded-lg text-white font-semibold text-sm transition-opacity grow ${
-              isDrawDisabled 
-                ? 'bg-zinc-800 opacity-50 cursor-not-allowed' 
-                : 'bg-zinc-600 hover:opacity-80 hover:bg-zinc-500'
-            }`}
-          >
-            Draw
-          </button>
-          <button
-            onClick={handleDrawAll}
-            disabled={isDrawAllDisabled}
-            className={`py-2 px-3 rounded-lg text-white font-semibold text-sm transition-opacity grow ${
-              isDrawAllDisabled 
-                ? 'bg-zinc-800 opacity-50 cursor-not-allowed' 
-                : 'bg-zinc-600 hover:opacity-80 hover:bg-zinc-500'
-            }`}
-          >
-            Draw All
-          </button>
-          <button
-            onClick={handleRedraw}
-            disabled={isRedrawDisabled}
-            className={`py-2 px-3 rounded-lg text-white font-semibold text-sm transition-opacity grow ${
-              isRedrawDisabled 
-                ? 'bg-zinc-800 opacity-50 cursor-not-allowed' 
-                : 'bg-zinc-600 hover:opacity-80 hover:bg-zinc-500'
-            }`}
-          >
-            Redraw
-          </button>
-        </div>
-        {(isDrawDisabled || isDrawAllDisabled || isRedrawDisabled) && (
-          <p className="text-zinc-400 text-xs mt-2 text-center">
-            {bag.length === 0 ? 'Bag is empty' : 'Rack is full'}
-          </p>
-        )}
-      </div>
     </div>
   );
 }
