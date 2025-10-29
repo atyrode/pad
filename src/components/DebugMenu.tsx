@@ -210,7 +210,8 @@ export default function DebugMenu({ bag, rack, board, setRack, setBag, setBoard,
 
   // Check if stickers are in initial state
   const isStickersReset = stickerCounts.multiActive === 4 && stickerCounts.pointsActive === 4 &&
-    stickerCounts.multiConsumed === 0 && stickerCounts.pointsConsumed === 0;
+    stickerCounts.multiConsumed === 0 && stickerCounts.pointsConsumed === 0 &&
+    stickerCounts.startActive === 1 && stickerCounts.startConsumed === 0;
   const isStickersResetDisabled = isStickersReset;
 
   // Game reset is disabled if all other reset buttons are disabled
@@ -474,6 +475,14 @@ export default function DebugMenu({ bag, rack, board, setRack, setBag, setBoard,
               <span className="text-green-400">{stickerCounts.pointsActive}</span>
               <span className="text-zinc-400"> / </span>
               <span className="text-zinc-500">{stickerCounts.pointsConsumed}</span>
+            </div>
+          </div>
+          <div className="bg-zinc-800 rounded px-3 py-2">
+            <div className="text-yellow-300 text-xs font-medium mb-1">Start (★)</div>
+            <div className="text-white text-sm">
+              <span className="text-green-400">{stickerCounts.startActive}</span>
+              <span className="text-zinc-400"> / </span>
+              <span className="text-zinc-500">{stickerCounts.startConsumed}</span>
             </div>
           </div>
         </div>

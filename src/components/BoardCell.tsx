@@ -1,6 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { useDraggable, useDroppable } from '@dnd-kit/core';
 import Tile from './Tile';
+import StickerOverlay from './Sticker';
 import { BoardCellProps } from '../types/board';
 import { useCellSize } from '../hooks/useCellSize';
 import { getGridConstrainedTransform, getTileTransformOverRack } from '../utils/transformUtils';
@@ -58,18 +59,6 @@ export default function BoardCell({ tile, locked, row, col, overRackIndex, rackR
         tileStyle = getGridConstrainedTransform(transform, row, col, cellSize, cellRef, gameAreaRef);
     }
 
-    // Get sticker background color and opacity
-    const getStickerStyle = () => {
-        if (!sticker) return {};
-        
-        const baseColor = sticker.type === 'multi' ? '#e9d5ff' : '#dbeafe'; // purple-200 and blue-200
-        const opacity = sticker.consumed ? 0.4 : 1;
-        
-        return {
-            backgroundColor: baseColor,
-            opacity: opacity
-        };
-    };
 
     return (
         <>
@@ -92,17 +81,7 @@ export default function BoardCell({ tile, locked, row, col, overRackIndex, rackR
                 {...(tile && !locked ? attributes : {})}
             >
                 {/* Sticker layer - positioned absolutely to not interfere with drag/drop */}
-                {sticker && (
-                    <div 
-                        className="absolute inset-0 rounded-sm pointer-events-none flex items-center justify-center"
-                        style={getStickerStyle()}
-                    >
-                        {/* Sticker effect text */}
-                        <span className="text-zinc-500 text-xs font-bold opacity-50 pointer-events-none">
-                            +{sticker.value}
-                        </span>
-                    </div>
-                )}
+                <StickerOverlay sticker={sticker || null} />
                 
                 {tile && (
                     <div 

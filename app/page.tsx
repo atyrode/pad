@@ -17,7 +17,7 @@ import { createInitialRack, findTileInRack, findFirstEmptySlot, moveTileToRack, 
 import { createTileBag } from '../src/utils/bagUtils';
 import { preloadDictionary, isValidWordSync } from '../src/utils/dictionaryUtils';
 import { calculateCurrentPlayScore, calculateTotalScore } from '../src/utils/scoreUtils';
-import { createInitialStickers, consumeSticker } from '../src/utils/stickerUtils';
+import { createInitialStickers, consumeSticker, isStartStickerConsumed, doesWordCoverStartSticker } from '../src/utils/stickerUtils';
 import { useDragAndDrop } from '../src/hooks/useDragAndDrop';
 import { TileData } from '../src/types/tile';
 import { Position } from '../src/types/board';
@@ -137,11 +137,29 @@ export default function Home() {
             return false;
         }
 
-        // Check if all current words are valid
-        return currentWords.every(wordInfo => {
+        // Check if all current words are valid dictionary words
+        const allWordsValid = currentWords.every(wordInfo => {
             const isValid = isValidWordSync(wordInfo.word);
             return isValid === true; // Only true if explicitly valid
         });
+
+        if (!allWordsValid) {
+            return false;
+        }
+
+        // Check starting tile constraint: if start sticker is not consumed,
+        // ALL current words must pass through the start position (5,5)
+        const startStickerConsumed = isStartStickerConsumed(stickers);
+        if (!startStickerConsumed) {
+            const allWordsCoverStart = currentWords.every(wordInfo => 
+                doesWordCoverStartSticker(wordInfo, stickers)
+            );
+            if (!allWordsCoverStart) {
+                return false;
+            }
+        }
+
+        return true;
     };
 
     const canPlay = areAllCurrentWordsValid();

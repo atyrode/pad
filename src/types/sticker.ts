@@ -1,4 +1,4 @@
-export type StickerType = 'multi' | 'points';
+export type StickerType = 'multi' | 'points' | 'start';
 
 export interface Sticker {
     type: StickerType;
