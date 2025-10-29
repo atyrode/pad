@@ -59,7 +59,7 @@ export default function Home() {
                     onDragOver={handleDragOver}
                     onDragEnd={handleDragEnd}
                 >
-                    <DebugMenu bag={bag} />
+                    <DebugMenu bag={bag} rack={rack} setRack={setRack} setBag={setBag} />
                     <div 
                         ref={gameAreaRef}
                         id="game-area" 
@@ -90,7 +90,7 @@ export default function Home() {
                 </DndContext>
             ) : (
                 <>
-                    <DebugMenu bag={bag} />
+                    <DebugMenu bag={bag} rack={rack} setRack={setRack} setBag={setBag} />
                     <div id="game-area" className="grow bg-zinc-500 flex flex-col items-center justify-center gap-4" />
                 </>
             )}

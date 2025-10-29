@@ -55,3 +55,12 @@ export function swapRackTiles(rack: RackState, index1: number, index2: number): 
     return newRack;
 }
 
+export function findFirstEmptySlot(rack: RackState): number | null {
+    for (let i = 0; i < rack.length; i++) {
+        if (rack[i] === null) {
+            return i;
+        }
+    }
+    return null;
+}
+

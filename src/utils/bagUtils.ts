@@ -66,3 +66,18 @@ export function createTileBag(): Bag {
     return bag;
 }
 
+export function drawTileFromBag(bag: Bag): { tile: TileData | null; newBag: Bag } {
+    if (bag.length === 0) {
+        return { tile: null, newBag: bag };
+    }
+    
+    // Randomly select a tile index
+    const randomIndex = Math.floor(Math.random() * bag.length);
+    const drawnTile = bag[randomIndex];
+    
+    // Create new bag without the drawn tile
+    const newBag = bag.filter((_, index) => index !== randomIndex);
+    
+    return { tile: drawnTile, newBag };
+}
+

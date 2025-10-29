@@ -1,12 +1,106 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { Bag } from '../types/bag';
+import { RackState } from '../types/rack';
+import { drawTileFromBag, createTileBag } from '../utils/bagUtils';
+import { findFirstEmptySlot, moveTileToRack } from '../utils/rackUtils';
 
 interface DebugMenuProps {
   bag: Bag;
+  rack: RackState;
+  setRack: React.Dispatch<React.SetStateAction<RackState>>;
+  setBag: React.Dispatch<React.SetStateAction<Bag>>;
 }
 
-export default function DebugMenu({ bag }: DebugMenuProps) {
+export default function DebugMenu({ bag, rack, setRack, setBag }: DebugMenuProps) {
   const [isBagExpanded, setIsBagExpanded] = useState(false);
+
+  const handleDraw = () => {
+    // Check if bag has tiles and rack has space
+    if (bag.length === 0) return;
+    
+    const emptySlot = findFirstEmptySlot(rack);
+    if (emptySlot === null) return; // Rack is full
+    
+    // Draw tile from bag
+    const { tile, newBag } = drawTileFromBag(bag);
+    if (tile === null) return;
+    
+    // Update states
+    setBag(newBag);
+    setRack((prevRack) => moveTileToRack(prevRack, tile, emptySlot));
+  };
+
+  const handleDrawAll = () => {
+    if (bag.length === 0) return;
+    
+    let currentBag = bag;
+    let newRack = [...rack];
+    
+    // Fill all empty slots
+    for (let i = 0; i < newRack.length; i++) {
+      if (newRack[i] === null && currentBag.length > 0) {
+        const { tile, newBag } = drawTileFromBag(currentBag);
+        if (tile) {
+          newRack[i] = tile;
+          currentBag = newBag;
+        }
+      }
+    }
+    
+    setBag(currentBag);
+    setRack(newRack);
+  };
+
+  const handleRedraw = () => {
+    if (bag.length === 0) return;
+    
+    // Count how many tiles are currently in the rack
+    const currentTileCount = rack.filter(tile => tile !== null).length;
+    
+    // Empty the rack
+    const emptyRack = Array(rack.length).fill(null);
+    
+    // Draw the same number of tiles
+    let currentBag = bag;
+    let newRack = [...emptyRack];
+    
+    for (let i = 0; i < currentTileCount && currentBag.length > 0; i++) {
+      const { tile, newBag } = drawTileFromBag(currentBag);
+      if (tile) {
+        newRack[i] = tile;
+        currentBag = newBag;
+      }
+    }
+    
+    setBag(currentBag);
+    setRack(newRack);
+  };
+
+  const handleClear = () => {
+    // Empty the rack
+    const emptyRack = Array(rack.length).fill(null);
+    setRack(emptyRack);
+  };
+
+  const handleResetGame = () => {
+    // Clear the rack and refill the bag
+    const emptyRack = Array(rack.length).fill(null);
+    const newBag = createTileBag();
+    setRack(emptyRack);
+    setBag(newBag);
+  };
+
+  const handleResetBag = () => {
+    // Refill the bag, keeping the rack as is
+    const newBag = createTileBag();
+    setBag(newBag);
+  };
+
+  // Check if buttons should be disabled
+  const isDrawDisabled = bag.length === 0 || findFirstEmptySlot(rack) === null;
+  const isDrawAllDisabled = bag.length === 0 || findFirstEmptySlot(rack) === null;
+  const isRedrawDisabled = bag.length === 0;
+  const isClearDisabled = rack.every(tile => tile === null); // Disabled if rack is already empty
 
   // Group tiles by value and score
   const tileGroups = bag.reduce((acc, tile) => {
@@ -31,6 +125,23 @@ export default function DebugMenu({ bag }: DebugMenuProps) {
   return (
     <div id="debug-menu" className="w-1/4 h-full bg-zinc-600 p-4 overflow-y-auto">
       <h2 className="text-white text-xl font-bold mb-4">Debug Menu</h2>
+      
+      <div className="bg-zinc-700 rounded-lg p-4 mb-4">
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            onClick={handleResetGame}
+            className="py-2 px-3 rounded-lg text-white font-semibold text-sm bg-red-600 hover:opacity-80 hover:bg-red-500 transition-opacity"
+          >
+            Reset Game
+          </button>
+          <button
+            onClick={handleResetBag}
+            className="py-2 px-3 rounded-lg text-white font-semibold text-sm bg-orange-600 hover:opacity-80 hover:bg-orange-500 transition-opacity"
+          >
+            Reset Bag
+          </button>
+        </div>
+      </div>
       
       <div className="bg-zinc-700 rounded-lg p-4">
         <button
@@ -71,6 +182,60 @@ export default function DebugMenu({ bag }: DebugMenuProps) {
               ))}
             </div>
           </>
+        )}
+      </div>
+
+      <div className="bg-zinc-700 rounded-lg p-4 mt-4">
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            onClick={handleDraw}
+            disabled={isDrawDisabled}
+            className={`py-2 px-3 rounded-lg text-white font-semibold text-sm transition-opacity ${
+              isDrawDisabled 
+                ? 'bg-zinc-800 opacity-50 cursor-not-allowed' 
+                : 'bg-zinc-600 hover:opacity-80 hover:bg-zinc-500'
+            }`}
+          >
+            Draw
+          </button>
+          <button
+            onClick={handleDrawAll}
+            disabled={isDrawAllDisabled}
+            className={`py-2 px-3 rounded-lg text-white font-semibold text-sm transition-opacity ${
+              isDrawAllDisabled 
+                ? 'bg-zinc-800 opacity-50 cursor-not-allowed' 
+                : 'bg-zinc-600 hover:opacity-80 hover:bg-zinc-500'
+            }`}
+          >
+            Draw All
+          </button>
+          <button
+            onClick={handleRedraw}
+            disabled={isRedrawDisabled}
+            className={`py-2 px-3 rounded-lg text-white font-semibold text-sm transition-opacity ${
+              isRedrawDisabled 
+                ? 'bg-zinc-800 opacity-50 cursor-not-allowed' 
+                : 'bg-zinc-600 hover:opacity-80 hover:bg-zinc-500'
+            }`}
+          >
+            Redraw
+          </button>
+          <button
+            onClick={handleClear}
+            disabled={isClearDisabled}
+            className={`py-2 px-3 rounded-lg text-white font-semibold text-sm transition-opacity ${
+              isClearDisabled 
+                ? 'bg-zinc-800 opacity-50 cursor-not-allowed' 
+                : 'bg-zinc-600 hover:opacity-80 hover:bg-zinc-500'
+            }`}
+          >
+            Clear
+          </button>
+        </div>
+        {(isDrawDisabled || isDrawAllDisabled || isRedrawDisabled || isClearDisabled) && (
+          <p className="text-zinc-400 text-xs mt-2 text-center">
+            {bag.length === 0 ? 'Bag is empty' : isClearDisabled ? 'Rack is empty' : 'Rack is full'}
+          </p>
         )}
       </div>
     </div>
