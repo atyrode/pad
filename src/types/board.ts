@@ -31,3 +31,10 @@ export interface Position {
     row: number;
     col: number;
 }
+
+export interface PlacementHistoryEntry {
+    tileId: string;
+    position: Position;
+}
+
+export type PlacementHistory = PlacementHistoryEntry[];

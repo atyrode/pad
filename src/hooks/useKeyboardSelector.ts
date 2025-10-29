@@ -9,7 +9,12 @@ export interface SelectorState {
   visible: boolean;
 }
 
-export const useKeyboardSelector = () => {
+interface UseKeyboardSelectorProps {
+  onLetterInput?: (letter: string) => boolean;
+  onBackspace?: () => { success: boolean; position?: { row: number; col: number } };
+}
+
+export const useKeyboardSelector = (props?: UseKeyboardSelectorProps) => {
   const [selectorState, setSelectorState] = useState<SelectorState>({
     position: { row: 5, col: 5 }, // Center of 11x11 board
     direction: null,
@@ -87,9 +92,64 @@ export const useKeyboardSelector = () => {
     });
   }, []);
 
+  const handleLetterInput = useCallback((letter: string) => {
+    if (!props?.onLetterInput || !selectorState.visible) {
+      return false;
+    }
+
+    const success = props.onLetterInput(letter);
+    if (success && selectorState.direction) {
+      // Move selector forward in current direction after successful placement
+      setSelectorState(prevState => {
+        const { row, col } = prevState.position;
+        let newRow = row;
+        let newCol = col;
+
+        if (prevState.direction === 'right') {
+          newCol = (col + 1) % BOARD_SIZE;
+        } else if (prevState.direction === 'down') {
+          newRow = (row + 1) % BOARD_SIZE;
+        }
+
+        return {
+          ...prevState,
+          position: { row: newRow, col: newCol },
+        };
+      });
+    }
+    return success;
+  }, [props?.onLetterInput, selectorState.visible, selectorState.direction]);
+
+  const handleBackspace = useCallback(() => {
+    if (!props?.onBackspace || !selectorState.visible) {
+      return false;
+    }
+
+    // Call the removal handler and get result with position
+    const result = props.onBackspace();
+    if (result.success && result.position) {
+      // Move selector to where the tile was removed
+      setSelectorState(prevState => ({
+        ...prevState,
+        position: result.position!,
+      }));
+    }
+    return result.success;
+  }, [props?.onBackspace, selectorState.visible]);
+
   const handleKeyDown = useCallback((event: KeyboardEvent) => {
+    // Handle letter keys (A-Z)
+    if (event.key.length === 1 && /[a-zA-Z]/.test(event.key)) {
+      event.preventDefault();
+      handleLetterInput(event.key.toUpperCase());
+    }
+    // Handle backspace
+    else if (event.code === 'Backspace') {
+      event.preventDefault();
+      handleBackspace();
+    }
     // Handle arrow keys for movement
-    if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.code)) {
+    else if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.code)) {
       event.preventDefault();
 
       const keyToDirection: Record<string, 'up' | 'down' | 'left' | 'right'> = {
@@ -109,7 +169,7 @@ export const useKeyboardSelector = () => {
       event.preventDefault();
       toggleDirection();
     }
-  }, [moveSelector, toggleDirection]);
+  }, [moveSelector, toggleDirection, handleLetterInput, handleBackspace]);
 
   useEffect(() => {
     // Add keyboard event listener

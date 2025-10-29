@@ -8,7 +8,7 @@ import {
 import DebugMenu from "../src/components/DebugMenu";
 import Board from "../src/components/Board";
 import Rack from "../src/components/Rack";
-import { BoardState } from '../src/types/board';
+import { BoardState, PlacementHistoryEntry } from '../src/types/board';
 import { RackState } from '../src/types/rack';
 import { Bag } from '../src/types/bag';
 import { StickerState } from '../src/types/sticker';
@@ -50,6 +50,9 @@ export default function Home() {
     const [tileOpacity, setTileOpacity] = useState(100);
     const [showCoordinates, setShowCoordinates] = useState(false);
 
+    // Placement history for backspace functionality
+    const [placementHistory, setPlacementHistory] = useState<PlacementHistoryEntry[]>([]);
+
     const [boardCellSize, setBoardCellSize] = useState(44);
     const boardRef = useRef<HTMLDivElement>(null);
     const rackRef = useRef<HTMLDivElement>(null);
@@ -65,7 +68,101 @@ export default function Home() {
         activeId,
     } = useDragAndDrop({ board, setBoard, rack, setRack, gameAreaRef });
 
-    const { selectedCell, selectorDirection } = useKeyboardSelector();
+    const handleKeyboardTilePlacement = (letter: string): boolean => {
+        // Check if selector is visible
+        if (!selectedCell) {
+            return false;
+        }
+
+        // Find matching tile in rack (case-insensitive, first match)
+        const rackIndex = rack.findIndex(tile => 
+            tile && tile.value.toUpperCase() === letter.toUpperCase()
+        );
+
+        if (rackIndex === -1) {
+            return false; // No matching tile in rack
+        }
+
+        const tile = rack[rackIndex];
+        if (!tile) {
+            return false;
+        }
+
+        // Check if target board cell is valid (empty or has unlocked tile)
+        const targetCell = board[selectedCell.row][selectedCell.col];
+        if (targetCell.tile && targetCell.locked) {
+            return false; // Can't place on locked tile
+        }
+
+        // Mimic Rack → Board logic from useDragAndDrop
+        if (targetCell.tile && !targetCell.locked) {
+            // Swap: move existing tile back to rack, place new tile on board
+            setRack((prevRack: RackState) => {
+                const newRack = [...prevRack];
+                newRack[rackIndex] = targetCell.tile; // Put existing tile in rack
+                return newRack;
+            });
+        } else {
+            // Simple placement: remove tile from rack
+            setRack((prevRack: RackState) => {
+                const newRack = [...prevRack];
+                newRack[rackIndex] = null;
+                return newRack;
+            });
+        }
+
+        // Place tile on board
+        setBoard((prevBoard: BoardState) => {
+            const newBoard = prevBoard.map(row => [...row]);
+            newBoard[selectedCell.row][selectedCell.col] = { tile, locked: false };
+            return newBoard;
+        });
+
+        // Add to placement history
+        setPlacementHistory(prev => [...prev, { tileId: tile.id, position: selectedCell }]);
+
+        return true;
+    };
+
+    const handleKeyboardTileRemoval = (): { success: boolean; position?: { row: number; col: number } } => {
+        // Check if there's any history
+        if (placementHistory.length === 0) {
+            return { success: false };
+        }
+
+        // Get the most recent placement (don't remove from history yet)
+        const lastPlacement = placementHistory[placementHistory.length - 1];
+        const { tileId, position } = lastPlacement;
+
+        // Verify tile still exists at that position with matching ID
+        const cell = board[position.row][position.col];
+        if (!cell.tile || cell.tile.id !== tileId || cell.locked) {
+            // Tile was moved/removed/locked, pop from history and return false
+            setPlacementHistory(prev => prev.slice(0, -1));
+            return { success: false };
+        }
+
+        // Find first empty rack slot
+        const emptySlotIndex = findFirstEmptySlot(rack);
+        if (emptySlotIndex === null) {
+            return { success: false }; // Rack is full, don't pop history
+        }
+
+        // Remove tile from board and add to rack
+        setBoard((prevBoard: BoardState) => removeTileFromBoard(prevBoard, position));
+        setRack((prevRack: RackState) => moveTileToRack(prevRack, cell.tile!, emptySlotIndex));
+
+        // Remove from placement history
+        setPlacementHistory(prev => prev.slice(0, -1));
+
+        // Return success with position for selector movement
+        return { success: true, position };
+    };
+
+    const { selectedCell, selectorDirection } = useKeyboardSelector({
+        onLetterInput: handleKeyboardTilePlacement,
+        onBackspace: handleKeyboardTileRemoval,
+    });
 
     const handleRightClick = (tile: TileData, position: Position): boolean => {
         // Find first empty slot in rack
@@ -117,6 +214,9 @@ export default function Home() {
             }
             return newStickers;
         });
+
+        // Clear placement history after locking tiles
+        setPlacementHistory([]);
     };
 
     // Set mounted to true after client-side hydration and initialize bag
