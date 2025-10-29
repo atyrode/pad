@@ -120,6 +120,8 @@ export default function DebugMenu({ bag, rack, board, setRack, setBag, setBoard 
 
   // Find all words on the board
   const words = findAllWords(board);
+  const currentWords = words.filter(w => !w.isLocked);
+  const playedWords = words.filter(w => w.isLocked);
 
   return (
     <div id="debug-menu" className="w-1/4 h-full bg-zinc-600 p-4 overflow-y-auto">
@@ -156,21 +158,45 @@ export default function DebugMenu({ bag, rack, board, setRack, setBag, setBoard 
       </div>
 
       <div className="bg-zinc-700 rounded-lg p-4 mt-4">
-        <h3 className="text-white text-lg font-semibold mb-3">Current turn</h3>
-        {words.length === 0 ? (
-          <p className="text-zinc-400 text-sm text-center">No words found</p>
-        ) : (
-          <div className="space-y-1">
-            {words.map((wordInfo, index) => (
-              <div
-                key={index}
-                className="text-white text-sm font-mono bg-zinc-800 rounded px-2 py-1"
-              >
-                {wordInfo.word.toUpperCase()} at ({wordInfo.position.row},{wordInfo.position.col}) {wordInfo.direction}
-              </div>
-            ))}
-          </div>
-        )}
+        <h3 className="text-white text-lg font-semibold mb-3">Board</h3>
+        
+        {/* Current Words Section */}
+        <div className="mb-4">
+          <h4 className="text-white text-sm font-medium mb-2">Current</h4>
+          {currentWords.length === 0 ? (
+            <p className="text-zinc-400 text-xs text-center">No current words</p>
+          ) : (
+            <div className="space-y-1">
+              {currentWords.map((wordInfo, index) => (
+                <div
+                  key={`current-${index}`}
+                  className="text-white text-sm font-mono bg-zinc-800 rounded px-2 py-1"
+                >
+                  {wordInfo.word.toUpperCase()} at ({wordInfo.position.row},{wordInfo.position.col}) {wordInfo.direction}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Played Words Section */}
+        <div>
+          <h4 className="text-white text-sm font-medium mb-2">Played</h4>
+          {playedWords.length === 0 ? (
+            <p className="text-zinc-400 text-xs text-center">No played words</p>
+          ) : (
+            <div className="space-y-1">
+              {playedWords.map((wordInfo, index) => (
+                <div
+                  key={`played-${index}`}
+                  className="text-white text-sm font-mono bg-zinc-800 rounded px-2 py-1"
+                >
+                  {wordInfo.word.toUpperCase()} at ({wordInfo.position.row},{wordInfo.position.col}) {wordInfo.direction}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="bg-zinc-700 rounded-lg p-4 mt-4">

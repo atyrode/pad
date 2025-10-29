@@ -56,6 +56,7 @@ export interface WordInfo {
     word: string;
     position: Position;
     direction: 'horizontal' | 'vertical';
+    isLocked: boolean;
 }
 
 export function findAllWords(board: BoardState): WordInfo[] {
@@ -75,9 +76,14 @@ export function findAllWords(board: BoardState): WordInfo[] {
                 // Collect consecutive tiles to the right
                 let word = '';
                 let currentCol = col;
+                let allTilesLocked = true;
                 
                 while (currentCol < BOARD_SIZE && board[row][currentCol].tile !== null) {
                     word += board[row][currentCol].tile!.value;
+                    // Check if this tile is locked
+                    if (!board[row][currentCol].locked) {
+                        allTilesLocked = false;
+                    }
                     currentCol++;
                 }
                 
@@ -86,7 +92,8 @@ export function findAllWords(board: BoardState): WordInfo[] {
                     words.push({
                         word,
                         position: { row, col },
-                        direction: 'horizontal'
+                        direction: 'horizontal',
+                        isLocked: allTilesLocked
                     });
                 }
             }
@@ -107,9 +114,14 @@ export function findAllWords(board: BoardState): WordInfo[] {
                 // Collect consecutive tiles below
                 let word = '';
                 let currentRow = row;
+                let allTilesLocked = true;
                 
                 while (currentRow < BOARD_SIZE && board[currentRow][col].tile !== null) {
                     word += board[currentRow][col].tile!.value;
+                    // Check if this tile is locked
+                    if (!board[currentRow][col].locked) {
+                        allTilesLocked = false;
+                    }
                     currentRow++;
                 }
                 
@@ -118,7 +130,8 @@ export function findAllWords(board: BoardState): WordInfo[] {
                     words.push({
                         word,
                         position: { row, col },
-                        direction: 'vertical'
+                        direction: 'vertical',
+                        isLocked: allTilesLocked
                     });
                 }
             }
