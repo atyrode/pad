@@ -11,10 +11,12 @@ import Rack from "../src/components/Rack";
 import { BoardState } from '../src/types/board';
 import { RackState } from '../src/types/rack';
 import { Bag } from '../src/types/bag';
-import { createInitialBoard } from '../src/utils/boardUtils';
-import { createInitialRack, findTileInRack } from '../src/utils/rackUtils';
+import { createInitialBoard, removeTileFromBoard } from '../src/utils/boardUtils';
+import { createInitialRack, findTileInRack, findFirstEmptySlot, moveTileToRack } from '../src/utils/rackUtils';
 import { createTileBag } from '../src/utils/bagUtils';
 import { useDragAndDrop } from '../src/hooks/useDragAndDrop';
+import { TileData } from '../src/types/tile';
+import { Position } from '../src/types/board';
 
 export default function Home() {
     // Track client-side mount to prevent hydration mismatch
@@ -43,6 +45,20 @@ export default function Home() {
         overRackIndex,
         activeId,
     } = useDragAndDrop({ board, setBoard, rack, setRack, gameAreaRef });
+
+    const handleRightClick = (tile: TileData, position: Position): boolean => {
+        // Find first empty slot in rack
+        const emptySlotIndex = findFirstEmptySlot(rack);
+        
+        if (emptySlotIndex !== null) {
+            // Remove tile from board and add to rack
+            setBoard((prevBoard: BoardState) => removeTileFromBoard(prevBoard, position));
+            setRack((prevRack: RackState) => moveTileToRack(prevRack, tile, emptySlotIndex));
+            return true; // Success
+        }
+        
+        return false; // Rack is full
+    };
 
     // Set mounted to true after client-side hydration and initialize bag
     useEffect(() => {
@@ -77,6 +93,7 @@ export default function Home() {
                             boardRef={boardRef}
                             rackRef={rackRef}
                             gameAreaRef={gameAreaRef}
+                            onRightClick={handleRightClick}
                         />
                         <Rack 
                             rack={rack} 

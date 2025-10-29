@@ -10,6 +10,7 @@ export interface BoardCellProps {
     overRackIndex: number | null;
     rackRef?: React.RefObject<HTMLDivElement | null>;
     gameAreaRef?: React.RefObject<HTMLDivElement | null>;
+    onRightClick?: (tile: TileData, position: Position) => boolean;
 }
 
 export interface Position {
