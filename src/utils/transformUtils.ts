@@ -47,8 +47,8 @@ export function getGridConstrainedTransform(
 
 /**
  * Calculate grid-snapped transform when dragging a rack tile over the board
- * Reuses the same grid snapping logic as board tiles for consistency
- * @param transform - The drag transform
+ * Snaps directly to the target board cell position when over a board cell
+ * @param transform - The drag transform (relative to rack tile's original position)
  * @param boardCellSize - Size of board cells (including gap)
  * @param overBoardPos - Position of the board cell being dragged over, or null if not over board
  * @returns Transform style object or undefined
@@ -60,10 +60,12 @@ export function getRackTileTransformOverBoard(
 ): { transform?: string } | undefined {
     if (!transform) return undefined;
     
-    // If dragging over a board cell, use the same grid snapping logic as board tiles
+    // If dragging over a board cell, reuse the same grid snapping logic as board-to-board
+    // We treat the target board cell as if the drag started from there, then use the transform
+    // to calculate grid offsets. This reuses the proven working logic from board tiles.
     if (overBoardPos !== null) {
-        // Use getGridConstrainedTransform with the board cell's position
-        // This ensures rack tiles snap exactly like board tiles do
+        // Use the same grid-constrained transform logic as board tiles
+        // This ensures consistent snapping behavior
         return getGridConstrainedTransform(
             transform,
             overBoardPos.row,

@@ -3,6 +3,7 @@ import { useDraggable, useDroppable } from '@dnd-kit/core';
 import Tile from './Tile';
 import { RackCellProps } from '../types/board';
 import { getRackTileTransformOverBoard } from '../utils/transformUtils';
+import { CELL_GAP } from '../constants/board';
 
 export default function RackCell({ tile, index, boardCellSize, overBoardPos }: RackCellProps) {
     const { attributes, listeners, setNodeRef: setDraggableRef, transform } = useDraggable({
@@ -22,15 +23,22 @@ export default function RackCell({ tile, index, boardCellSize, overBoardPos }: R
     // Calculate transform with grid snapping when over board
     const tileStyle = getRackTileTransformOverBoard(transform, boardCellSize, overBoardPos);
 
+    // Match BoardCell size: boardCellSize includes gap, so subtract it to get actual cell size
+    const cellSize = boardCellSize - CELL_GAP;
+
     return (
         <div
             id="rack-cell"
             ref={setNodeRef}
-            className={`aspect-square border border-zinc-100/70 rounded-sm flex items-center justify-center min-w-[40px] min-h-[40px] bg-zinc-700 ${tile
+            className={`aspect-square border border-zinc-100/70 rounded-sm flex items-center justify-center bg-zinc-700 ${tile
                     ? 'cursor-grab active:cursor-grabbing select-none'
                     : ''
                 }`}
-            style={{ userSelect: 'none' }}
+            style={{ 
+                userSelect: 'none',
+                width: `${cellSize}px`,
+                height: `${cellSize}px`
+            }}
             {...(tile ? listeners : {})}
             {...(tile ? attributes : {})}
         >

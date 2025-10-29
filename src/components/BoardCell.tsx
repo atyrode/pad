@@ -4,6 +4,7 @@ import Tile from './Tile';
 import { BoardCellProps } from '../types/board';
 import { useCellSize } from '../hooks/useCellSize';
 import { getGridConstrainedTransform } from '../utils/transformUtils';
+import { MIN_CELL_SIZE } from '../constants/board';
 
 export default function BoardCell({ tile, row, col }: BoardCellProps) {
     const cellRef = useRef<HTMLDivElement>(null);
@@ -30,11 +31,15 @@ export default function BoardCell({ tile, row, col }: BoardCellProps) {
         <div
             id="board-cell"
             ref={setNodeRef}
-            className={`aspect-square border border-zinc-100/70 rounded-sm flex items-center justify-center min-w-[40px] min-h-[40px] ${tile
+            className={`aspect-square border border-zinc-100/70 rounded-sm flex items-center justify-center ${tile
                     ? 'cursor-grab active:cursor-grabbing select-none'
                     : ''
                 }`}
-            style={{ userSelect: 'none' }}
+            style={{ 
+                userSelect: 'none',
+                minWidth: `${MIN_CELL_SIZE}px`,
+                minHeight: `${MIN_CELL_SIZE}px`
+            }}
             {...(tile ? listeners : {})}
             {...(tile ? attributes : {})}
         >

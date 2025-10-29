@@ -3,6 +3,7 @@
 import React, { useEffect, useRef } from 'react';
 import BoardCell from './BoardCell';
 import { BoardState, TileData, Position } from '../types/board';
+import { BOARD_SIZE, CELL_GAP, BOARD_WIDTH, BOARD_MAX_WIDTH } from '../constants/board';
 
 interface BoardProps {
     board: BoardState;
@@ -21,7 +22,7 @@ export default function Board({ board, boardCellSize, overBoardPos, onCellSizeCh
                 const cell = boardRef.current.querySelector('[id="board-cell"]') as HTMLElement;
                 if (cell) {
                     const cellWidth = cell.offsetWidth;
-                    onCellSizeChange(cellWidth + 4); // gap-1 = 4px
+                    onCellSizeChange(cellWidth + CELL_GAP);
                 }
             }
         };
@@ -34,7 +35,12 @@ export default function Board({ board, boardCellSize, overBoardPos, onCellSizeCh
     return (
         <div 
             ref={boardRef}
-            className="w-fit max-w-[90vh] grid grid-cols-11 gap-1 p-1 bg-green-800 border border-10 border-green-900 rounded-lg aspect-square"
+            className="grid gap-1 p-1 bg-green-800 border border-10 border-green-900 rounded-lg aspect-square"
+            style={{
+                width: `${BOARD_WIDTH}px`,
+                maxWidth: BOARD_MAX_WIDTH,
+                gridTemplateColumns: `repeat(${BOARD_SIZE}, minmax(0, 1fr))`
+            }}
         >
             {board.map((row: (TileData | null)[], rowIndex: number) =>
                 row.map((tile: TileData | null, colIndex: number) => (
