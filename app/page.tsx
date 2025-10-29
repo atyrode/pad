@@ -26,8 +26,8 @@ export default function Home() {
     // Initialize rack
     const [rack, setRack] = useState<RackState>(createInitialRack);
 
-    // Initialize tile bag
-    const [bag, setBag] = useState<Bag>(createTileBag);
+    // Initialize tile bag as empty array initially
+    const [bag, setBag] = useState<Bag>([]);
 
     const [boardCellSize, setBoardCellSize] = useState(44);
     const boardRef = useRef<HTMLDivElement>(null);
@@ -44,9 +44,11 @@ export default function Home() {
         activeId,
     } = useDragAndDrop({ board, setBoard, rack, setRack, gameAreaRef });
 
-    // Set mounted to true after client-side hydration
+    // Set mounted to true after client-side hydration and initialize bag
     useEffect(() => {
         setMounted(true);
+        // Initialize the bag only on the client side
+        setBag(createTileBag());
     }, []);
 
     return (

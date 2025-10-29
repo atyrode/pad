@@ -50,6 +50,15 @@ const TILE_DISTRIBUTION: TileDistribution[] = [
     { value: 'Z', score: 10, count: 1 },
 ];
 
+export function shuffleBag(bag: Bag): Bag {
+    const shuffled = [...bag];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled;
+}
+
 export function createTileBag(): Bag {
     const bag: Bag = [];
     
@@ -63,7 +72,7 @@ export function createTileBag(): Bag {
         }
     }
     
-    return bag;
+    return shuffleBag(bag);
 }
 
 export function drawTileFromBag(bag: Bag): { tile: TileData | null; newBag: Bag } {
@@ -71,12 +80,11 @@ export function drawTileFromBag(bag: Bag): { tile: TileData | null; newBag: Bag 
         return { tile: null, newBag: bag };
     }
     
-    // Randomly select a tile index
-    const randomIndex = Math.floor(Math.random() * bag.length);
-    const drawnTile = bag[randomIndex];
+    // Draw the first tile from the bag
+    const drawnTile = bag[0];
     
-    // Create new bag without the drawn tile
-    const newBag = bag.filter((_, index) => index !== randomIndex);
+    // Create new bag without the first tile
+    const newBag = bag.slice(1);
     
     return { tile: drawnTile, newBag };
 }

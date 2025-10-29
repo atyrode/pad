@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Bag } from '../types/bag';
 import { RackState } from '../types/rack';
 import { BoardState } from '../types/board';
-import { drawTileFromBag, createTileBag } from '../utils/bagUtils';
+import { drawTileFromBag, createTileBag, shuffleBag } from '../utils/bagUtils';
 import { findFirstEmptySlot, moveTileToRack } from '../utils/rackUtils';
 import { createInitialBoard } from '../utils/boardUtils';
 
@@ -16,7 +16,6 @@ interface DebugMenuProps {
 }
 
 export default function DebugMenu({ bag, rack, board, setRack, setBag, setBoard }: DebugMenuProps) {
-  const [isBagExpanded, setIsBagExpanded] = useState(false);
 
   const handleDraw = () => {
     // Check if bag has tiles and rack has space
@@ -108,30 +107,17 @@ export default function DebugMenu({ bag, rack, board, setRack, setBag, setBoard 
     setBag(newBag);
   };
 
+  const handleShuffle = () => {
+    // Shuffle the current bag
+    const shuffledBag = shuffleBag(bag);
+    setBag(shuffledBag);
+  };
+
   // Check if buttons should be disabled
   const isDrawDisabled = bag.length === 0 || findFirstEmptySlot(rack) === null;
   const isDrawAllDisabled = bag.length === 0 || findFirstEmptySlot(rack) === null;
   const isRedrawDisabled = bag.length === 0;
 
-  // Group tiles by value and score
-  const tileGroups = bag.reduce((acc, tile) => {
-    const key = `${tile.value}-${tile.score}`;
-    if (!acc[key]) {
-      acc[key] = {
-        value: tile.value,
-        score: tile.score,
-        count: 0,
-      };
-    }
-    acc[key].count++;
-    return acc;
-  }, {} as Record<string, { value: string; score: number; count: number }>);
-
-  // Convert to array and sort by score, then by value
-  const sortedGroups = Object.values(tileGroups).sort((a, b) => {
-    if (a.score !== b.score) return a.score - b.score;
-    return a.value.localeCompare(b.value);
-  });
 
   return (
     <div id="debug-menu" className="w-1/4 h-full bg-zinc-600 p-4 overflow-y-auto">
@@ -168,45 +154,32 @@ export default function DebugMenu({ bag, rack, board, setRack, setBag, setBoard 
       </div>
       
       <div className="bg-zinc-700 rounded-lg p-4">
-        <button
-          onClick={() => setIsBagExpanded(!isBagExpanded)}
-          className="w-full flex items-center justify-between text-white text-lg font-semibold mb-3 hover:opacity-80 transition-opacity"
-        >
-          <span>Tile Bag</span>
-          <span className="text-zinc-400 text-sm font-normal">
-            {bag.length} tiles
-          </span>
-          <span className="text-zinc-400">
-            {isBagExpanded ? '▼' : '▶'}
-          </span>
-        </button>
+        <h3 className="text-white text-lg font-semibold mb-3">
+          Tile Bag ({bag.length} tiles)
+        </h3>
         
-        {isBagExpanded && (
-          <>
-            <div className="text-zinc-300 text-sm mb-2">
-              Total tiles: <span className="font-bold text-white">{bag.length}</span>
+        <div className="grid grid-cols-8 gap-1 overflow-y-auto mb-3">
+          {bag.map((tile, index) => (
+            <div
+              key={index}
+              className="w-6 h-6 bg-zinc-800 rounded flex items-center justify-center text-xs font-mono text-white border border-zinc-600"
+              title={`${tile.value} (${tile.score} points)`}
+            >
+              {tile.value === '*' ? '*' : tile.value}
             </div>
-            
-            <div className="space-y-1">
-              {sortedGroups.map((group) => (
-                <div 
-                  key={`${group.value}-${group.score}`}
-                  className="flex justify-between items-center bg-zinc-800 rounded px-3 py-2 text-sm"
-                >
-                  <span className="text-white font-mono">
-                    {group.value === '*' ? '*' : group.value}
-                  </span>
-                  <span className="text-zinc-400">
-                    Score: {group.score}
-                  </span>
-                  <span className="text-white font-semibold">
-                    ×{group.count}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </>
-        )}
+          ))}
+        </div>
+        <button
+          onClick={handleShuffle}
+          disabled={bag.length === 0}
+          className={`w-full py-2 px-3 rounded-lg text-white font-semibold text-sm transition-opacity ${
+            bag.length === 0
+              ? 'bg-zinc-800 opacity-50 cursor-not-allowed'
+              : 'bg-zinc-600 hover:opacity-80 hover:bg-zinc-500'
+          }`}
+        >
+          Shuffle
+        </button>
       </div>
 
       <div className="bg-zinc-700 rounded-lg p-4 mt-4">
