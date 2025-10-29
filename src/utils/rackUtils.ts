@@ -1,4 +1,5 @@
-import { RackState, TileData } from '../types/board';
+import { RackState } from '../types/rack';
+import { TileData } from '../types/tile';
 
 export const RACK_SIZE = 7;
 

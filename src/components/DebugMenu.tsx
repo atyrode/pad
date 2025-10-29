@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Bag } from '../types/board';
+import { Bag } from '../types/bag';
 
 interface DebugMenuProps {
   bag: Bag;

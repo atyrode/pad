@@ -1,4 +1,5 @@
-import { BoardState, TileData, Position } from '../types/board';
+import { BoardState, Position } from '../types/board';
+import { TileData } from '../types/tile';
 import { BOARD_SIZE } from '../constants/board';
 
 export function findTilePosition(board: BoardState, tileId: string): Position | null {

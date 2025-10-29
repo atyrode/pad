@@ -1,4 +1,5 @@
-import { TileData, Bag } from '../types/board';
+import { TileData } from '../types/tile';
+import { Bag } from '../types/bag';
 
 interface TileDistribution {
     value: string;

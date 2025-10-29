@@ -7,7 +7,8 @@ import {
     useSensor,
     useSensors,
 } from '@dnd-kit/core';
-import { BoardState, RackState, Position } from '../types/board';
+import { BoardState, Position } from '../types/board';
+import { RackState } from '../types/rack';
 import { DRAG_ACTIVATION_DISTANCE } from '../constants/board';
 import { findTilePosition, parseEmptySlotId, swapBoardTiles, removeTileFromBoard, placeTileOnBoard } from '../utils/boardUtils';
 import { findTileInRack, parseRackSlotId, moveTileToRack, removeTileFromRack, swapRackTiles, isRackSlotId } from '../utils/rackUtils';

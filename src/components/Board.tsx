@@ -2,7 +2,8 @@
 
 import React, { useEffect, useRef } from 'react';
 import BoardCell from './BoardCell';
-import { BoardState, TileData, Position } from '../types/board';
+import { BoardState, Position } from '../types/board';
+import { TileData } from '../types/tile';
 import { BOARD_SIZE, CELL_GAP, BOARD_WIDTH, BOARD_MAX_WIDTH } from '../constants/board';
 
 interface BoardProps {

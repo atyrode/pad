@@ -8,7 +8,9 @@ import {
 import DebugMenu from "../src/components/DebugMenu";
 import Board from "../src/components/Board";
 import Rack from "../src/components/Rack";
-import { BoardState, RackState, Bag } from '../src/types/board';
+import { BoardState } from '../src/types/board';
+import { RackState } from '../src/types/rack';
+import { Bag } from '../src/types/bag';
 import { createInitialBoard } from '../src/utils/boardUtils';
 import { createInitialRack, findTileInRack } from '../src/utils/rackUtils';
 import { createTileBag } from '../src/utils/bagUtils';
