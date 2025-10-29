@@ -16,3 +16,16 @@ export interface Position {
     row: number;
     col: number;
 }
+
+export type RackState = (TileData | null)[];
+
+export interface RackCellProps {
+    tile: TileData | null;
+    index: number;
+    boardCellSize: number;
+    overBoardPos: Position | null;
+}
+
+export interface RackPosition {
+    index: number;
+}

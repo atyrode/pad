@@ -44,3 +44,15 @@ export function createInitialBoard(): BoardState {
 
     return initialBoard;
 }
+
+export function removeTileFromBoard(board: BoardState, pos: Position): BoardState {
+    const newBoard = board.map(row => [...row]);
+    newBoard[pos.row][pos.col] = null;
+    return newBoard;
+}
+
+export function placeTileOnBoard(board: BoardState, tile: TileData, pos: Position): BoardState {
+    const newBoard = board.map(row => [...row]);
+    newBoard[pos.row][pos.col] = tile;
+    return newBoard;
+}
