@@ -8,9 +8,10 @@ import {
 import DebugMenu from "../src/components/DebugMenu";
 import Board from "../src/components/Board";
 import Rack from "../src/components/Rack";
-import { BoardState, RackState } from '../src/types/board';
+import { BoardState, RackState, Bag } from '../src/types/board';
 import { createInitialBoard } from '../src/utils/boardUtils';
 import { createInitialRack, findTileInRack } from '../src/utils/rackUtils';
+import { createTileBag } from '../src/utils/bagUtils';
 import { useDragAndDrop } from '../src/hooks/useDragAndDrop';
 
 export default function Home() {
@@ -22,6 +23,9 @@ export default function Home() {
 
     // Initialize rack
     const [rack, setRack] = useState<RackState>(createInitialRack);
+
+    // Initialize tile bag
+    const [bag, setBag] = useState<Bag>(createTileBag);
 
     const [boardCellSize, setBoardCellSize] = useState(44);
     const boardRef = useRef<HTMLDivElement>(null);
@@ -53,7 +57,7 @@ export default function Home() {
                     onDragOver={handleDragOver}
                     onDragEnd={handleDragEnd}
                 >
-                    <DebugMenu />
+                    <DebugMenu bag={bag} />
                     <div 
                         ref={gameAreaRef}
                         id="game-area" 
@@ -84,7 +88,7 @@ export default function Home() {
                 </DndContext>
             ) : (
                 <>
-                    <DebugMenu />
+                    <DebugMenu bag={bag} />
                     <div id="game-area" className="grow bg-zinc-500 flex flex-col items-center justify-center gap-4" />
                 </>
             )}

@@ -38,3 +38,5 @@ export interface RackCellProps {
 export interface RackPosition {
     index: number;
 }
+
+export type Bag = TileData[];
