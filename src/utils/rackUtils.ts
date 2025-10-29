@@ -64,3 +64,13 @@ export function findFirstEmptySlot(rack: RackState): number | null {
     return null;
 }
 
+export function shuffleRack(rack: RackState): RackState {
+    const newRack = [...rack];
+    // Fisher-Yates shuffle algorithm
+    for (let i = newRack.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [newRack[i], newRack[j]] = [newRack[j], newRack[i]];
+    }
+    return newRack;
+}
+

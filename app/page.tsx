@@ -12,11 +12,12 @@ import { BoardState } from '../src/types/board';
 import { RackState } from '../src/types/rack';
 import { Bag } from '../src/types/bag';
 import { createInitialBoard, removeTileFromBoard } from '../src/utils/boardUtils';
-import { createInitialRack, findTileInRack, findFirstEmptySlot, moveTileToRack } from '../src/utils/rackUtils';
+import { createInitialRack, findTileInRack, findFirstEmptySlot, moveTileToRack, shuffleRack } from '../src/utils/rackUtils';
 import { createTileBag } from '../src/utils/bagUtils';
 import { useDragAndDrop } from '../src/hooks/useDragAndDrop';
 import { TileData } from '../src/types/tile';
 import { Position } from '../src/types/board';
+import { Shuffle } from 'lucide-react';
 
 export default function Home() {
     // Track client-side mount to prevent hydration mismatch
@@ -60,6 +61,10 @@ export default function Home() {
         return false; // Rack is full
     };
 
+    const handleShuffle = () => {
+        setRack((prevRack: RackState) => shuffleRack(prevRack));
+    };
+
     // Set mounted to true after client-side hydration and initialize bag
     useEffect(() => {
         setMounted(true);
@@ -95,16 +100,25 @@ export default function Home() {
                             gameAreaRef={gameAreaRef}
                             onRightClick={handleRightClick}
                         />
-                        <Rack 
-                            rack={rack} 
-                            setRack={setRack}
-                            boardCellSize={boardCellSize}
-                            overBoardPos={activeId && findTileInRack(rack, activeId) !== null ? overBoardPos : null}
-                            overRackIndex={overRackIndex}
-                            boardRef={boardRef}
-                            rackRef={rackRef}
-                            gameAreaRef={gameAreaRef}
-                        />
+                        <div className="relative">
+                            <Rack 
+                                rack={rack} 
+                                setRack={setRack}
+                                boardCellSize={boardCellSize}
+                                overBoardPos={activeId && findTileInRack(rack, activeId) !== null ? overBoardPos : null}
+                                overRackIndex={overRackIndex}
+                                boardRef={boardRef}
+                                rackRef={rackRef}
+                                gameAreaRef={gameAreaRef}
+                            />
+                            <button 
+                                onClick={handleShuffle}
+                                className="absolute left-full ml-2 top-1/2 -translate-y-1/2 p-2 bg-zinc-600 hover:bg-zinc-500 border border-zinc-500 rounded-lg transition-colors duration-200 flex items-center justify-center"
+                                title="Shuffle rack"
+                            >
+                                <Shuffle className="w-5 h-5 text-white" />
+                            </button>
+                        </div>
                     </div>
                 </DndContext>
             ) : (
