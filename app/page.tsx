@@ -9,6 +9,7 @@ import DebugMenu from "../src/components/DebugMenu";
 import Board from "../src/components/Board";
 import DraftBoard from "../src/components/DraftBoard";
 import Rack from "../src/components/Rack";
+import DiscardSlot from "../src/components/DiscardSlot";
 import { BoardState, PlacementHistoryEntry } from '../src/types/board';
 import { RackState } from '../src/types/rack';
 import { Bag } from '../src/types/bag';
@@ -40,6 +41,9 @@ export default function Home() {
 
     // Initialize tile bag as empty array initially
     const [bag, setBag] = useState<Bag>([]);
+
+    // Discard pile stores discarded tiles (refills bag when empty on draw)
+    const [discard, setDiscard] = useState<TileData[]>([]);
 
     // Initialize stickers
     const [stickers, setStickers] = useState<StickerState>(createInitialStickers());
@@ -73,6 +77,7 @@ export default function Home() {
     const boardRef = useRef<HTMLDivElement>(null);
     const rackRef = useRef<HTMLDivElement>(null);
     const gameAreaRef = useRef<HTMLDivElement>(null);
+    const discardRef = useRef<HTMLDivElement>(null);
     const [exitingDraft, setExitingDraft] = useState(false);
     const [hasSeededFromDraft, setHasSeededFromDraft] = useState(false);
 
@@ -97,7 +102,40 @@ export default function Home() {
         onTilePlaced: handleDragAndDropPlacement 
     });
 
-    // Wrapper to intercept blank tile drops
+    // Transient discard animation state
+    const [discardAnim, setDiscardAnim] = useState<{ tile: TileData } | null>(null);
+    const [isDiscarding, setIsDiscarding] = useState(false);
+
+    // Compute a single draw with possible discard->bag refill, returning new rack/bag
+    const computeDrawWithRefill = (
+        currentRack: RackState,
+        currentBag: Bag,
+        currentDiscard: TileData[],
+        targetSlotIndex?: number
+    ): { newRack: RackState; newBag: Bag; didRefill: boolean } => {
+        let workingBag = currentBag;
+        let didRefill = false;
+        if (workingBag.length === 0 && currentDiscard.length > 0) {
+            workingBag = shuffleBag([...currentDiscard]);
+            didRefill = true;
+        }
+        const slotIndex = targetSlotIndex ?? findFirstEmptySlot(currentRack);
+        if (slotIndex === null || slotIndex === undefined) {
+            return { newRack: currentRack, newBag: workingBag, didRefill };
+        }
+        if (workingBag.length === 0) {
+            return { newRack: currentRack, newBag: workingBag, didRefill };
+        }
+        const { tile, newBag } = drawTileFromBag(workingBag);
+        if (!tile) {
+            return { newRack: currentRack, newBag: workingBag, didRefill };
+        }
+        const newRack = [...currentRack];
+        newRack[slotIndex] = tile;
+        return { newRack, newBag, didRefill };
+    };
+
+    // Wrapper to intercept blank tile drops and handle discards
     const handleDragEnd = (event: any) => {
         const { active, over } = event;
 
@@ -108,6 +146,77 @@ export default function Home() {
 
         const activeId = active.id as string;
         const overId = over.id as string;
+
+        // Handle drop into discard slot (before any special blank handling)
+        if (overId === 'discard-slot') {
+            if (isDiscarding) {
+                return;
+            }
+            // Determine source of tile (rack or board)
+            const sourceRackIndex = findTileInRack(rack, activeId);
+            const sourceBoardPos = findTilePosition(board, activeId);
+
+            let tileToDiscard: TileData | null = null;
+
+            if (sourceRackIndex !== null) {
+                tileToDiscard = rack[sourceRackIndex];
+            } else if (sourceBoardPos) {
+                const cell = board[sourceBoardPos.row][sourceBoardPos.col];
+                if (cell.canTake) {
+                    tileToDiscard = cell.tile;
+                }
+            }
+
+            if (!tileToDiscard) {
+                return; // nothing to do
+            }
+
+            // Remove from source immediately to prevent duplication
+            if (sourceRackIndex !== null) {
+                setRack(prevRack => {
+                    const next = [...prevRack];
+                    next[sourceRackIndex] = null;
+                    return next;
+                });
+            } else if (sourceBoardPos) {
+                setBoard(prevBoard => removeTileFromBoard(prevBoard, sourceBoardPos));
+                setPlacementHistory(prev => prev.filter(e => !(e.tileId === tileToDiscard!.id && e.position.row === sourceBoardPos.row && e.position.col === sourceBoardPos.col)));
+            }
+
+            // Play a quick fade animation at the discard slot
+            setIsDiscarding(true);
+            setDiscardAnim({ tile: tileToDiscard });
+
+            window.setTimeout(() => {
+                // Compose discard used for potential refill to include this tile
+                const discardForRefill = [...discard, tileToDiscard!];
+                const bagForRefill = bag;
+
+                // Add to discard pile
+                setDiscard(prev => [...prev, tileToDiscard!]);
+
+                // Perform atomic draw using composed snapshots
+                setRack(prevRack => {
+                    const { newRack, newBag, didRefill } = computeDrawWithRefill(
+                        prevRack,
+                        bagForRefill,
+                        discardForRefill,
+                        sourceRackIndex !== null ? sourceRackIndex : undefined
+                    );
+                    if (didRefill) {
+                        setDiscard([]);
+                    }
+                    setBag(newBag);
+                    return newRack;
+                });
+
+                // Clear animation proxy and guard
+                setDiscardAnim(null);
+                setIsDiscarding(false);
+            }, 180); // ~200ms fade
+
+            return; // handled
+        }
 
         // Check if we're dragging a blank tile from rack to board
         const activeRackIndex = findTileInRack(rack, activeId);
@@ -700,7 +809,7 @@ export default function Home() {
                     onDragOver={handleDragOver}
                     onDragEnd={handleDragEnd}
                 >
-                    <DebugMenu bag={bag} rack={rack} board={board} setRack={setRack} setBag={setBag} setBoard={setBoard} draftBoard={draftBoard} setDraftBoard={setDraftBoard} totalScore={totalScore} setTotalScore={setTotalScore} stickers={stickers} setStickers={setStickers} tileOpacity={tileOpacity} setTileOpacity={setTileOpacity} showCoordinates={showCoordinates} setShowCoordinates={setShowCoordinates} isDraftMode={isDraftMode} setIsDraftMode={setIsDraftMode} onResetDraft={() => { setDraftBoard(createInitialDraftBoard()); setDraftRerollCount(0); setDraftEnded(false); setHasSeededFromDraft(false); suggestedOccupancyRef.current = null; }} onRerollSuggestions={() => {
+                    <DebugMenu bag={bag} rack={rack} board={board} setRack={setRack} setBag={setBag} setBoard={setBoard} draftBoard={draftBoard} setDraftBoard={setDraftBoard} totalScore={totalScore} setTotalScore={setTotalScore} stickers={stickers} setStickers={setStickers} tileOpacity={tileOpacity} setTileOpacity={setTileOpacity} showCoordinates={showCoordinates} setShowCoordinates={setShowCoordinates} isDraftMode={isDraftMode} setIsDraftMode={setIsDraftMode} discard={discard} setDiscard={setDiscard} onResetDraft={() => { setDraftBoard(createInitialDraftBoard()); setDraftRerollCount(0); setDraftEnded(false); setHasSeededFromDraft(false); suggestedOccupancyRef.current = null; }} onRerollSuggestions={() => {
                         if (!isDraftMode || draftEnded) return;
                         const draftSequence: Array<'V' | 'C' | '*'> = ['V','C','C','V','C','C','V','C','C','V','C','C','V','*'];
                         const currentIndex = Math.min(draftRerollCount, draftSequence.length - 1);
@@ -774,6 +883,28 @@ export default function Home() {
                         {/* Only show rack and controls in Game mode */}
                         <Activity mode={isDraftMode ? "hidden" : "visible"}>
                             <div className="relative">
+                                <div className="absolute right-full mr-2 top-1/2 -translate-y-1/2">
+                                    <DiscardSlot ref={discardRef} tileSize={boardCellSize} hidden={isDraftMode} />
+                                </div>
+
+                                {discardAnim && (
+                                    <div
+                                        className="pointer-events-none absolute"
+                                        style={{
+                                            left: -boardCellSize - 8,
+                                            top: '50%',
+                                            transform: 'translateY(-50%)',
+                                            width: boardCellSize - 2,
+                                            height: boardCellSize - 2,
+                                            transition: 'opacity 180ms ease, transform 180ms ease',
+                                            opacity: 0,
+                                        }}
+                                    >
+                                        <div className="w-full h-full bg-zinc-800 border border-zinc-600 rounded-lg flex items-center justify-center text-white font-bold">
+                                            {discardAnim.tile.displayValue || discardAnim.tile.value}
+                                        </div>
+                                    </div>
+                                )}
                                 <Rack 
                                     rack={rack} 
                                     setRack={setRack}
@@ -817,7 +948,7 @@ export default function Home() {
                 </DndContext>
             ) : (
                 <>
-                    <DebugMenu bag={bag} rack={rack} board={board} setRack={setRack} setBag={setBag} setBoard={setBoard} draftBoard={draftBoard} setDraftBoard={setDraftBoard} totalScore={totalScore} setTotalScore={setTotalScore} stickers={stickers} setStickers={setStickers} tileOpacity={tileOpacity} setTileOpacity={setTileOpacity} showCoordinates={showCoordinates} setShowCoordinates={setShowCoordinates} isDraftMode={isDraftMode} setIsDraftMode={setIsDraftMode} onResetDraft={() => { setDraftBoard(createInitialDraftBoard()); setDraftRerollCount(0); setDraftEnded(false); setHasSeededFromDraft(false); suggestedOccupancyRef.current = null; }} onRerollSuggestions={() => {
+                    <DebugMenu bag={bag} rack={rack} board={board} setRack={setRack} setBag={setBag} setBoard={setBoard} draftBoard={draftBoard} setDraftBoard={setDraftBoard} totalScore={totalScore} setTotalScore={setTotalScore} stickers={stickers} setStickers={setStickers} tileOpacity={tileOpacity} setTileOpacity={setTileOpacity} showCoordinates={showCoordinates} setShowCoordinates={setShowCoordinates} isDraftMode={isDraftMode} setIsDraftMode={setIsDraftMode} discard={discard} setDiscard={setDiscard} onResetDraft={() => { setDraftBoard(createInitialDraftBoard()); setDraftRerollCount(0); setDraftEnded(false); setHasSeededFromDraft(false); suggestedOccupancyRef.current = null; }} onRerollSuggestions={() => {
                         if (!isDraftMode || draftEnded) return;
                         const draftSequence: Array<'V' | 'C' | '*'> = ['V','C','C','V','C','C','V','C','C','V','C','C','V','*'];
                         const currentIndex = Math.min(draftRerollCount, draftSequence.length - 1);
