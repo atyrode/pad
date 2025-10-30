@@ -19,7 +19,7 @@ import { BoardState, PlacementHistoryEntry } from '../src/types/board';
 import { RackState } from '../src/types/rack';
 import { Bag } from '../src/types/bag';
 import { StickerState } from '../src/types/sticker';
-import { removeTileFromBoard, findTilePosition, parseEmptySlotId } from '../src/utils/boardUtils';
+import { removeTileFromBoard } from '../src/utils/boardUtils';
 import { createInitialDraftBoard, generateUniqueTiles, createBlankTile } from '../src/utils/draftBoardUtils';
 import { findTileInRack, findFirstEmptySlot, moveTileToRack, shuffleRack } from '../src/utils/rackUtils';
 import { getAllAvailableLetters } from '../src/utils/tileDefinitions';
@@ -30,9 +30,10 @@ import { TileData } from '../src/types/tile';
 import { Position } from '../src/types/board';
 import { Shuffle, Play } from 'lucide-react';
 import LetterSelectionPopup from '../src/components/LetterSelectionPopup';
-import { fillRackAfterPlayAction, handlePlayAction, computeDrawWithRefill, handleKeyboardTilePlacementAction, handleKeyboardTileRemovalAction, drawOneAction, drawAllAction, redrawAction, shuffleBagAction, resetBoardAction, resetRackAction, resetScoreAction, resetStickersAction, resetBagFromDraftAction } from "../src/state/gameActions";
+import { fillRackAfterPlayAction, handlePlayAction, handleKeyboardTilePlacementAction, handleKeyboardTileRemovalAction, drawOneAction, drawAllAction, redrawAction, shuffleBagAction, resetBoardAction, resetRackAction, resetScoreAction, resetStickersAction, resetBagFromDraftAction, computeDrawWithRefill } from "../src/state/gameActions";
 import { areAllCurrentWordsValidSelector, canPlaySelector, canShuffleSelector } from "../src/state/selectors";
 import { useBlankTilePlacement } from "../src/hooks/useBlankTilePlacement";
+import { useDragEndWithDiscard } from "../src/hooks/useDragEndWithDiscard";
 
 function HomeContent() {
     // Track client-side mount to prevent hydration mismatch
@@ -115,116 +116,20 @@ function HomeContent() {
         onTilePlaced: handleDragAndDropPlacement 
     });
 
-    // Transient discard animation state
-    const [discardAnim, setDiscardAnim] = useState<{ tile: TileData } | null>(null);
-    const [isDiscarding, setIsDiscarding] = useState(false);
-
-    // Draw helper moved to actions (computeDrawWithRefill)
-
-    // Wrapper to intercept blank tile drops and handle discards
-    const handleDragEnd = (event: any) => {
-        const { active, over } = event;
-
-        if (!over) {
-            originalHandleDragEnd(event);
-            return;
-        }
-
-        const activeId = active.id as string;
-        const overId = over.id as string;
-
-        // Handle drop into discard slot (before any special blank handling)
-        if (overId === 'discard-slot') {
-            if (isDiscarding) {
-                return;
-            }
-            // Determine source of tile (rack or board)
-            const sourceRackIndex = findTileInRack(rack, activeId);
-            const sourceBoardPos = findTilePosition(board, activeId);
-
-            let tileToDiscard: TileData | null = null;
-
-            if (sourceRackIndex !== null) {
-                tileToDiscard = rack[sourceRackIndex];
-            } else if (sourceBoardPos) {
-                const cell = board[sourceBoardPos.row][sourceBoardPos.col];
-                if (cell.canTake) {
-                    tileToDiscard = cell.tile;
-                }
-            }
-
-            if (!tileToDiscard) {
-                return; // nothing to do
-            }
-
-            // Remove from source immediately to prevent duplication
-            if (sourceRackIndex !== null) {
-                setRack(prevRack => {
-                    const next = [...prevRack];
-                    next[sourceRackIndex] = null;
-                    return next;
-                });
-            } else if (sourceBoardPos) {
-                setBoard(prevBoard => removeTileFromBoard(prevBoard, sourceBoardPos));
-                setPlacementHistory(prev => prev.filter(e => !(e.tileId === tileToDiscard!.id && e.position.row === sourceBoardPos.row && e.position.col === sourceBoardPos.col)));
-            }
-
-            // Play a quick fade animation at the discard slot
-            setIsDiscarding(true);
-            setDiscardAnim({ tile: tileToDiscard });
-
-            window.setTimeout(() => {
-                // Compose discard used for potential refill to include this tile
-                const discardForRefill = [...discard, tileToDiscard!];
-                const bagForRefill = bag;
-
-                // Add to discard pile
-                setDiscard(prev => [...prev, tileToDiscard!]);
-
-                // Perform atomic draw using composed snapshots
-                setRack(prevRack => {
-                    const { newRack, newBag, didRefill } = computeDrawWithRefill(
-                        prevRack,
-                        bagForRefill,
-                        discardForRefill,
-                        sourceRackIndex !== null ? sourceRackIndex : undefined
-                    );
-                    if (didRefill) {
-                        setDiscard([]);
-                    }
-                    setBag(newBag);
-                    return newRack;
-                });
-
-                // Clear animation proxy and guard
-                setDiscardAnim(null);
-                setIsDiscarding(false);
-            }, 180); // ~200ms fade
-
-            return; // handled
-        }
-
-        // Check if we're dragging a blank tile from rack to board
-        const activeRackIndex = findTileInRack(rack, activeId);
-        const overBoardPos = findTilePosition(board, overId);
-        const overEmptyPos = parseEmptySlotId(overId);
-
-        if (activeRackIndex !== null && (overBoardPos || overEmptyPos)) {
-            const tile = rack[activeRackIndex];
-            if (tile && tile.value === "*") {
-                // This is a blank tile being dropped on the board
-                // Show popup instead of placing
-                const targetPos = overBoardPos || overEmptyPos;
-                if (targetPos) {
-                    openBlankTilePopup({ blankTile: tile, targetPosition: targetPos, sourceRackIndex: activeRackIndex });
-                }
-                return; // Don't call original handler
-            }
-        }
-
-        // For all other cases, use the original handler
-        originalHandleDragEnd(event);
-    };
+    const { handleDragEnd, discardAnim, isDiscarding } = useDragEndWithDiscard({
+        board,
+        setBoard,
+        rack,
+        setRack,
+        bag,
+        setBag,
+        discard,
+        setDiscard,
+        setPlacementHistory,
+        openBlankTilePopup,
+        originalHandleDragEnd,
+        computeDrawWithRefill,
+    });
 
     const handleKeyboardTilePlacement = (letter: string): boolean => {
         return handleKeyboardTilePlacementAction({ letter, selectedCell, board, rack, placementHistory }, dispatch);
