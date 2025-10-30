@@ -35,20 +35,20 @@ export function swapBoardTiles(board: BoardState, pos1: Position, pos2: Position
 
 export function createInitialBoard(): BoardState {
     const initialBoard: BoardState = Array(BOARD_SIZE).fill(null).map(() => 
-        Array(BOARD_SIZE).fill(null).map(() => ({ tile: null, locked: false }))
+        Array(BOARD_SIZE).fill(null).map(() => ({ tile: null, canPlace: true, canTake: true }))
     );
     return initialBoard;
 }
 
 export function removeTileFromBoard(board: BoardState, pos: Position): BoardState {
     const newBoard = board.map(row => [...row]);
-    newBoard[pos.row][pos.col] = { tile: null, locked: false };
+    newBoard[pos.row][pos.col] = { tile: null, canPlace: true, canTake: true };
     return newBoard;
 }
 
 export function placeTileOnBoard(board: BoardState, tile: TileData, pos: Position): BoardState {
     const newBoard = board.map(row => [...row]);
-    newBoard[pos.row][pos.col] = { tile, locked: false };
+    newBoard[pos.row][pos.col] = { tile, canPlace: true, canTake: true };
     return newBoard;
 }
 
@@ -80,8 +80,8 @@ export function findAllWords(board: BoardState): WordInfo[] {
                 
                 while (currentCol < BOARD_SIZE && board[row][currentCol].tile !== null) {
                     word += board[row][currentCol].tile!.value;
-                    // Check if this tile is locked
-                    if (!board[row][currentCol].locked) {
+                    // Check if this tile is locked (non-takeable)
+                    if (board[row][currentCol].canTake) {
                         allTilesLocked = false;
                     }
                     currentCol++;
@@ -118,8 +118,8 @@ export function findAllWords(board: BoardState): WordInfo[] {
                 
                 while (currentRow < BOARD_SIZE && board[currentRow][col].tile !== null) {
                     word += board[currentRow][col].tile!.value;
-                    // Check if this tile is locked
-                    if (!board[currentRow][col].locked) {
+                    // Check if this tile is locked (non-takeable)
+                    if (board[currentRow][col].canTake) {
                         allTilesLocked = false;
                     }
                     currentRow++;
@@ -153,7 +153,7 @@ export function areUnlockedTilesInSingleLine(board: BoardState): boolean {
     for (let row = 0; row < BOARD_SIZE; row++) {
         for (let col = 0; col < BOARD_SIZE; col++) {
             const cell = board[row][col];
-            if (cell.tile && !cell.locked) {
+            if (cell.tile && cell.canTake) {
                 unlockedPositions.push({ row, col });
             }
         }
@@ -185,7 +185,7 @@ export function areUnlockedTilesInSingleLine(board: BoardState): boolean {
                 // Check if the gap is filled by locked tiles
                 let hasLockedTileInGap = false;
                 for (let col = prevCol + 1; col < currentCol; col++) {
-                    if (board[row][col].tile && board[row][col].locked) {
+                    if (board[row][col].tile && !board[row][col].canTake) {
                         hasLockedTileInGap = true;
                         break;
                     }
@@ -214,7 +214,7 @@ export function areUnlockedTilesInSingleLine(board: BoardState): boolean {
                 // Check if the gap is filled by locked tiles
                 let hasLockedTileInGap = false;
                 for (let row = prevRow + 1; row < currentRow; row++) {
-                    if (board[row][col].tile && board[row][col].locked) {
+                    if (board[row][col].tile && !board[row][col].canTake) {
                         hasLockedTileInGap = true;
                         break;
                     }

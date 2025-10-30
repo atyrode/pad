@@ -64,7 +64,8 @@ export function createInitialDraftBoard(): BoardState {
         
         board[row][col] = {
             tile,
-            locked: true
+            canPlace: false,
+            canTake: false
         };
     });
     
@@ -80,7 +81,8 @@ export function createInitialDraftBoard(): BoardState {
     suggestedPositions.forEach((pos, index) => {
         board[pos.row][pos.col] = {
             tile: randomTiles[index],
-            locked: false // These can be moved
+            canPlace: true, // These can be moved
+            canTake: true
         };
     });
     

@@ -60,7 +60,8 @@ export default function Board({ board, boardCellSize, overBoardPos, onCellSizeCh
                     <BoardCell
                         key={`${rowIndex}-${colIndex}`}
                         tile={cell.tile}
-                        locked={cell.locked}
+                        canPlace={cell.canPlace}
+                        canTake={cell.canTake}
                         row={rowIndex}
                         col={colIndex}
                         overRackIndex={overRackIndex}

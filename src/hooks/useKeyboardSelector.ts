@@ -25,7 +25,7 @@ export const useKeyboardSelector = (props?: UseKeyboardSelectorProps) => {
     visible: false,
   });
 
-  // Helper function to find the next non-locked cell in the given direction
+  // Helper function to find the next placeable cell in the given direction
   const findNextNonLockedCell = useCallback((startRow: number, startCol: number, direction: Direction): { row: number; col: number } | null => {
     if (!props?.board) {
       // If no board provided, fall back to simple movement
@@ -55,9 +55,9 @@ export const useKeyboardSelector = (props?: UseKeyboardSelectorProps) => {
         return null; // No non-locked cells found
       }
 
-      // Check if current cell is not locked
+      // Check if current cell can accept a placement
       const cell = props.board[currentRow][currentCol];
-      if (!cell.locked) {
+      if (cell.canPlace) {
         return { row: currentRow, col: currentCol };
       }
 
@@ -145,7 +145,7 @@ export const useKeyboardSelector = (props?: UseKeyboardSelectorProps) => {
 
     const success = props.onLetterInput(letter);
     if (success && selectorState.direction) {
-      // Move selector forward in current direction after successful placement, skipping locked tiles
+      // Move selector forward in current direction after successful placement, skipping non-placeable tiles
       setSelectorState(prevState => {
         const { row, col } = prevState.position;
         const nextPosition = findNextNonLockedCell(row, col, prevState.direction);
@@ -156,7 +156,7 @@ export const useKeyboardSelector = (props?: UseKeyboardSelectorProps) => {
             position: nextPosition,
           };
         } else {
-          // No non-locked cells found, stay at current position
+          // No placeable cells found, stay at current position
           return prevState;
         }
       });

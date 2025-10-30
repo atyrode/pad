@@ -138,11 +138,11 @@ export default function DebugMenu({ bag, rack, board, setRack, setBag, setBoard,
     // Reset stickers to initial state
     let newStickers = createInitialStickers();
     
-    // Consume any stickers that have locked tiles on top
+    // Consume any stickers that have non-takeable (locked) tiles on top
     for (let row = 0; row < board.length; row++) {
       for (let col = 0; col < board[row].length; col++) {
         const cell = board[row][col];
-        if (cell.tile && cell.locked) {
+        if (cell.tile && !cell.canTake) {
           // This position has a locked tile, so consume the sticker if it exists
           newStickers = consumeSticker(newStickers, { row, col });
         }
@@ -546,7 +546,8 @@ export default function DebugMenu({ bag, rack, board, setRack, setBag, setBoard,
                     suggestedPositions.forEach((pos, index) => {
                       newBoard[pos.row][pos.col] = {
                         tile: newSuggestedTiles[index],
-                        locked: false
+                        canPlace: true,
+                        canTake: true
                       };
                     });
                     return newBoard;

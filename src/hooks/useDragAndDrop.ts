@@ -102,11 +102,11 @@ export function useDragAndDrop({ board, setBoard, rack, setRack, gameAreaRef, on
         if (activeBoardPos && (overBoardPos || parseEmptySlotId(overId))) {
             const targetPos = overBoardPos || parseEmptySlotId(overId);
             if (targetPos) {
-                // Check if source tile is locked
-                const sourceTile = board[activeBoardPos.row][activeBoardPos.col];
+                const sourceCell = board[activeBoardPos.row][activeBoardPos.col];
                 const targetCell = board[targetPos.row][targetPos.col];
-                // Only allow swap if source is unlocked AND target is either empty or unlocked
-                if (sourceTile && !sourceTile.locked && (!targetCell.tile || !targetCell.locked)) {
+                // Allow move if source is takeable and target allows placement
+                const targetAllowsPlacement = !targetCell.tile ? targetCell.canPlace : (targetCell.canPlace && targetCell.canTake);
+                if (sourceCell && sourceCell.tile && sourceCell.canTake && targetAllowsPlacement) {
                     setBoard((prevBoard: BoardState) => swapBoardTiles(prevBoard, activeBoardPos, targetPos));
                 }
             }
@@ -114,7 +114,7 @@ export function useDragAndDrop({ board, setBoard, rack, setRack, gameAreaRef, on
         // Case 2: Board → Rack
         else if (activeBoardPos && overRackIndex !== null) {
             const cell = board[activeBoardPos.row][activeBoardPos.col];
-            if (cell && cell.tile && !cell.locked) {
+            if (cell && cell.tile && cell.canTake) {
                 setBoard((prevBoard: BoardState) => removeTileFromBoard(prevBoard, activeBoardPos));
                 setRack((prevRack: RackState) => moveTileToRack(prevRack, cell.tile!, overRackIndex));
             }
@@ -125,12 +125,12 @@ export function useDragAndDrop({ board, setBoard, rack, setRack, gameAreaRef, on
             const targetPos = overBoardPos || parseEmptySlotId(overId);
             if (tile && targetPos) {
                 const targetCell = board[targetPos.row][targetPos.col];
-                // Only allow placement if target is empty or has an unlocked tile
-                if (!targetCell.tile || !targetCell.locked) {
+                // Allow placement if target empty and canPlace, or swapping if canPlace and canTake
+                if ((!targetCell.tile && targetCell.canPlace) || (targetCell.tile && targetCell.canPlace && targetCell.canTake)) {
                     setRack((prevRack: RackState) => {
                         const newRack = removeTileFromRack(prevRack, activeRackIndex);
-                        // If there's an existing unlocked tile on board, swap it to rack
-                        if (targetCell.tile && !targetCell.locked) {
+                        // If swapping, move existing tile to rack
+                        if (targetCell.tile && targetCell.canTake) {
                             return moveTileToRack(newRack, targetCell.tile, activeRackIndex);
                         }
                         return newRack;

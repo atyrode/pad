@@ -98,7 +98,8 @@ export default function Home() {
                     suggestedPositions.forEach((pos, index) => {
                         newBoard[pos.row][pos.col] = {
                             tile: newSuggestedTiles[index],
-                            locked: false
+                            canPlace: true,
+                            canTake: true
                         };
                     });
                     return newBoard;
@@ -202,14 +203,14 @@ export default function Home() {
             return false; // No matching tile or blank in rack
         }
 
-        // Check if target board cell is valid (empty or has unlocked tile)
+        // Check if target board cell is valid (can accept a tile)
         const targetCell = board[selectedCell.row][selectedCell.col];
-        if (targetCell.tile && targetCell.locked) {
-            return false; // Can't place on locked tile
+        if (!targetCell.canPlace) {
+            return false; // Can't place on non-placeable cell
         }
 
         // Mimic Rack → Board logic from useDragAndDrop
-        if (targetCell.tile && !targetCell.locked) {
+        if (targetCell.tile && targetCell.canTake) {
             // Swap: move existing tile back to rack, place new tile on board
             setRack((prevRack: RackState) => {
                 const newRack = [...prevRack];
@@ -228,7 +229,7 @@ export default function Home() {
         // Place tile on board
         setBoard((prevBoard: BoardState) => {
             const newBoard = prevBoard.map(row => [...row]);
-            newBoard[selectedCell.row][selectedCell.col] = { tile, locked: false };
+            newBoard[selectedCell.row][selectedCell.col] = { tile, canPlace: true, canTake: true };
             return newBoard;
         });
 
@@ -260,7 +261,7 @@ export default function Home() {
 
             // Verify tile still exists at that position with matching ID
             const cell = board[position.row][position.col];
-            if (!cell.tile || cell.tile.id !== tileId || cell.locked) {
+            if (!cell.tile || cell.tile.id !== tileId || !cell.canTake) {
                 // Tile was moved/removed/locked, skip this entry
                 newHistory = newHistory.slice(0, -1);
                 continue;
@@ -319,8 +320,8 @@ export default function Home() {
         setBoard((prevBoard: BoardState) => 
             prevBoard.map(row => 
                 row.map(cell => 
-                    cell.tile && !cell.locked 
-                        ? { ...cell, locked: true } 
+                    cell.tile && cell.canTake 
+                        ? { ...cell, canPlace: false, canTake: false } 
                         : cell
                 )
             )
@@ -332,7 +333,7 @@ export default function Home() {
             for (let row = 0; row < board.length; row++) {
                 for (let col = 0; col < board[row].length; col++) {
                     const cell = board[row][col];
-                    if (cell.tile && !cell.locked) {
+                    if (cell.tile && cell.canTake) {
                         // This tile will be locked, so consume the sticker if it exists
                         newStickers = consumeSticker(newStickers, { row, col });
                     }
@@ -393,10 +394,10 @@ export default function Home() {
             return false;
         }
 
-        // Check if target board cell can accept the tile (empty or has non-locked tile)
+        // Check if target board cell can accept the tile
         const targetCell = board[selectedCell.row][selectedCell.col];
-        if (targetCell.tile && targetCell.locked) {
-            return false; // Can't place on locked tile
+        if (!targetCell.canPlace) {
+            return false; // Can't place on non-placeable cell
         }
 
         // For blank tiles, we need to prompt for a letter or use a default
@@ -405,8 +406,8 @@ export default function Home() {
         let tileToPlace = tile;
         let wasBlank = false;
 
-        // If target has non-locked tile, swap it back to the rack position where the clicked tile was
-        if (targetCell.tile && !targetCell.locked) {
+        // If target has takeable tile, swap it back to the rack position where the clicked tile was
+        if (targetCell.tile && targetCell.canTake) {
             setRack((prevRack: RackState) => {
                 const newRack = [...prevRack];
                 newRack[rackIndex] = targetCell.tile; // Put existing tile in rack
@@ -424,7 +425,7 @@ export default function Home() {
         // Place tile on board
         setBoard((prevBoard: BoardState) => {
             const newBoard = prevBoard.map(row => [...row]);
-            newBoard[selectedCell.row][selectedCell.col] = { tile: tileToPlace, locked: false };
+            newBoard[selectedCell.row][selectedCell.col] = { tile: tileToPlace, canPlace: true, canTake: true };
             return newBoard;
         });
 
@@ -514,14 +515,14 @@ export default function Home() {
 
         // Check if target board cell can accept the tile
         const targetCell = board[targetPosition.row][targetPosition.col];
-        if (targetCell.tile && targetCell.locked) {
-            // Can't place on locked tile, just close popup
+        if (!targetCell.canPlace) {
+            // Can't place on non-placeable cell, just close popup
             setBlankTilePopup(null);
             return;
         }
 
         // Handle tile placement (swap or simple)
-        if (targetCell.tile && !targetCell.locked) {
+        if (targetCell.tile && targetCell.canTake) {
             // Swap: move existing tile back to rack
             setRack((prevRack: RackState) => {
                 const newRack = [...prevRack];
@@ -540,7 +541,7 @@ export default function Home() {
         // Place transformed tile on board
         setBoard((prevBoard: BoardState) => {
             const newBoard = prevBoard.map(row => [...row]);
-            newBoard[targetPosition.row][targetPosition.col] = { tile: transformedTile, locked: false };
+            newBoard[targetPosition.row][targetPosition.col] = { tile: transformedTile, canPlace: true, canTake: true };
             return newBoard;
         });
 

@@ -58,7 +58,8 @@ export default function DraftBoard({ board, boardCellSize, overBoardPos, onCellS
                     <BoardCell
                         key={`${rowIndex}-${colIndex}`}
                         tile={cell.tile}
-                        locked={cell.locked}
+                        canPlace={cell.canPlace}
+                        canTake={cell.canTake}
                         row={rowIndex}
                         col={colIndex}
                         overRackIndex={overRackIndex}
