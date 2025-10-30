@@ -85,6 +85,38 @@ export default function Home() {
         setPlacementHistory(prev => [...prev, { tileId, position, wasBlank }]);
     };
 
+    // After a valid play, fill the rack like DebugMenu's Draw All, refilling from discard if bag is empty
+    const fillRackAfterPlay = () => {
+        if (isDraftMode) return; // only in game mode
+        setRack(prevRack => {
+            let rackWork = [...prevRack];
+            let bagWork = bag;
+            let discardWork = discard;
+            let usedRefill = false;
+
+            while (true) {
+                const slot = findFirstEmptySlot(rackWork);
+                if (slot === null) break;
+
+                if (bagWork.length === 0) {
+                    if (discardWork.length === 0) break;
+                    bagWork = shuffleBag([...discardWork]);
+                    discardWork = [];
+                    usedRefill = true;
+                }
+
+                const { tile, newBag } = drawTileFromBag(bagWork);
+                if (!tile) break;
+                rackWork[slot] = tile;
+                bagWork = newBag;
+            }
+
+            if (usedRefill) setDiscard([]);
+            setBag(bagWork);
+            return rackWork;
+        });
+    };
+
     const {
         sensors,
         handleDragStart,
@@ -425,6 +457,9 @@ export default function Home() {
 
         // Clear placement history after locking tiles
         setPlacementHistory([]);
+
+        // Auto-draw until rack is full (with discard refill)
+        fillRackAfterPlay();
     };
 
     const handleKeyboardPlay = () => {
