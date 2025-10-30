@@ -115,6 +115,7 @@ export function useGameController() {
     setBag,
     discard: state.discard,
     setDiscard,
+    placementHistory: state.placementHistory,
     setPlacementHistory,
     openBlankTilePopup,
     originalHandleDragEnd,

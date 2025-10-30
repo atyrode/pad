@@ -4,6 +4,7 @@ import { RackState } from '../types/rack';
 import { TileData } from '../types/tile';
 import { parseEmptySlotId } from '../utils/boardUtils';
 import { TileMovementService } from '../services/TileMovementService';
+import { DiscardService } from '../services/DiscardService';
 import { TileSupplyService } from '../services/TileSupplyService';
 
 type SetState<T> = (updater: (prev: T) => T) => void;
@@ -17,6 +18,7 @@ export interface UseDragEndWithDiscardParams {
     setBag: (bag: TileData[]) => void;
     discard: TileData[];
     setDiscard: (updater: (prev: TileData[]) => TileData[]) => void | ((tiles: TileData[]) => void);
+    placementHistory: PlacementHistoryEntry[];
     setPlacementHistory: (updater: PlacementHistoryEntry[] | ((prev: PlacementHistoryEntry[]) => PlacementHistoryEntry[])) => void;
     openBlankTilePopup: (args: { blankTile: TileData; targetPosition: Position; sourceRackIndex: number }) => void;
     originalHandleDragEnd: (event: any) => void;
@@ -32,6 +34,7 @@ export function useDragEndWithDiscard(params: UseDragEndWithDiscardParams) {
         setBag,
         discard,
         setDiscard,
+        placementHistory,
         setPlacementHistory,
         openBlankTilePopup,
         originalHandleDragEnd,
@@ -57,78 +60,63 @@ export function useDragEndWithDiscard(params: UseDragEndWithDiscardParams) {
                 return;
             }
 
-            const sourceRackIndex = TileMovementService.findTileInRack(rack, activeId);
-            const sourceBoardPos = TileMovementService.findTilePosition(board, activeId);
+            // Use DiscardService to remove tile from source immediately
+            const removeResult = DiscardService.removeForDiscard(
+                rack,
+                board,
+                placementHistory,
+                activeId
+            );
 
-            let tileToDiscard: TileData | null = null;
-            if (sourceRackIndex !== null) {
-                tileToDiscard = rack[sourceRackIndex];
-            } else if (sourceBoardPos) {
-                const cell = board[sourceBoardPos.row][sourceBoardPos.col];
-                if (cell.canTake) {
-                    tileToDiscard = cell.tile;
-                }
-            }
-
-            if (!tileToDiscard) {
+            if (!removeResult) {
                 return;
             }
 
-            // Remove from source immediately
-            if (sourceRackIndex !== null) {
-                setRack(prevRack => {
-                    const next = [...prevRack];
-                    next[sourceRackIndex] = null;
-                    return next;
-                });
-            } else if (sourceBoardPos) {
-                // For discard, just remove from board (don't place in rack)
-                setBoard(prevBoard => {
-                    const newBoard = prevBoard.map(row => [...row]);
-                    newBoard[sourceBoardPos.row][sourceBoardPos.col] = { 
-                        ...newBoard[sourceBoardPos.row][sourceBoardPos.col], 
-                        tile: null 
-                    };
-                    return newBoard;
-                });
-                setPlacementHistory(prev => prev.filter(e => !(e.tileId === tileToDiscard!.id && e.position.row === sourceBoardPos.row && e.position.col === sourceBoardPos.col)));
+            // Update state immediately for visual feedback
+            setRack(() => removeResult.rack);
+            setBoard(() => removeResult.board);
+
+            // Update placement history if it was modified (when discarding from board)
+            if (removeResult.placementHistoryUpdates.length !== placementHistory.length) {
+                setPlacementHistory(() => removeResult.placementHistoryUpdates);
             }
 
             setIsDiscarding(true);
-            setDiscardAnim({ tile: tileToDiscard });
+            setDiscardAnim({ tile: removeResult.removedTile });
+
+            // Determine source rack index before removal for TileSupplyService
+            const sourceRackIndex = TileMovementService.findTileInRack(rack, activeId);
 
             window.setTimeout(() => {
-                // Get current state after tile removal for discard+draw operation
-                setRack(prevRack => {
-                    const result = TileSupplyService.discardAndDraw(
-                        tileToDiscard!,
-                        sourceRackIndex,
-                        {
-                            rack: prevRack,
-                            bag,
-                            discard,
-                        }
-                    );
-
-                    if (!result) {
-                        // Just add to discard if operation fails
-                        setDiscard(prev => [...prev, tileToDiscard!]);
-                        setDiscardAnim(null);
-                        setIsDiscarding(false);
-                        return prevRack;
+                // Perform discard+draw operation using TileSupplyService with already-removed state
+                const result = TileSupplyService.discardAndDraw(
+                    removeResult.removedTile,
+                    sourceRackIndex,
+                    {
+                        rack: removeResult.rack,
+                        bag,
+                        discard,
                     }
+                );
 
-                    // Update all states with the result
-                    setBag(result.bag);
-                    if (typeof setDiscard === 'function') {
-                        // Always use updater form since it's compatible with both types
-                        setDiscard(() => result.discard);
-                    }
-
+                if (!result) {
+                    // Just add to discard if operation fails
+                    setDiscard(prev => [...prev, removeResult.removedTile]);
                     setDiscardAnim(null);
                     setIsDiscarding(false);
-                    return result.rack;
-                });
+                    return;
+                }
+
+                // Update all states with the result
+                setRack(() => result.rack);
+                setBag(result.bag);
+                if (typeof setDiscard === 'function') {
+                    // Always use updater form since it's compatible with both types
+                    setDiscard(() => result.discard);
+                }
+
+                setDiscardAnim(null);
+                setIsDiscarding(false);
             }, 180);
 
             return;
