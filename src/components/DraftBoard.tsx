@@ -4,6 +4,7 @@ import React, { useEffect, useRef } from 'react';
 import BoardCell from './BoardCell';
 import { BoardState, BoardCellState, Position, Direction } from '../types/board';
 import { TileData } from '../types/tile';
+import { Sticker } from '../types/sticker';
 import { BOARD_SIZE, CELL_GAP, BOARD_WIDTH, BOARD_MAX_WIDTH } from '../constants/board';
 
 interface DraftBoardProps {
@@ -54,11 +55,26 @@ export default function DraftBoard({ board, boardCellSize, overBoardPos, onCellS
             }}
         >
             {board.map((row: BoardCellState[], rowIndex: number) =>
-                row.map((cell: BoardCellState, colIndex: number) => (
+                row.map((cell: BoardCellState, colIndex: number) => {
+                    const isSuggestedDraftCell = rowIndex === 4 && (colIndex === 2 || colIndex === 5 || colIndex === 8);
+
+                    // Define placement zone: rows 7 and 8, center 7 columns
+                    const centerCount = 7;
+                    const centerStart = Math.floor((BOARD_SIZE - centerCount) / 2);
+                    const centerEnd = centerStart + centerCount - 1;
+                    const isPlacementZone = (rowIndex === 7 || rowIndex === 8) && colIndex >= centerStart && colIndex <= centerEnd;
+
+                    // Visual sticker: show star under suggested draft cells and placement zone cells
+                    const draftSticker: Sticker | null = (isSuggestedDraftCell || isPlacementZone) ? { type: 'start', value: 0, consumed: false } : null;
+
+                    // Override canPlace to only allow placement in the designated placement zone
+                    const effectiveCanPlace = isPlacementZone ? true : false;
+
+                    return (
                     <BoardCell
                         key={`${rowIndex}-${colIndex}`}
                         tile={cell.tile}
-                        canPlace={cell.canPlace}
+                        canPlace={effectiveCanPlace}
                         canTake={cell.canTake}
                         row={rowIndex}
                         col={colIndex}
@@ -66,13 +82,14 @@ export default function DraftBoard({ board, boardCellSize, overBoardPos, onCellS
                         rackRef={rackRef}
                         gameAreaRef={gameAreaRef}
                         onRightClick={onRightClick}
-                        sticker={null}
+                        sticker={draftSticker}
                         tileOpacity={tileOpacity}
                         showCoordinates={showCoordinates}
                         isSelected={selectedCell?.row === rowIndex && selectedCell?.col === colIndex}
                         selectorDirection={selectorDirection}
                     />
-                ))
+                );
+                })
             )}
         </div>
     );

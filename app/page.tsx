@@ -76,36 +76,6 @@ export default function Home() {
 
     const handleDragAndDropPlacement = (tileId: string, position: Position, wasBlank: boolean) => {
         setPlacementHistory(prev => [...prev, { tileId, position, wasBlank }]);
-        
-        // Check if we're in draft mode and a tile was grabbed from suggested positions
-        if (isDraftMode) {
-            const suggestedPositions = [
-                { row: 4, col: 2 },
-                { row: 4, col: 5 },
-                { row: 4, col: 8 }
-            ];
-            
-            // Check if any of the suggested positions are now empty (tile was grabbed)
-            const hasEmptySuggestedPosition = suggestedPositions.some(pos => 
-                !draftBoard[pos.row][pos.col].tile
-            );
-            
-            if (hasEmptySuggestedPosition) {
-                // Reroll all 3 suggested tiles
-                const newSuggestedTiles = generateRandomTiles(3);
-                setDraftBoard(prevBoard => {
-                    const newBoard = prevBoard.map(row => [...row]);
-                    suggestedPositions.forEach((pos, index) => {
-                        newBoard[pos.row][pos.col] = {
-                            tile: newSuggestedTiles[index],
-                            canPlace: true,
-                            canTake: true
-                        };
-                    });
-                    return newBoard;
-                });
-            }
-        }
     };
 
     const {
@@ -361,6 +331,10 @@ export default function Home() {
     });
 
     const handleRightClick = (tile: TileData, position: Position): boolean => {
+        // Disable right-click behavior in draft mode (no rack, board-to-board only)
+        if (isDraftMode) {
+            return false;
+        }
         // Find first empty slot in rack
         const emptySlotIndex = findFirstEmptySlot(rack);
         
@@ -450,6 +424,33 @@ export default function Home() {
             setIsDictionaryLoaded(true);
         });
     }, []);
+
+    // In draft mode, whenever any suggested slot becomes empty, reroll all three
+    useEffect(() => {
+        if (!isDraftMode) return;
+
+        const suggestedPositions = [
+            { row: 4, col: 2 },
+            { row: 4, col: 5 },
+            { row: 4, col: 8 }
+        ];
+
+        const anyEmpty = suggestedPositions.some(pos => !draftBoard[pos.row][pos.col].tile);
+        if (anyEmpty) {
+            const newSuggestedTiles = generateRandomTiles(3);
+            setDraftBoard(prevBoard => {
+                const newBoard = prevBoard.map(row => [...row]);
+                suggestedPositions.forEach((pos, index) => {
+                    newBoard[pos.row][pos.col] = {
+                        tile: newSuggestedTiles[index],
+                        canPlace: false,
+                        canTake: true
+                    };
+                });
+                return newBoard;
+            });
+        }
+    }, [isDraftMode, draftBoard]);
 
     // Helper function to check if all current words are valid
     const areAllCurrentWordsValid = (): boolean => {
@@ -602,7 +603,6 @@ export default function Home() {
                                 boardRef={boardRef}
                                 rackRef={rackRef}
                                 gameAreaRef={gameAreaRef}
-                                onRightClick={handleRightClick}
                                 tileOpacity={tileOpacity}
                                 showCoordinates={showCoordinates}
                                 selectedCell={selectedCell}

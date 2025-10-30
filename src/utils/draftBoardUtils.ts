@@ -2,6 +2,7 @@ import { BoardState } from '../types/board';
 import { TileData } from '../types/tile';
 import { getTileDefinition, ALL_TILE_DEFINITIONS } from './tileDefinitions';
 import { createInitialBoard } from './boardUtils';
+import { BOARD_SIZE } from '../constants/board';
 
 /**
  * Create a tile from a letter using the tile definitions
@@ -51,6 +52,23 @@ export function generateRandomTiles(count: number): TileData[] {
 export function createInitialDraftBoard(): BoardState {
     const board = createInitialBoard();
     
+    // By default in draft mode: disallow placement everywhere
+    for (let r = 0; r < board.length; r++) {
+        for (let c = 0; c < board[r].length; c++) {
+            board[r][c] = { ...board[r][c], canPlace: false };
+        }
+    }
+
+    // Allow placement only in the center 7 tiles on rows 7 and 8 (0-indexed)
+    const centerCount = 7;
+    const centerStart = Math.floor((BOARD_SIZE - centerCount) / 2);
+    const centerEnd = centerStart + centerCount - 1;
+    [7, 8].forEach(rowIdx => {
+        for (let c = centerStart; c <= centerEnd; c++) {
+            board[rowIdx][c] = { ...board[rowIdx][c], canPlace: true };
+        }
+    });
+    
     // "DRAFT" should be centered on row 1 (second row)
     // For 11 columns, "DRAFT" (5 letters) should start at column 3
     // Positions: row 1, columns 3, 4, 5, 6, 7
@@ -81,7 +99,7 @@ export function createInitialDraftBoard(): BoardState {
     suggestedPositions.forEach((pos, index) => {
         board[pos.row][pos.col] = {
             tile: randomTiles[index],
-            canPlace: true, // These can be moved
+            canPlace: false,
             canTake: true
         };
     });

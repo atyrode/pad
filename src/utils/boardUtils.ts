@@ -22,14 +22,21 @@ export function parseEmptySlotId(slotId: string): Position | null {
 
 export function swapBoardTiles(board: BoardState, pos1: Position, pos2: Position): BoardState {
     const newBoard = board.map(row => [...row]);
-    
-    // Swap tiles
-    const tile1 = newBoard[pos1.row][pos1.col];
-    const tile2 = newBoard[pos2.row][pos2.col];
-    
-    newBoard[pos1.row][pos1.col] = tile2;
-    newBoard[pos2.row][pos2.col] = tile1;
-    
+
+    // Swap ONLY the tiles, preserve canPlace/canTake flags per cell
+    const tile1 = newBoard[pos1.row][pos1.col].tile;
+    const tile2 = newBoard[pos2.row][pos2.col].tile;
+
+    newBoard[pos1.row][pos1.col] = {
+        ...newBoard[pos1.row][pos1.col],
+        tile: tile2,
+    };
+
+    newBoard[pos2.row][pos2.col] = {
+        ...newBoard[pos2.row][pos2.col],
+        tile: tile1,
+    };
+
     return newBoard;
 }
 
@@ -42,13 +49,17 @@ export function createInitialBoard(): BoardState {
 
 export function removeTileFromBoard(board: BoardState, pos: Position): BoardState {
     const newBoard = board.map(row => [...row]);
-    newBoard[pos.row][pos.col] = { tile: null, canPlace: true, canTake: true };
+    // Preserve existing canPlace/canTake flags for this cell
+    const existing = newBoard[pos.row][pos.col];
+    newBoard[pos.row][pos.col] = { ...existing, tile: null };
     return newBoard;
 }
 
 export function placeTileOnBoard(board: BoardState, tile: TileData, pos: Position): BoardState {
     const newBoard = board.map(row => [...row]);
-    newBoard[pos.row][pos.col] = { tile, canPlace: true, canTake: true };
+    // Preserve existing canPlace/canTake flags for this cell
+    const existing = newBoard[pos.row][pos.col];
+    newBoard[pos.row][pos.col] = { ...existing, tile };
     return newBoard;
 }
 
