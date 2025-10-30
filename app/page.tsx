@@ -1,63 +1,38 @@
 "use client";
 
-import { useState, useRef, useEffect, Activity } from 'react';
-import {
-    DndContext,
-    closestCenter,
-} from '@dnd-kit/core';
+import { Activity } from 'react';
+import { DndContext } from '@dnd-kit/core';
 import DebugMenu from "../src/components/DebugMenu";
 import { GameProvider } from "../src/state/GameContext";
-import { useGame, useGameDispatch } from "../src/state/GameContext";
-import { useGameSetters } from "../src/hooks/useGameSetters";
-import { useDraftSuggestionsReroll } from "../src/hooks/useDraftSuggestionsReroll";
-import { useSeedBagFromDraft } from "../src/hooks/useSeedBagFromDraft";
 import Board from "../src/components/Board";
 import DraftBoard from "../src/components/DraftBoard";
 import Rack from "../src/components/Rack";
 import DiscardSlot from "../src/components/DiscardSlot";
-import { BoardState, PlacementHistoryEntry } from '../src/types/board';
-import { RackState } from '../src/types/rack';
-import { removeTileFromBoard } from '../src/utils/boardUtils';
-import { createInitialDraftBoard, generateUniqueTiles, createBlankTile } from '../src/utils/draftBoardUtils';
-import { findTileInRack, findFirstEmptySlot, moveTileToRack, shuffleRack } from '../src/utils/rackUtils';
-import { getAllAvailableLetters } from '../src/utils/tileDefinitions';
-import { useDragAndDrop } from '../src/hooks/useDragAndDrop';
-import { useKeyboardSelector } from '../src/hooks/useKeyboardSelector';
 import { TileData } from '../src/types/tile';
 import { Position } from '../src/types/board';
 import { Shuffle, Play } from 'lucide-react';
 import LetterSelectionPopup from '../src/components/LetterSelectionPopup';
-import { fillRackAfterPlayAction, handlePlayAction, handleKeyboardTilePlacementAction, handleKeyboardTileRemovalAction, drawOneAction, drawAllAction, redrawAction, shuffleBagAction, resetBoardAction, resetRackAction, resetScoreAction, resetStickersAction, resetBagFromDraftAction, computeDrawWithRefill } from "../src/state/gameActions";
-import { canPlaySelector, canShuffleSelector } from "../src/state/selectors";
-import { useBlankTilePlacement } from "../src/hooks/useBlankTilePlacement";
-import { useDragEndWithDiscard } from "../src/hooks/useDragEndWithDiscard";
+import { useGameController } from "../src/hooks/useGameController";
+import { findTileInRack } from "../src/utils/rackUtils";
 
 function HomeContent() {
-    // Track client-side mount to prevent hydration mismatch
-    const [mounted, setMounted] = useState(false);
-
-    // Centralized game state via context
     const {
-        board,
-        rack,
-        bag,
-        discard,
-        stickers,
-        isDictionaryLoaded,
-        totalScore,
-        tileOpacity,
-        showCoordinates,
-        isDraftMode,
-        draftBoard,
-        draftRerollCount,
-        draftEnded,
-        hasSeededFromDraft,
-        placementHistory,
-    } = useGame();
-    const dispatch = useGameDispatch();
-
-    // Centralized simple setters
-    const {
+        // render flags and state
+        mounted,
+        state: {
+            board,
+            rack,
+            bag,
+            discard,
+            stickers,
+            isDictionaryLoaded,
+            totalScore,
+            tileOpacity,
+            showCoordinates,
+            isDraftMode,
+            draftBoard,
+        },
+        // setters
         setBoard,
         setRack,
         setBag,
@@ -71,283 +46,70 @@ function HomeContent() {
         setDraftRerollCount,
         setDraftEnded,
         setHasSeededFromDraft,
-        setPlacementHistory,
-    } = useGameSetters();
-
-    const {
-        blankTilePopup,
-        openBlankTilePopup,
-        handleLetterSelection,
-        handlePopupCancel,
-    } = useBlankTilePlacement({ board, setBoard, rack, setRack, setPlacementHistory });
-
-    const [boardCellSize, setBoardCellSize] = useState(44);
-    const boardRef = useRef<HTMLDivElement>(null);
-    const rackRef = useRef<HTMLDivElement>(null);
-    const gameAreaRef = useRef<HTMLDivElement>(null);
-    const discardRef = useRef<HTMLDivElement>(null);
-    const [exitingDraft, setExitingDraft] = useState(false);
-
-    const handleDragAndDropPlacement = (tileId: string, position: Position, wasBlank: boolean) => {
-        setPlacementHistory(prev => [...prev, { tileId, position, wasBlank }]);
-    };
-
-    // After a valid play, fill the rack with discard->bag refill
-    const fillRackAfterPlay = () => fillRackAfterPlayAction({ isDraftMode, rack, bag, discard }, dispatch);
-
-    const {
+        // ui state
+        boardCellSize,
+        setBoardCellSize,
+        boardRef,
+        rackRef,
+        gameAreaRef,
+        discardRef,
+        exitingDraft,
+        setExitingDraft,
+        // dnd
         sensors,
         handleDragStart,
         handleDragOver,
-        handleDragEnd: originalHandleDragEnd,
+        handleDragEnd,
         overBoardPos,
         overRackIndex,
         activeId,
-    } = useDragAndDrop({ 
-        board: isDraftMode ? draftBoard : board, 
-        setBoard: isDraftMode ? setDraftBoard : setBoard, 
-        rack, 
-        setRack, 
-        gameAreaRef, 
-        onTilePlaced: handleDragAndDropPlacement 
-    });
-
-    const { handleDragEnd, discardAnim, isDiscarding } = useDragEndWithDiscard({
-        board,
-        setBoard,
-        rack,
-        setRack,
-        bag,
-        setBag,
-        discard,
-        setDiscard,
-        setPlacementHistory,
-        openBlankTilePopup,
-        originalHandleDragEnd,
-        computeDrawWithRefill,
-    });
-
-    const handleKeyboardTilePlacement = (letter: string): boolean => {
-        return handleKeyboardTilePlacementAction({ letter, selectedCell, board, rack, placementHistory }, dispatch);
-    };
-
-    const handleKeyboardTileRemoval = () => handleKeyboardTileRemovalAction({ placementHistory, board, rack }, dispatch);
-
-
-
-    const handleShuffle = () => {
-        setRack((prevRack: RackState) => shuffleRack(prevRack));
-    };
-
-    const handlePlay = () => handlePlayAction({ board, stickers, rack, bag, discard, currentTotalScore: totalScore }, dispatch);
-
-    const handleKeyboardPlay = () => {
-        if (canPlay) {
-            handlePlay();
-        }
-    };
-
-    const { selectedCell, selectorDirection, advanceSelector } = useKeyboardSelector({
-        onLetterInput: handleKeyboardTilePlacement,
-        onBackspace: handleKeyboardTileRemoval,
-        onShuffle: handleShuffle,
-        onPlay: handleKeyboardPlay,
-        board: board,
-    });
-
-    const handleRightClick = (tile: TileData, position: Position): boolean => {
-        // Disable right-click behavior in draft mode (no rack, board-to-board only)
-        if (isDraftMode) {
-            return false;
-        }
-        // Find first empty slot in rack
-        const emptySlotIndex = findFirstEmptySlot(rack);
-        
-        if (emptySlotIndex !== null) {
-            // Remove tile from board
-            setBoard((prevBoard: BoardState) => removeTileFromBoard(prevBoard, position));
-            
-            // Add tile to rack - revert blank if it was originally a blank
-            if (tile.originalValue === "*") {
-                // Revert blank tile back to "*"
-                const revertedTile = {
-                    ...tile,
-                    value: "*",
-                    originalValue: undefined,
-                    displayValue: undefined
-                };
-                setRack((prevRack: RackState) => moveTileToRack(prevRack, revertedTile, emptySlotIndex));
-            } else {
-                // Return tile as-is
-                setRack((prevRack: RackState) => moveTileToRack(prevRack, tile, emptySlotIndex));
-            }
-            return true; // Success
-        }
-        
-        return false; // Rack is full
-    };
-
-    // Draft mode: right-click a suggested tile to place it into the first available placement zone cell
-    const handleDraftSuggestionRightClick = (tile: TileData, position: Position): boolean => {
-        if (!isDraftMode) return false;
-
-        // Only handle right-clicks from the three suggested positions
-        const suggestedPositions = [
-            { row: 4, col: 2 },
-            { row: 4, col: 5 },
-            { row: 4, col: 8 }
-        ];
-        const isFromSuggested = suggestedPositions.some(pos => pos.row === position.row && pos.col === position.col);
-        if (!isFromSuggested) return false;
-
-        // Find first empty placement zone cell (rows 7 and 8, center 7 columns)
-        const centerCount = 7;
-        const centerStart = Math.floor((11 - centerCount) / 2); // BOARD_SIZE is 11
-        const centerEnd = centerStart + centerCount - 1;
-        const placementCells: Position[] = [];
-        [7, 8].forEach(r => {
-            for (let c = centerStart; c <= centerEnd; c++) {
-                placementCells.push({ row: r, col: c });
-            }
-        });
-
-        const target = placementCells.find(pos => !draftBoard[pos.row][pos.col].tile);
-        if (!target) {
-            return false; // No available placement cell
-        }
-
-        // Move tile from suggested position to target placement cell
-        setDraftBoard((prevBoard: BoardState) => {
-            const newBoard = prevBoard.map(row => row.map(cell => ({ ...cell })));
-            // Remove from suggested position (preserve flags)
-            newBoard[position.row][position.col] = { ...newBoard[position.row][position.col], tile: null };
-            // Place onto target (preserve flags)
-            newBoard[target.row][target.col] = { ...newBoard[target.row][target.col], tile };
-            return newBoard;
-        });
-
-        // If we just picked the final blank from the middle, clear suggestions entirely
-        if (tile.value === '*') {
-            setDraftBoard((prevBoard: BoardState) => {
-                const newBoard = prevBoard.map(row => [...row]);
-                newBoard[4][2] = { ...newBoard[4][2], tile: null };
-                newBoard[4][5] = { ...newBoard[4][5], tile: null };
-                newBoard[4][8] = { ...newBoard[4][8], tile: null };
-                return newBoard;
-            });
-        }
-
-        // Returning true triggers success feedback in the cell (prevents shake)
-        return true;
-    };
-
-    const handleRackRightClick = (tile: TileData, rackIndex: number): boolean => {
-        // Check if selector is visible and we have a selected cell
-        if (!selectedCell) {
-            return false;
-        }
-
-        // Check if target board cell can accept the tile
-        const targetCell = board[selectedCell.row][selectedCell.col];
-        if (!targetCell.canPlace) {
-            return false; // Can't place on non-placeable cell
-        }
-
-        // For blank tiles, we need to prompt for a letter or use a default
-        // For now, we'll place blank tiles as "*" without transformation
-        // (transformation only happens via keyboard input)
-        let tileToPlace = tile;
-        let wasBlank = false;
-
-        // If target has takeable tile, swap it back to the rack position where the clicked tile was
-        if (targetCell.tile && targetCell.canTake) {
-            setRack((prevRack: RackState) => {
-                const newRack = [...prevRack];
-                newRack[rackIndex] = targetCell.tile; // Put existing tile in rack
-                return newRack;
-            });
-        } else {
-            // Simple placement: remove tile from rack
-            setRack((prevRack: RackState) => {
-                const newRack = [...prevRack];
-                newRack[rackIndex] = null;
-                return newRack;
-            });
-        }
-
-        // Place tile on board
-        setBoard((prevBoard: BoardState) => {
-            const newBoard = prevBoard.map(row => [...row]);
-            newBoard[selectedCell.row][selectedCell.col] = { tile: tileToPlace, canPlace: true, canTake: true };
-            return newBoard;
-        });
-
-        // Add to placement history
-        setPlacementHistory(prev => [...prev, { tileId: tileToPlace.id, position: selectedCell, wasBlank }]);
-
-        // Move selector forward after successful placement (same logic as typing)
-        advanceSelector();
-        
-        return true;
-    };
-
-
-
-    // Set mounted to true after client-side hydration
-    useEffect(() => {
-        setMounted(true);
-    }, []);
-
-    // In draft mode, whenever any suggested slot becomes empty, reroll all three
-    const suggestedOccupancyRef = useRef<[boolean, boolean, boolean] | null>(null);
-
-    const { rerollSuggestions } = useDraftSuggestionsReroll({
-        isDraftMode,
-        draftBoard,
-        draftEnded,
-        draftRerollCount,
-        setDraftBoard,
-        setDraftRerollCount,
-        setDraftEnded,
-        suggestedOccupancyRef,
-    });
-
-    // On draft completion: when draft ends and 14 tiles are placed, seed the game bag from draft (shuffled) exactly once
-    useSeedBagFromDraft({
-        isDraftMode,
-        draftBoard,
-        draftEnded,
-        hasSeededFromDraft,
-        setBag,
-        setHasSeededFromDraft,
-    });
-
-    const canPlay = canPlaySelector({ board, stickers, isDictionaryLoaded });
-    const canShuffle = canShuffleSelector(rack);
-    
+        collisionDetection,
+        // keyboard
+        selectedCell,
+        selectorDirection,
+        advanceSelector,
+        // actions
+        handleRightClick,
+        handleDraftSuggestionRightClick,
+        handleRackRightClick,
+        handleShuffle,
+        handlePlay,
+        canPlay,
+        canShuffle,
+        // popup
+        blankTilePopup,
+        handleLetterSelection,
+        handlePopupCancel,
+        getAllAvailableLetters,
+        // debug menu consolidated
+        debugActions,
+        // discard animation
+        discardAnim,
+    } = useGameController();
 
     return (
         <div id="main" className="h-screen w-screen bg-zinc-500 flex">
             {mounted ? (
                 <DndContext
                     sensors={sensors}
-                    collisionDetection={closestCenter}
+                    collisionDetection={collisionDetection}
                     onDragStart={handleDragStart}
                     onDragOver={handleDragOver}
                     onDragEnd={handleDragEnd}
                 >
                     <DebugMenu bag={bag} rack={rack} board={board} setRack={setRack} setBag={setBag} setBoard={setBoard} draftBoard={draftBoard} setDraftBoard={setDraftBoard} totalScore={totalScore} setTotalScore={setTotalScore} stickers={stickers} setStickers={setStickers} tileOpacity={tileOpacity} setTileOpacity={setTileOpacity} showCoordinates={showCoordinates} setShowCoordinates={setShowCoordinates} isDraftMode={isDraftMode} setIsDraftMode={setIsDraftMode} discard={discard} setDiscard={setDiscard}
-                        onDraw={() => drawOneAction({ rack, bag, discard }, dispatch)}
-                        onDrawAll={() => drawAllAction({ rack, bag, discard }, dispatch)}
-                        onRedraw={() => redrawAction({ rack, bag, discard }, dispatch)}
-                        onClearRack={() => resetRackAction({ rackSize: rack.length }, dispatch)}
-                        onResetBoard={() => resetBoardAction(dispatch)}
-                        onResetScore={() => resetScoreAction(dispatch)}
-                        onResetStickers={() => resetStickersAction({ board }, dispatch)}
-                        onResetBag={() => resetBagFromDraftAction({ draftBoard }, dispatch)}
-                        onResetGame={() => { resetBoardAction(dispatch); resetRackAction({ rackSize: rack.length }, dispatch); resetScoreAction(dispatch); resetStickersAction({ board }, dispatch); resetBagFromDraftAction({ draftBoard }, dispatch); }}
-                        onShuffleBag={() => shuffleBagAction({ bag }, dispatch)}
-                        onResetDraft={() => { setDraftBoard(createInitialDraftBoard()); setDraftRerollCount(0); setDraftEnded(false); setHasSeededFromDraft(false); suggestedOccupancyRef.current = null; }} onRerollSuggestions={() => rerollSuggestions()} />
+                        onDraw={debugActions.onDraw}
+                        onDrawAll={debugActions.onDrawAll}
+                        onRedraw={debugActions.onRedraw}
+                        onClearRack={debugActions.onClearRack}
+                        onResetBoard={debugActions.onResetBoard}
+                        onResetScore={debugActions.onResetScore}
+                        onResetStickers={debugActions.onResetStickers}
+                        onResetBag={debugActions.onResetBag}
+                        onResetGame={debugActions.onResetGame}
+                        onShuffleBag={debugActions.onShuffleBag}
+                        onResetDraft={debugActions.onResetDraft}
+                        onRerollSuggestions={debugActions.onRerollSuggestions} />
                     <div 
                         ref={gameAreaRef}
                         id="game-area" 
