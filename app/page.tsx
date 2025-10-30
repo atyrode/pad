@@ -668,7 +668,32 @@ export default function Home() {
                     onDragOver={handleDragOver}
                     onDragEnd={handleDragEnd}
                 >
-                    <DebugMenu bag={bag} rack={rack} board={board} setRack={setRack} setBag={setBag} setBoard={setBoard} draftBoard={draftBoard} setDraftBoard={setDraftBoard} totalScore={totalScore} setTotalScore={setTotalScore} stickers={stickers} setStickers={setStickers} tileOpacity={tileOpacity} setTileOpacity={setTileOpacity} showCoordinates={showCoordinates} setShowCoordinates={setShowCoordinates} isDraftMode={isDraftMode} setIsDraftMode={setIsDraftMode} onResetDraft={() => { setDraftBoard(createInitialDraftBoard()); setDraftRerollCount(0); setDraftEnded(false); suggestedOccupancyRef.current = null; }} />
+                    <DebugMenu bag={bag} rack={rack} board={board} setRack={setRack} setBag={setBag} setBoard={setBoard} draftBoard={draftBoard} setDraftBoard={setDraftBoard} totalScore={totalScore} setTotalScore={setTotalScore} stickers={stickers} setStickers={setStickers} tileOpacity={tileOpacity} setTileOpacity={setTileOpacity} showCoordinates={showCoordinates} setShowCoordinates={setShowCoordinates} isDraftMode={isDraftMode} setIsDraftMode={setIsDraftMode} onResetDraft={() => { setDraftBoard(createInitialDraftBoard()); setDraftRerollCount(0); setDraftEnded(false); suggestedOccupancyRef.current = null; }} onRerollSuggestions={() => {
+                        if (!isDraftMode || draftEnded) return;
+                        const draftSequence: Array<'V' | 'C' | '*'> = ['V','C','C','V','C','C','V','C','C','V','C','C','V','*'];
+                        const currentIndex = Math.min(draftRerollCount, draftSequence.length - 1);
+                        const type = draftSequence[currentIndex];
+                        setDraftBoard(prevBoard => {
+                            const newBoard = prevBoard.map(row => [...row]);
+                            if (type === '*') {
+                                // Final step: keep as-is; do not reroll
+                                return newBoard;
+                            } else if (type === 'V') {
+                                const vowels = generateUniqueTiles(2, 'vowel');
+                                newBoard[4][2] = { ...newBoard[4][2], tile: vowels[0], canPlace: false, canTake: true };
+                                newBoard[4][5] = { ...newBoard[4][5], tile: null, canPlace: false, canTake: true };
+                                newBoard[4][8] = { ...newBoard[4][8], tile: vowels[1], canPlace: false, canTake: true };
+                                suggestedOccupancyRef.current = [true, false, true];
+                            } else {
+                                const consonants = generateUniqueTiles(3, 'consonant');
+                                newBoard[4][2] = { ...newBoard[4][2], tile: consonants[0], canPlace: false, canTake: true };
+                                newBoard[4][5] = { ...newBoard[4][5], tile: consonants[1], canPlace: false, canTake: true };
+                                newBoard[4][8] = { ...newBoard[4][8], tile: consonants[2], canPlace: false, canTake: true };
+                                suggestedOccupancyRef.current = [true, true, true];
+                            }
+                            return newBoard;
+                        });
+                    }} />
                     <div 
                         ref={gameAreaRef}
                         id="game-area" 
@@ -756,7 +781,31 @@ export default function Home() {
                 </DndContext>
             ) : (
                 <>
-                    <DebugMenu bag={bag} rack={rack} board={board} setRack={setRack} setBag={setBag} setBoard={setBoard} draftBoard={draftBoard} setDraftBoard={setDraftBoard} totalScore={totalScore} setTotalScore={setTotalScore} stickers={stickers} setStickers={setStickers} tileOpacity={tileOpacity} setTileOpacity={setTileOpacity} showCoordinates={showCoordinates} setShowCoordinates={setShowCoordinates} isDraftMode={isDraftMode} setIsDraftMode={setIsDraftMode} onResetDraft={() => { setDraftBoard(createInitialDraftBoard()); setDraftRerollCount(0); setDraftEnded(false); suggestedOccupancyRef.current = null; }} />
+                    <DebugMenu bag={bag} rack={rack} board={board} setRack={setRack} setBag={setBag} setBoard={setBoard} draftBoard={draftBoard} setDraftBoard={setDraftBoard} totalScore={totalScore} setTotalScore={setTotalScore} stickers={stickers} setStickers={setStickers} tileOpacity={tileOpacity} setTileOpacity={setTileOpacity} showCoordinates={showCoordinates} setShowCoordinates={setShowCoordinates} isDraftMode={isDraftMode} setIsDraftMode={setIsDraftMode} onResetDraft={() => { setDraftBoard(createInitialDraftBoard()); setDraftRerollCount(0); setDraftEnded(false); suggestedOccupancyRef.current = null; }} onRerollSuggestions={() => {
+                        if (!isDraftMode || draftEnded) return;
+                        const draftSequence: Array<'V' | 'C' | '*'> = ['V','C','C','V','C','C','V','C','C','V','C','C','V','*'];
+                        const currentIndex = Math.min(draftRerollCount, draftSequence.length - 1);
+                        const type = draftSequence[currentIndex];
+                        setDraftBoard(prevBoard => {
+                            const newBoard = prevBoard.map(row => [...row]);
+                            if (type === '*') {
+                                return newBoard;
+                            } else if (type === 'V') {
+                                const vowels = generateUniqueTiles(2, 'vowel');
+                                newBoard[4][2] = { ...newBoard[4][2], tile: vowels[0], canPlace: false, canTake: true };
+                                newBoard[4][5] = { ...newBoard[4][5], tile: null, canPlace: false, canTake: true };
+                                newBoard[4][8] = { ...newBoard[4][8], tile: vowels[1], canPlace: false, canTake: true };
+                                suggestedOccupancyRef.current = [true, false, true];
+                            } else {
+                                const consonants = generateUniqueTiles(3, 'consonant');
+                                newBoard[4][2] = { ...newBoard[4][2], tile: consonants[0], canPlace: false, canTake: true };
+                                newBoard[4][5] = { ...newBoard[4][5], tile: consonants[1], canPlace: false, canTake: true };
+                                newBoard[4][8] = { ...newBoard[4][8], tile: consonants[2], canPlace: false, canTake: true };
+                                suggestedOccupancyRef.current = [true, true, true];
+                            }
+                            return newBoard;
+                        });
+                    }} />
                     <div id="game-area" className="grow bg-zinc-500 flex flex-col items-center justify-center gap-4" />
                 </>
             )}

@@ -44,7 +44,7 @@ export function generateRandomTiles(count: number): TileData[] {
     return tiles;
 }
 
-const VOWELS = new Set(['A', 'E', 'I', 'O', 'U']);
+const VOWELS = new Set(['A', 'E', 'I', 'O', 'U', 'Y']);
 
 export function generateUniqueTiles(count: number, type: 'vowel' | 'consonant'): TileData[] {
     const pool = ALL_TILE_DEFINITIONS.filter(def => type === 'vowel' ? VOWELS.has(def.letter) : !VOWELS.has(def.letter));

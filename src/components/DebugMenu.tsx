@@ -31,9 +31,10 @@ interface DebugMenuProps {
   isDraftMode: boolean;
   setIsDraftMode: React.Dispatch<React.SetStateAction<boolean>>;
   onResetDraft?: () => void;
+  onRerollSuggestions?: () => void;
 }
 
-export default function DebugMenu({ bag, rack, board, setRack, setBag, setBoard, draftBoard, setDraftBoard, totalScore, setTotalScore, stickers, setStickers, tileOpacity, setTileOpacity, showCoordinates, setShowCoordinates, isDraftMode, setIsDraftMode, onResetDraft }: DebugMenuProps) {
+export default function DebugMenu({ bag, rack, board, setRack, setBag, setBoard, draftBoard, setDraftBoard, totalScore, setTotalScore, stickers, setStickers, tileOpacity, setTileOpacity, showCoordinates, setShowCoordinates, isDraftMode, setIsDraftMode, onResetDraft, onRerollSuggestions }: DebugMenuProps) {
   const [isDictionaryLoaded, setIsDictionaryLoaded] = useState(false);
 
   // Load dictionary on component mount
@@ -535,24 +536,9 @@ export default function DebugMenu({ bag, rack, board, setRack, setBag, setBoard,
             <div className="flex flex-row gap-2 justify-center">
               <button
                 onClick={() => {
-                  // Regenerate suggested tiles on the draft board
-                  const suggestedPositions = [
-                    { row: 4, col: 2 },
-                    { row: 4, col: 5 },
-                    { row: 4, col: 8 }
-                  ];
-                  const newSuggestedTiles = generateRandomTiles(3);
-                  setDraftBoard((prevBoard: BoardState) => {
-                    const newBoard = prevBoard.map(row => [...row]);
-                    suggestedPositions.forEach((pos, index) => {
-                      newBoard[pos.row][pos.col] = {
-                        tile: newSuggestedTiles[index],
-                        canPlace: true,
-                        canTake: true
-                      };
-                    });
-                    return newBoard;
-                  });
+                  if (onRerollSuggestions) {
+                    onRerollSuggestions();
+                  }
                 }}
                 className="py-2 px-3 rounded-lg text-white font-semibold text-sm transition-opacity bg-blue-600 hover:opacity-80 hover:bg-blue-500"
               >

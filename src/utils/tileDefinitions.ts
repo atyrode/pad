@@ -32,15 +32,15 @@ export const ALL_TILE_DEFINITIONS: TileDefinition[] = [
     { id: 17, letter: 'F', score: 4 },
     { id: 18, letter: 'H', score: 4 },
     { id: 19, letter: 'V', score: 4 },
-    { id: 20, letter: 'W', score: 4 },
-    { id: 21, letter: 'Y', score: 4 },
+    { id: 20, letter: 'W', score: 10 },
+    { id: 21, letter: 'Y', score: 10 },
     
     // 5 point tiles
-    { id: 22, letter: 'K', score: 5 },
+    { id: 22, letter: 'K', score: 10 },
     
     // 8 point tiles
     { id: 23, letter: 'J', score: 8 },
-    { id: 24, letter: 'X', score: 8 },
+    { id: 24, letter: 'X', score: 10 },
     
     // 10 point tiles
     { id: 25, letter: 'Q', score: 10 },
