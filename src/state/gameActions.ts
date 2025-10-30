@@ -4,12 +4,13 @@ import { Bag } from "../types/bag";
 import { StickerState } from "../types/sticker";
 import { TileData } from "../types/tile";
 import { GameAction } from "./gameTypes";
-import { findFirstEmptySlot, moveTileToRack, shuffleRack } from "../utils/rackUtils";
+import { findFirstEmptySlot, shuffleRack } from "../utils/rackUtils";
 import { shuffleBag } from "../utils/bagUtils";
-import { removeTileFromBoard, createInitialBoard } from "../utils/boardUtils";
+import { createInitialBoard } from "../utils/boardUtils";
 import { calculateCurrentPlayScore } from "../utils/scoreUtils";
 import { consumeSticker, createInitialStickers } from "../utils/stickerUtils";
 import { TileSupplyService } from "../services/TileSupplyService";
+import { TileMovementService } from "../services/TileMovementService";
 
 export type GameDispatch = React.Dispatch<GameAction>;
 
@@ -114,24 +115,61 @@ export function handleKeyboardTilePlacementAction(
     const targetCell = args.board[args.selectedCell.row][args.selectedCell.col];
     if (!targetCell.canPlace) return false;
 
-    // Rack updates
-    let nextRack = [...args.rack];
-    if (targetCell.tile && targetCell.canTake) {
-        nextRack[rackIndex] = targetCell.tile;
-    } else {
-        nextRack[rackIndex] = null;
+    // Handle blank tile transformation before placement
+    if (wasBlank) {
+        // Transform blank tile for placement
+        const transformedTile: TileData = {
+            ...tile,
+            value: args.letter.toUpperCase(),
+            originalValue: '*',
+            displayValue: args.letter.toUpperCase(),
+        } as TileData;
+        
+        // Update rack with transformed tile temporarily
+        const tempRack = [...args.rack];
+        tempRack[rackIndex] = transformedTile;
+        
+        // Use TileMovementService to place the transformed tile
+        const result = TileMovementService.placeTileOnBoard(
+            tempRack,
+            rackIndex,
+            args.board,
+            args.selectedCell,
+            true // track history
+        );
+        
+        if (result && result.placementHistoryEntry) {
+            dispatch({ type: 'setRack', payload: { rack: result.rack } });
+            dispatch({ type: 'setBoard', payload: { board: result.board } });
+            dispatch({ 
+                type: 'setPlacementHistory', 
+                payload: { placementHistory: [...args.placementHistory, result.placementHistoryEntry] } 
+            });
+            return true;
+        }
+        return false;
     }
-    dispatch({ type: 'setRack', payload: { rack: nextRack } });
 
-    // Board update
-    const nextBoard = args.board.map(row => [...row]);
-    nextBoard[args.selectedCell.row][args.selectedCell.col] = { tile, canPlace: true, canTake: true };
-    dispatch({ type: 'setBoard', payload: { board: nextBoard } });
-
-    const entry: PlacementHistoryEntry = { tileId: tile.id, position: args.selectedCell, wasBlank };
-    dispatch({ type: 'setPlacementHistory', payload: { placementHistory: [...args.placementHistory, entry] } });
-
-    return true;
+    // Place regular tile using TileMovementService
+    const result = TileMovementService.placeTileOnBoard(
+        args.rack,
+        rackIndex,
+        args.board,
+        args.selectedCell,
+        true // track history
+    );
+    
+    if (result && result.placementHistoryEntry) {
+        dispatch({ type: 'setRack', payload: { rack: result.rack } });
+        dispatch({ type: 'setBoard', payload: { board: result.board } });
+        dispatch({ 
+            type: 'setPlacementHistory', 
+            payload: { placementHistory: [...args.placementHistory, result.placementHistoryEntry] } 
+        });
+        return true;
+    }
+    
+    return false;
 }
 
 export function handleKeyboardTileRemovalAction(
@@ -159,26 +197,26 @@ export function handleKeyboardTileRemovalAction(
             continue;
         }
 
-        const nextBoard = removeTileFromBoard(args.board, position);
-        dispatch({ type: 'setBoard', payload: { board: nextBoard } });
-
-        if (wasBlank && cell.tile) {
-            const revertedTile = {
-                ...cell.tile,
-                value: '*',
-                originalValue: undefined,
-                displayValue: undefined,
-            } as TileData;
-            const nextRack = moveTileToRack(args.rack, revertedTile, emptySlotIndex);
-            dispatch({ type: 'setRack', payload: { rack: nextRack } });
+        // Use TileMovementService which handles blank tile reversion automatically
+        const result = TileMovementService.removeTileFromBoard(
+            args.board,
+            position,
+            args.rack,
+            emptySlotIndex
+        );
+        
+        if (result) {
+            dispatch({ type: 'setBoard', payload: { board: result.board } });
+            dispatch({ type: 'setRack', payload: { rack: result.rack } });
+            
+            newHistory = newHistory.slice(0, -1);
+            removedPosition = position;
+            break;
         } else {
-            const nextRack = moveTileToRack(args.rack, cell.tile!, emptySlotIndex);
-            dispatch({ type: 'setRack', payload: { rack: nextRack } });
+            // If removal failed, skip this history entry
+            newHistory = newHistory.slice(0, -1);
+            continue;
         }
-
-        newHistory = newHistory.slice(0, -1);
-        removedPosition = position;
-        break;
     }
 
     dispatch({ type: 'setPlacementHistory', payload: { placementHistory: newHistory } });

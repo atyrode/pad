@@ -10,8 +10,9 @@ import {
 import { BoardState, Position } from '../types/board';
 import { RackState } from '../types/rack';
 import { DRAG_ACTIVATION_DISTANCE } from '../constants/board';
-import { findTilePosition, parseEmptySlotId, swapBoardTiles, removeTileFromBoard, placeTileOnBoard } from '../utils/boardUtils';
-import { findTileInRack, parseRackSlotId, moveTileToRack, removeTileFromRack, swapRackTiles, isRackSlotId } from '../utils/rackUtils';
+import { parseEmptySlotId } from '../utils/boardUtils';
+import { parseRackSlotId, isRackSlotId } from '../utils/rackUtils';
+import { TileMovementService } from '../services/TileMovementService';
 
 interface UseDragAndDropProps {
     board: BoardState;
@@ -54,7 +55,7 @@ export function useDragAndDrop({ board, setBoard, rack, setRack, gameAreaRef, on
         
         // Check if we're over a rack cell or rack tile
         const rackIndex = parseRackSlotId(overId);
-        const rackTileIndex = findTileInRack(rack, overId);
+        const rackTileIndex = TileMovementService.findTileInRack(rack, overId);
         
         if (rackIndex !== null || rackTileIndex !== null) {
             // We're over a rack cell
@@ -64,7 +65,7 @@ export function useDragAndDrop({ board, setBoard, rack, setRack, gameAreaRef, on
         }
         
         // Check if we're over a board cell or empty board slot
-        const boardPos = findTilePosition(board, overId);
+        const boardPos = TileMovementService.findTilePosition(board, overId);
         const emptyPos = parseEmptySlotId(overId);
         
         if (boardPos || emptyPos) {
@@ -90,57 +91,63 @@ export function useDragAndDrop({ board, setBoard, rack, setRack, gameAreaRef, on
         const overId = over.id as string;
 
         // Determine if active tile is from board or rack
-        const activeBoardPos = findTilePosition(board, activeId);
-        const activeRackIndex = findTileInRack(rack, activeId);
+        const activeBoardPos = TileMovementService.findTilePosition(board, activeId);
+        const activeRackIndex = TileMovementService.findTileInRack(rack, activeId);
 
         // Determine if over target is board or rack
-        const overBoardPos = findTilePosition(board, overId);
+        const overBoardPos = TileMovementService.findTilePosition(board, overId);
         const overRackIndex = parseRackSlotId(overId);
-        const overRackTileIndex = findTileInRack(rack, overId);
+        const overRackTileIndex = TileMovementService.findTileInRack(rack, overId);
 
         // Case 1: Board → Board (existing functionality)
         if (activeBoardPos && (overBoardPos || parseEmptySlotId(overId))) {
             const targetPos = overBoardPos || parseEmptySlotId(overId);
             if (targetPos) {
-                const sourceCell = board[activeBoardPos.row][activeBoardPos.col];
-                const targetCell = board[targetPos.row][targetPos.col];
-                // Allow move if source is takeable and target allows placement
-                const targetAllowsPlacement = !targetCell.tile ? targetCell.canPlace : (targetCell.canPlace && targetCell.canTake);
-                if (sourceCell && sourceCell.tile && sourceCell.canTake && targetAllowsPlacement) {
-                    setBoard((prevBoard: BoardState) => swapBoardTiles(prevBoard, activeBoardPos, targetPos));
+                const result = TileMovementService.moveTileBetweenBoardPositions(
+                    board,
+                    activeBoardPos,
+                    targetPos
+                );
+                if (result) {
+                    setBoard(result.board);
                 }
             }
         }
         // Case 2: Board → Rack
         else if (activeBoardPos && overRackIndex !== null) {
-            const cell = board[activeBoardPos.row][activeBoardPos.col];
-            if (cell && cell.tile && cell.canTake) {
-                setBoard((prevBoard: BoardState) => removeTileFromBoard(prevBoard, activeBoardPos));
-                setRack((prevRack: RackState) => moveTileToRack(prevRack, cell.tile!, overRackIndex));
+            const result = TileMovementService.removeTileFromBoard(
+                board,
+                activeBoardPos,
+                rack,
+                overRackIndex
+            );
+            if (result) {
+                setBoard(result.board);
+                setRack(result.rack);
             }
         }
         // Case 3: Rack → Board
         else if (activeRackIndex !== null && (overBoardPos || parseEmptySlotId(overId))) {
-            const tile = rack[activeRackIndex];
             const targetPos = overBoardPos || parseEmptySlotId(overId);
-            if (tile && targetPos) {
-                const targetCell = board[targetPos.row][targetPos.col];
-                // Allow placement if target empty and canPlace, or swapping if canPlace and canTake
-                if ((!targetCell.tile && targetCell.canPlace) || (targetCell.tile && targetCell.canPlace && targetCell.canTake)) {
-                    setRack((prevRack: RackState) => {
-                        const newRack = removeTileFromRack(prevRack, activeRackIndex);
-                        // If swapping, move existing tile to rack
-                        if (targetCell.tile && targetCell.canTake) {
-                            return moveTileToRack(newRack, targetCell.tile, activeRackIndex);
-                        }
-                        return newRack;
-                    });
-                    setBoard((prevBoard: BoardState) => placeTileOnBoard(prevBoard, tile, targetPos));
+            if (targetPos) {
+                const result = TileMovementService.placeTileOnBoard(
+                    rack,
+                    activeRackIndex,
+                    board,
+                    targetPos,
+                    true // track history
+                );
+                if (result) {
+                    setBoard(result.board);
+                    setRack(result.rack);
                     
                     // Track the placement in history
-                    if (onTilePlaced) {
-                        const wasBlank = tile.originalValue === "*";
-                        onTilePlaced(tile.id, targetPos, wasBlank);
+                    if (onTilePlaced && result.placementHistoryEntry) {
+                        onTilePlaced(
+                            result.placementHistoryEntry.tileId,
+                            result.placementHistoryEntry.position,
+                            result.placementHistoryEntry.wasBlank ?? false
+                        );
                     }
                 }
             }
@@ -149,7 +156,8 @@ export function useDragAndDrop({ board, setBoard, rack, setRack, gameAreaRef, on
         else if (activeRackIndex !== null && (overRackIndex !== null || overRackTileIndex !== null)) {
             const targetIndex = overRackIndex !== null ? overRackIndex : overRackTileIndex;
             if (targetIndex !== null && targetIndex !== activeRackIndex) {
-                setRack((prevRack: RackState) => swapRackTiles(prevRack, activeRackIndex, targetIndex));
+                const newRack = TileMovementService.swapRackTiles(rack, activeRackIndex, targetIndex);
+                setRack(newRack);
             }
         }
 

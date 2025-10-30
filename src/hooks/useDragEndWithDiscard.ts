@@ -2,9 +2,8 @@ import { useState } from 'react';
 import { BoardState, Position, PlacementHistoryEntry } from '../types/board';
 import { RackState } from '../types/rack';
 import { TileData } from '../types/tile';
-import { removeTileFromBoard } from '../utils/boardUtils';
-import { findTileInRack } from '../utils/rackUtils';
-import { findTilePosition, parseEmptySlotId } from '../utils/boardUtils';
+import { parseEmptySlotId } from '../utils/boardUtils';
+import { TileMovementService } from '../services/TileMovementService';
 import { TileSupplyService } from '../services/TileSupplyService';
 
 type SetState<T> = (updater: (prev: T) => T) => void;
@@ -58,8 +57,8 @@ export function useDragEndWithDiscard(params: UseDragEndWithDiscardParams) {
                 return;
             }
 
-            const sourceRackIndex = findTileInRack(rack, activeId);
-            const sourceBoardPos = findTilePosition(board, activeId);
+            const sourceRackIndex = TileMovementService.findTileInRack(rack, activeId);
+            const sourceBoardPos = TileMovementService.findTilePosition(board, activeId);
 
             let tileToDiscard: TileData | null = null;
             if (sourceRackIndex !== null) {
@@ -83,7 +82,15 @@ export function useDragEndWithDiscard(params: UseDragEndWithDiscardParams) {
                     return next;
                 });
             } else if (sourceBoardPos) {
-                setBoard(prevBoard => removeTileFromBoard(prevBoard, sourceBoardPos));
+                // For discard, just remove from board (don't place in rack)
+                setBoard(prevBoard => {
+                    const newBoard = prevBoard.map(row => [...row]);
+                    newBoard[sourceBoardPos.row][sourceBoardPos.col] = { 
+                        ...newBoard[sourceBoardPos.row][sourceBoardPos.col], 
+                        tile: null 
+                    };
+                    return newBoard;
+                });
                 setPlacementHistory(prev => prev.filter(e => !(e.tileId === tileToDiscard!.id && e.position.row === sourceBoardPos.row && e.position.col === sourceBoardPos.col)));
             }
 
@@ -128,8 +135,8 @@ export function useDragEndWithDiscard(params: UseDragEndWithDiscardParams) {
         }
 
         // Blank tile interception when moving from rack to board
-        const activeRackIndex = findTileInRack(rack, activeId);
-        const overBoardPos = findTilePosition(board, overId);
+        const activeRackIndex = TileMovementService.findTileInRack(rack, activeId);
+        const overBoardPos = TileMovementService.findTilePosition(board, overId);
         const overEmptyPos = parseEmptySlotId(overId);
 
         if (activeRackIndex !== null && (overBoardPos || overEmptyPos)) {

@@ -13,8 +13,8 @@ import { useKeyboardSelector } from "./useKeyboardSelector";
 import { BoardState, PlacementHistoryEntry, Position } from "../types/board";
 import { RackState } from "../types/rack";
 import { TileData } from "../types/tile";
-import { removeTileFromBoard } from "../utils/boardUtils";
-import { findFirstEmptySlot, moveTileToRack, shuffleRack, findTileInRack } from "../utils/rackUtils";
+import { findFirstEmptySlot, shuffleRack } from "../utils/rackUtils";
+import { TileMovementService } from "../services/TileMovementService";
 import { createInitialDraftBoard } from "../utils/draftBoardUtils";
 import { getAllAvailableLetters } from "../utils/tileDefinitions";
 import {
@@ -157,19 +157,21 @@ export function useGameController() {
     if (state.isDraftMode) return false;
     const emptySlotIndex = findFirstEmptySlot(state.rack);
     if (emptySlotIndex === null) return false;
-    setBoard((prevBoard: BoardState) => removeTileFromBoard(prevBoard, position));
-    if (tile.originalValue === "*") {
-      const revertedTile: TileData = {
-        ...tile,
-        value: "*",
-        originalValue: undefined,
-        displayValue: undefined,
-      } as TileData;
-      setRack((prevRack: RackState) => moveTileToRack(prevRack, revertedTile, emptySlotIndex));
-    } else {
-      setRack((prevRack: RackState) => moveTileToRack(prevRack, tile, emptySlotIndex));
+    
+    // Use TileMovementService which handles blank tile reversion automatically
+    const result = TileMovementService.removeTileFromBoard(
+      state.board,
+      position,
+      state.rack,
+      emptySlotIndex
+    );
+    
+    if (result) {
+      setBoard(result.board);
+      setRack(result.rack);
+      return true;
     }
-    return true;
+    return false;
   };
 
   const handleDraftSuggestionRightClick = (tile: TileData, position: Position): boolean => {
@@ -212,30 +214,27 @@ export function useGameController() {
     if (!selectedCell) return false;
     const targetCell = state.board[selectedCell.row][selectedCell.col];
     if (!targetCell.canPlace) return false;
-    if (targetCell.tile && targetCell.canTake) {
-      setRack((prevRack: RackState) => {
-        const newRack = [...prevRack];
-        newRack[rackIndex] = targetCell.tile!;
-        return newRack;
-      });
-    } else {
-      setRack((prevRack: RackState) => {
-        const newRack = [...prevRack];
-        newRack[rackIndex] = null;
-        return newRack;
-      });
+    
+    // Use TileMovementService to place tile
+    const result = TileMovementService.placeTileOnBoard(
+      state.rack,
+      rackIndex,
+      state.board,
+      selectedCell,
+      true // track history
+    );
+    
+    if (result && result.placementHistoryEntry) {
+      setRack(result.rack);
+      setBoard(result.board);
+      setPlacementHistory((prev: PlacementHistoryEntry[]) => [
+        ...prev,
+        result.placementHistoryEntry!,
+      ]);
+      advanceSelector();
+      return true;
     }
-    setBoard((prevBoard: BoardState) => {
-      const newBoard = prevBoard.map((row) => [...row]);
-      newBoard[selectedCell.row][selectedCell.col] = { tile, canPlace: true, canTake: true };
-      return newBoard;
-    });
-    setPlacementHistory((prev: PlacementHistoryEntry[]) => [
-      ...prev,
-      { tileId: tile.id, position: selectedCell, wasBlank: false },
-    ]);
-    advanceSelector();
-    return true;
+    return false;
   };
 
   // Actions

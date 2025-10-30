@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { BoardState, Position, PlacementHistoryEntry } from '../types/board';
 import { RackState } from '../types/rack';
 import { TileData } from '../types/tile';
+import { TileMovementService } from '../services/TileMovementService';
 
 type SetBoard = React.Dispatch<React.SetStateAction<BoardState>>;
 type SetRack = React.Dispatch<React.SetStateAction<RackState>>;
@@ -53,27 +54,24 @@ export function useBlankTilePlacement({ board, setBoard, rack, setRack, setPlace
             return;
         }
 
-        if (targetCell.tile && targetCell.canTake) {
-            setRack((prevRack: RackState) => {
-                const newRack = [...prevRack];
-                newRack[sourceRackIndex] = targetCell.tile;
-                return newRack;
-            });
-        } else {
-            setRack((prevRack: RackState) => {
-                const newRack = [...prevRack];
-                newRack[sourceRackIndex] = null;
-                return newRack;
-            });
+        // Update rack with transformed tile temporarily
+        const tempRack = [...rack];
+        tempRack[sourceRackIndex] = transformedTile;
+        
+        // Use TileMovementService to place the transformed blank tile
+        const result = TileMovementService.placeTileOnBoard(
+            tempRack,
+            sourceRackIndex,
+            board,
+            targetPosition,
+            true // track history
+        );
+        
+        if (result && result.placementHistoryEntry) {
+            setRack(result.rack);
+            setBoard(result.board);
+            setPlacementHistory(prev => [...prev, result.placementHistoryEntry!]);
         }
-
-        setBoard((prevBoard: BoardState) => {
-            const newBoard = prevBoard.map(row => [...row]);
-            newBoard[targetPosition.row][targetPosition.col] = { tile: transformedTile, canPlace: true, canTake: true };
-            return newBoard;
-        });
-
-        setPlacementHistory(prev => [...prev, { tileId: transformedTile.id, position: targetPosition, wasBlank: true }]);
 
         setBlankTilePopup(null);
     };
