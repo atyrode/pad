@@ -8,6 +8,9 @@ import {
 import DebugMenu from "../src/components/DebugMenu";
 import { GameProvider } from "../src/state/GameContext";
 import { useGame, useGameDispatch } from "../src/state/GameContext";
+import { useGameSetters } from "../src/hooks/useGameSetters";
+import { useDraftSuggestionsReroll } from "../src/hooks/useDraftSuggestionsReroll";
+import { useSeedBagFromDraft } from "../src/hooks/useSeedBagFromDraft";
 import Board from "../src/components/Board";
 import DraftBoard from "../src/components/DraftBoard";
 import Rack from "../src/components/Rack";
@@ -28,6 +31,8 @@ import { Position } from '../src/types/board';
 import { Shuffle, Play } from 'lucide-react';
 import LetterSelectionPopup from '../src/components/LetterSelectionPopup';
 import { fillRackAfterPlayAction, handlePlayAction, computeDrawWithRefill, handleKeyboardTilePlacementAction, handleKeyboardTileRemovalAction } from "../src/state/gameActions";
+import { doesWordCoverStartSticker, isStartStickerConsumed } from '@/src/utils/stickerUtils';
+import { shuffleBag } from '@/src/utils/bagUtils';
 
 function HomeContent() {
     // Track client-side mount to prevent hydration mismatch
@@ -53,66 +58,24 @@ function HomeContent() {
     } = useGame();
     const dispatch = useGameDispatch();
 
-    // Setter wrappers to preserve existing contracts
-    const setBoard = (updater: BoardState | ((prev: BoardState) => BoardState)) => {
-        const next = typeof updater === 'function' ? (updater as (p: BoardState) => BoardState)(board) : updater;
-        dispatch({ type: 'setBoard', payload: { board: next } });
-    };
-    const setRack = (updater: RackState | ((prev: RackState) => RackState)) => {
-        const next = typeof updater === 'function' ? (updater as (p: RackState) => RackState)(rack) : updater;
-        dispatch({ type: 'setRack', payload: { rack: next } });
-    };
-    const setBag = (updater: Bag | ((prev: Bag) => Bag)) => {
-        const next = typeof updater === 'function' ? (updater as (p: Bag) => Bag)(bag) : updater;
-        dispatch({ type: 'setBag', payload: { bag: next } });
-    };
-    const setDiscard = (updater: TileData[] | ((prev: TileData[]) => TileData[])) => {
-        const next = typeof updater === 'function' ? (updater as (p: TileData[]) => TileData[])(discard) : updater;
-        dispatch({ type: 'setDiscard', payload: { discard: next } });
-    };
-    const setStickers = (updater: StickerState | ((prev: StickerState) => StickerState)) => {
-        const next = typeof updater === 'function' ? (updater as (p: StickerState) => StickerState)(stickers) : updater;
-        dispatch({ type: 'setStickers', payload: { stickers: next } });
-    };
-    const setIsDictionaryLoaded = (loaded: boolean) => {
-        dispatch({ type: 'initDictionaryLoaded', payload: { loaded } });
-    };
-    const setTotalScore = (updater: number | ((prev: number) => number)) => {
-        const next = typeof updater === 'function' ? (updater as (p: number) => number)(totalScore) : updater;
-        dispatch({ type: 'setTotalScore', payload: { totalScore: next } });
-    };
-    const setTileOpacity = (updater: number | ((prev: number) => number)) => {
-        const next = typeof updater === 'function' ? (updater as (p: number) => number)(tileOpacity) : updater;
-        dispatch({ type: 'setVisuals', payload: { tileOpacity: next } });
-    };
-    const setShowCoordinates = (updater: boolean | ((prev: boolean) => boolean)) => {
-        const next = typeof updater === 'function' ? (updater as (p: boolean) => boolean)(showCoordinates) : updater;
-        dispatch({ type: 'setVisuals', payload: { showCoordinates: next } });
-    };
-    const setIsDraftMode = (updater: boolean | ((prev: boolean) => boolean)) => {
-        const next = typeof updater === 'function' ? (updater as (p: boolean) => boolean)(isDraftMode) : updater;
-        dispatch({ type: 'setDraftFlags', payload: { isDraftMode: next } });
-    };
-    const setDraftBoard = (updater: BoardState | ((prev: BoardState) => BoardState)) => {
-        const next = typeof updater === 'function' ? (updater as (p: BoardState) => BoardState)(draftBoard) : updater;
-        dispatch({ type: 'setDraftBoard', payload: { draftBoard: next } });
-    };
-    const setDraftRerollCount = (updater: number | ((prev: number) => number)) => {
-        const next = typeof updater === 'function' ? (updater as (p: number) => number)(draftRerollCount) : updater;
-        dispatch({ type: 'setDraftRerollCount', payload: { draftRerollCount: next } });
-    };
-    const setDraftEnded = (updater: boolean | ((prev: boolean) => boolean)) => {
-        const next = typeof updater === 'function' ? (updater as (p: boolean) => boolean)(draftEnded) : updater;
-        dispatch({ type: 'setDraftFlags', payload: { draftEnded: next } });
-    };
-    const setHasSeededFromDraft = (updater: boolean | ((prev: boolean) => boolean)) => {
-        const next = typeof updater === 'function' ? (updater as (p: boolean) => boolean)(hasSeededFromDraft) : updater;
-        dispatch({ type: 'setDraftFlags', payload: { hasSeededFromDraft: next } });
-    };
-    const setPlacementHistory = (updater: PlacementHistoryEntry[] | ((prev: PlacementHistoryEntry[]) => PlacementHistoryEntry[])) => {
-        const next = typeof updater === 'function' ? (updater as (p: PlacementHistoryEntry[]) => PlacementHistoryEntry[])(placementHistory) : updater;
-        dispatch({ type: 'setPlacementHistory', payload: { placementHistory: next } });
-    };
+    // Centralized simple setters
+    const {
+        setBoard,
+        setRack,
+        setBag,
+        setDiscard,
+        setStickers,
+        setIsDictionaryLoaded,
+        setTotalScore,
+        setTileOpacity,
+        setShowCoordinates,
+        setIsDraftMode,
+        setDraftBoard,
+        setDraftRerollCount,
+        setDraftEnded,
+        setHasSeededFromDraft,
+        setPlacementHistory,
+    } = useGameSetters();
 
     // Blank tile popup state
     const [blankTilePopup, setBlankTilePopup] = useState<{
@@ -447,99 +410,26 @@ function HomeContent() {
     // In draft mode, whenever any suggested slot becomes empty, reroll all three
     const suggestedOccupancyRef = useRef<[boolean, boolean, boolean] | null>(null);
 
-    useEffect(() => {
-        if (!isDraftMode || draftEnded) return;
-
-        const suggestedPositions = [
-            { row: 4, col: 2 },
-            { row: 4, col: 5 },
-            { row: 4, col: 8 }
-        ];
-
-        const occupancy: [boolean, boolean, boolean] = [
-            !!draftBoard[4][2].tile,
-            !!draftBoard[4][5].tile,
-            !!draftBoard[4][8].tile,
-        ];
-
-        // Initialize previous occupancy on first run
-        if (suggestedOccupancyRef.current === null) {
-            suggestedOccupancyRef.current = occupancy;
-            return;
-        }
-
-        const prev = suggestedOccupancyRef.current;
-        const becameTaken = (prev[0] && !occupancy[0]) || (prev[1] && !occupancy[1]) || (prev[2] && !occupancy[2]);
-
-        // Trigger reroll when any suggested tile transitions from present -> empty
-        if (becameTaken) {
-            // Determine next draft type from fixed sequence
-            const draftSequence: Array<'V' | 'C' | '*'> = ['V','C','C','V','C','C','V','C','C','V','C','C','V','*'];
-            const nextIndex = Math.min(draftRerollCount + 1, draftSequence.length - 1);
-            const nextType = draftSequence[nextIndex];
-
-            setDraftBoard(prevBoard => {
-                const newBoard = prevBoard.map(row => [...row]);
-                if (nextType === '*') {
-                    // Only blank in middle; sides empty
-                    newBoard[4][2] = { ...newBoard[4][2], tile: null, canPlace: false, canTake: true };
-                    newBoard[4][5] = { ...newBoard[4][5], tile: createBlankTile('final'), canPlace: false, canTake: true };
-                    newBoard[4][8] = { ...newBoard[4][8], tile: null, canPlace: false, canTake: true };
-                    // Mark draft ended so we don't reroll anymore
-                    setDraftEnded(true);
-                    // Update occupancy to reflect [false, true, false]
-                    suggestedOccupancyRef.current = [false, true, false];
-                } else if (nextType === 'V') {
-                    // Vowel draft: middle empty, sides vowels (unique)
-                    const vowels = generateUniqueTiles(2, 'vowel');
-                    newBoard[4][2] = { ...newBoard[4][2], tile: vowels[0], canPlace: false, canTake: true };
-                    newBoard[4][5] = { ...newBoard[4][5], tile: null, canPlace: false, canTake: true };
-                    newBoard[4][8] = { ...newBoard[4][8], tile: vowels[1], canPlace: false, canTake: true };
-                    // Update occupancy to [true, false, true]
-                    suggestedOccupancyRef.current = [true, false, true];
-                } else {
-                    // Consonant draft: three unique consonants
-                    const consonants = generateUniqueTiles(3, 'consonant');
-                    newBoard[4][2] = { ...newBoard[4][2], tile: consonants[0], canPlace: false, canTake: true };
-                    newBoard[4][5] = { ...newBoard[4][5], tile: consonants[1], canPlace: false, canTake: true };
-                    newBoard[4][8] = { ...newBoard[4][8], tile: consonants[2], canPlace: false, canTake: true };
-                    // Update occupancy to [true, true, true]
-                    suggestedOccupancyRef.current = [true, true, true];
-                }
-                return newBoard;
-            });
-            setDraftRerollCount(c => c + 1);
-        } else {
-            // No transition; keep ref in sync
-            suggestedOccupancyRef.current = occupancy;
-        }
-    }, [isDraftMode, draftBoard, draftRerollCount, draftEnded]);
+    useDraftSuggestionsReroll({
+        isDraftMode,
+        draftBoard,
+        draftEnded,
+        draftRerollCount,
+        setDraftBoard,
+        setDraftRerollCount,
+        setDraftEnded,
+        suggestedOccupancyRef,
+    });
 
     // On draft completion: when draft ends and 14 tiles are placed, seed the game bag from draft (shuffled) exactly once
-    useEffect(() => {
-        if (!isDraftMode || !draftEnded || hasSeededFromDraft) return;
-
-        // Collect drafted tiles from placement zone: rows 7 and 8, center 7 columns
-        const centerCount = 7;
-        const centerStart = Math.floor((11 - centerCount) / 2);
-        const positions: Position[] = [];
-        [7, 8].forEach(r => {
-            for (let c = centerStart; c < centerStart + centerCount; c++) {
-                positions.push({ row: r, col: c });
-            }
-        });
-
-        const drafted = positions
-            .map(p => draftBoard[p.row][p.col].tile)
-            .filter(Boolean) as TileData[];
-
-        if (drafted.length !== 14) return;
-
-        // Seed bag from drafted tiles and shuffle; do not auto-exit or reset/draw
-        const newBag = shuffleBag([...drafted]);
-        setBag(newBag);
-        setHasSeededFromDraft(true);
-    }, [isDraftMode, draftBoard, draftEnded, hasSeededFromDraft]);
+    useSeedBagFromDraft({
+        isDraftMode,
+        draftBoard,
+        draftEnded,
+        hasSeededFromDraft,
+        setBag,
+        setHasSeededFromDraft,
+    });
 
     // Helper function to check if all current words are valid
     const areAllCurrentWordsValid = (): boolean => {
