@@ -19,11 +19,11 @@ import { BoardState, PlacementHistoryEntry } from '../src/types/board';
 import { RackState } from '../src/types/rack';
 import { Bag } from '../src/types/bag';
 import { StickerState } from '../src/types/sticker';
-import { removeTileFromBoard, findAllWords, areUnlockedTilesInSingleLine, findTilePosition, parseEmptySlotId, doesCurrentPlayTouchLocked } from '../src/utils/boardUtils';
+import { removeTileFromBoard, findTilePosition, parseEmptySlotId } from '../src/utils/boardUtils';
 import { createInitialDraftBoard, generateUniqueTiles, createBlankTile } from '../src/utils/draftBoardUtils';
 import { findTileInRack, findFirstEmptySlot, moveTileToRack, shuffleRack } from '../src/utils/rackUtils';
 import { getAllAvailableLetters } from '../src/utils/tileDefinitions';
-import { preloadDictionary, isValidWordSync } from '../src/utils/dictionaryUtils';
+import { preloadDictionary } from '../src/utils/dictionaryUtils';
 import { useDragAndDrop } from '../src/hooks/useDragAndDrop';
 import { useKeyboardSelector } from '../src/hooks/useKeyboardSelector';
 import { TileData } from '../src/types/tile';
@@ -31,8 +31,7 @@ import { Position } from '../src/types/board';
 import { Shuffle, Play } from 'lucide-react';
 import LetterSelectionPopup from '../src/components/LetterSelectionPopup';
 import { fillRackAfterPlayAction, handlePlayAction, computeDrawWithRefill, handleKeyboardTilePlacementAction, handleKeyboardTileRemovalAction, drawOneAction, drawAllAction, redrawAction, shuffleBagAction, resetBoardAction, resetRackAction, resetScoreAction, resetStickersAction, resetBagFromDraftAction } from "../src/state/gameActions";
-import { doesWordCoverStartSticker, isStartStickerConsumed } from '@/src/utils/stickerUtils';
-import { shuffleBag } from '@/src/utils/bagUtils';
+import { areAllCurrentWordsValidSelector, canPlaySelector, canShuffleSelector } from "../src/state/selectors";
 import { useBlankTilePlacement } from "../src/hooks/useBlankTilePlacement";
 
 function HomeContent() {
@@ -426,58 +425,8 @@ function HomeContent() {
         setHasSeededFromDraft,
     });
 
-    // Helper function to check if all current words are valid
-    const areAllCurrentWordsValid = (): boolean => {
-        if (!isDictionaryLoaded) {
-            return false; // Disable if dictionary not loaded
-        }
-
-        const words = findAllWords(board);
-        const currentWords = words.filter(w => !w.isLocked);
-        
-        // Disable if no current words (nothing to play)
-        if (currentWords.length === 0) {
-            return false;
-        }
-
-        // Check if all unlocked tiles form a single contiguous line (Scrabble rule)
-        if (!areUnlockedTilesInSingleLine(board)) {
-            return false;
-        }
-
-        // Check if all current words are valid dictionary words
-        const allWordsValid = currentWords.every(wordInfo => {
-            const isValid = isValidWordSync(wordInfo.word);
-            return isValid === true; // Only true if explicitly valid
-        });
-
-        if (!allWordsValid) {
-            return false;
-        }
-
-        // Check starting tile constraint: if start sticker is not consumed,
-        // ALL current words must pass through the start position (5,5)
-        const startStickerConsumed = isStartStickerConsumed(stickers);
-        if (!startStickerConsumed) {
-            const allWordsCoverStart = currentWords.every(wordInfo => 
-                doesWordCoverStartSticker(wordInfo, stickers)
-            );
-            if (!allWordsCoverStart) {
-                return false;
-            }
-        } else {
-            // After the first move, ensure the current play touches existing locked tiles
-            const hasLockedTiles = board.some(row => row.some(cell => cell.tile && !cell.canTake));
-            if (hasLockedTiles && !doesCurrentPlayTouchLocked(board)) {
-                return false;
-            }
-        }
-
-        return true;
-    };
-
-    const canPlay = areAllCurrentWordsValid();
-    const canShuffle = rack.filter(t => !!t).length > 1;
+    const canPlay = canPlaySelector({ board, stickers, isDictionaryLoaded });
+    const canShuffle = canShuffleSelector(rack);
     
 
     return (
