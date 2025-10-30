@@ -15,6 +15,7 @@ import { StickerState } from '../src/types/sticker';
 import { createInitialBoard, removeTileFromBoard, findAllWords, areUnlockedTilesInSingleLine, findTilePosition, parseEmptySlotId } from '../src/utils/boardUtils';
 import { createInitialRack, findTileInRack, findFirstEmptySlot, moveTileToRack, shuffleRack } from '../src/utils/rackUtils';
 import { createTileBag } from '../src/utils/bagUtils';
+import { getAllAvailableLetters } from '../src/utils/tileDefinitions';
 import { preloadDictionary, isValidWordSync } from '../src/utils/dictionaryUtils';
 import { calculateCurrentPlayScore, calculateTotalScore } from '../src/utils/scoreUtils';
 import { createInitialStickers, consumeSticker, isStartStickerConsumed, doesWordCoverStartSticker } from '../src/utils/stickerUtils';
@@ -453,19 +454,6 @@ export default function Home() {
 
     const canPlay = areAllCurrentWordsValid();
 
-    // Helper function to get unique letters from bag
-    const getAvailableLettersFromBag = (bag: Bag): Array<{letter: string, score: number}> => {
-        const uniqueLetters = new Map<string, number>();
-        bag.forEach(tile => {
-            if (tile.value !== "*") { // Exclude blanks from selection
-                uniqueLetters.set(tile.value, tile.score);
-            }
-        });
-        return Array.from(uniqueLetters.entries()).map(([letter, score]) => ({
-            letter,
-            score
-        })).sort((a, b) => a.letter.localeCompare(b.letter));
-    };
 
     // Popup handlers
     const handleLetterSelection = (letter: string) => {
@@ -610,7 +598,7 @@ export default function Home() {
             {/* Blank tile letter selection popup */}
             {blankTilePopup?.show && (
                 <LetterSelectionPopup
-                    availableLetters={getAvailableLettersFromBag(bag)}
+                    availableLetters={getAllAvailableLetters()}
                     onSelect={handleLetterSelection}
                     onCancel={handlePopupCancel}
                 />

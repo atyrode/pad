@@ -1,53 +1,53 @@
 import { TileData } from '../types/tile';
 import { Bag } from '../types/bag';
+import { ALL_TILE_DEFINITIONS, BLANK_TILE_DEFINITION, getTileDefinitionById } from './tileDefinitions';
 
 interface TileDistribution {
-    value: string;
-    score: number;
+    tileId: number;
     count: number;
 }
 
 const TILE_DISTRIBUTION: TileDistribution[] = [
     // Blank tiles
-    { value: '*', score: 0, count: 2 },
+    { tileId: 0, count: 2 },
     
     // 1 point tiles
-    { value: 'E', score: 1, count: 15 },
-    { value: 'A', score: 1, count: 9 },
-    { value: 'I', score: 1, count: 8 },
-    { value: 'N', score: 1, count: 6 },
-    { value: 'O', score: 1, count: 6 },
-    { value: 'R', score: 1, count: 6 },
-    { value: 'S', score: 1, count: 6 },
-    { value: 'T', score: 1, count: 6 },
-    { value: 'U', score: 1, count: 6 },
-    { value: 'L', score: 1, count: 5 },
+    { tileId: 2, count: 15 }, // E
+    { tileId: 1, count: 9 },  // A
+    { tileId: 3, count: 8 },  // I
+    { tileId: 4, count: 6 },  // N
+    { tileId: 5, count: 6 },  // O
+    { tileId: 6, count: 6 },  // R
+    { tileId: 7, count: 6 },  // S
+    { tileId: 8, count: 6 },  // T
+    { tileId: 9, count: 6 },  // U
+    { tileId: 10, count: 5 }, // L
     
     // 2 point tiles
-    { value: 'D', score: 2, count: 3 },
-    { value: 'M', score: 2, count: 3 },
-    { value: 'G', score: 2, count: 2 },
+    { tileId: 11, count: 3 }, // D
+    { tileId: 12, count: 3 }, // M
+    { tileId: 13, count: 2 }, // G
     
     // 3 point tiles
-    { value: 'B', score: 3, count: 2 },
-    { value: 'C', score: 3, count: 2 },
-    { value: 'P', score: 3, count: 2 },
+    { tileId: 14, count: 2 }, // B
+    { tileId: 15, count: 2 }, // C
+    { tileId: 16, count: 2 }, // P
     
     // 4 point tiles
-    { value: 'F', score: 4, count: 2 },
-    { value: 'H', score: 4, count: 2 },
-    { value: 'V', score: 4, count: 2 },
+    { tileId: 17, count: 2 }, // F
+    { tileId: 18, count: 2 }, // H
+    { tileId: 19, count: 2 }, // V
     
     // 8 point tiles
-    { value: 'J', score: 8, count: 1 },
-    { value: 'Q', score: 8, count: 1 },
+    { tileId: 23, count: 1 }, // J
+    { tileId: 25, count: 1 }, // Q
     
     // 10 point tiles
-    { value: 'K', score: 10, count: 1 },
-    { value: 'W', score: 10, count: 1 },
-    { value: 'X', score: 10, count: 1 },
-    { value: 'Y', score: 10, count: 1 },
-    { value: 'Z', score: 10, count: 1 },
+    { tileId: 22, count: 1 }, // K
+    { tileId: 20, count: 1 }, // W
+    { tileId: 24, count: 1 }, // X
+    { tileId: 21, count: 1 }, // Y
+    { tileId: 26, count: 1 }, // Z
 ];
 
 export function shuffleBag(bag: Bag): Bag {
@@ -62,12 +62,18 @@ export function shuffleBag(bag: Bag): Bag {
 export function createTileBag(): Bag {
     const bag: Bag = [];
     
-    for (const { value, score, count } of TILE_DISTRIBUTION) {
+    for (const { tileId, count } of TILE_DISTRIBUTION) {
+        const tileDefinition = getTileDefinitionById(tileId);
+        if (!tileDefinition) {
+            console.warn(`Tile definition not found for ID: ${tileId}`);
+            continue;
+        }
+        
         for (let i = 0; i < count; i++) {
             bag.push({
                 id: crypto.randomUUID(),
-                value,
-                score,
+                value: tileDefinition.letter,
+                score: tileDefinition.score,
             });
         }
     }
