@@ -1,4 +1,4 @@
-import { BoardState, Position } from '../types/board';
+import { BoardState } from '../types/board';
 import { TileData } from '../types/tile';
 import { getTileDefinition, ALL_TILE_DEFINITIONS } from './tileDefinitions';
 import { createInitialBoard } from './boardUtils';
@@ -26,43 +26,27 @@ export function generateRandomTiles(count: number): TileData[] {
     const tiles: TileData[] = [];
     
     for (let i = 0; i < count; i++) {
+        // Pick a random tile definition
         const randomIndex = Math.floor(Math.random() * ALL_TILE_DEFINITIONS.length);
-        const definition = ALL_TILE_DEFINITIONS[randomIndex];
+        const tileDef = ALL_TILE_DEFINITIONS[randomIndex];
         
-        tiles.push({
-            id: `suggested-${definition.letter}-${i}-${Date.now()}`,
-            value: definition.letter,
-            score: definition.score
-        });
+        // Create a unique tile with timestamp-based ID
+        const tile: TileData = {
+            id: `random-${tileDef.letter}-${Date.now()}-${i}`,
+            value: tileDef.letter,
+            score: tileDef.score
+        };
+        
+        tiles.push(tile);
     }
     
     return tiles;
 }
 
 /**
- * Get the 14 draft slot positions
- * Row 8: columns 2, 3, 4, 5, 6, 7, 8 (7 slots)
- * Row 9: columns 2, 3, 4, 5, 6, 7, 8 (7 slots)
- */
-export function createDraftSlotPositions(): Position[] {
-    const positions: Position[] = [];
-    
-    // Row 8 slots (indices 0-6)
-    for (let col = 2; col <= 8; col++) {
-        positions.push({ row: 7, col });
-    }
-    
-    // Row 9 slots (indices 7-13)
-    for (let col = 2; col <= 8; col++) {
-        positions.push({ row: 8, col });
-    }
-    
-    return positions;
-}
-
-/**
  * Create the initial draft board with "DRAFT" spelled out in locked tiles
  * on the second row (row 1), centered in the 11x11 grid
+ * and random suggested tiles at positions (4,2), (4,5), (4,8)
  */
 export function createInitialDraftBoard(): BoardState {
     const board = createInitialBoard();
@@ -81,6 +65,22 @@ export function createInitialDraftBoard(): BoardState {
         board[row][col] = {
             tile,
             locked: true
+        };
+    });
+    
+    // Add random suggested tiles at positions (4,2), (4,5), (4,8)
+    const suggestedPositions = [
+        { row: 4, col: 2 },
+        { row: 4, col: 5 },
+        { row: 4, col: 8 }
+    ];
+    
+    const randomTiles = generateRandomTiles(3);
+    
+    suggestedPositions.forEach((pos, index) => {
+        board[pos.row][pos.col] = {
+            tile: randomTiles[index],
+            locked: false // These can be moved
         };
     });
     

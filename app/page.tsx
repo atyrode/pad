@@ -15,7 +15,6 @@ import { Bag } from '../src/types/bag';
 import { StickerState } from '../src/types/sticker';
 import { createInitialBoard, removeTileFromBoard, findAllWords, areUnlockedTilesInSingleLine, findTilePosition, parseEmptySlotId } from '../src/utils/boardUtils';
 import { createInitialDraftBoard, generateRandomTiles } from '../src/utils/draftBoardUtils';
-import { DraftSlotState } from '../src/types/draft';
 import { createInitialRack, findTileInRack, findFirstEmptySlot, moveTileToRack, shuffleRack } from '../src/utils/rackUtils';
 import { createTileBag } from '../src/utils/bagUtils';
 import { getAllAvailableLetters } from '../src/utils/tileDefinitions';
@@ -58,9 +57,6 @@ export default function Home() {
     // Draft mode state
     const [isDraftMode, setIsDraftMode] = useState(false);
     const [draftBoard, setDraftBoard] = useState<BoardState>(createInitialDraftBoard);
-    const [draftSlots, setDraftSlots] = useState<DraftSlotState>(Array(14).fill(null));
-    const [suggestedTiles, setSuggestedTiles] = useState<TileData[]>([]);
-    const [selectedSlotIndex, setSelectedSlotIndex] = useState<number | null>(null);
 
     // Placement history for backspace functionality
     const [placementHistory, setPlacementHistory] = useState<PlacementHistoryEntry[]>([]);
@@ -80,6 +76,35 @@ export default function Home() {
 
     const handleDragAndDropPlacement = (tileId: string, position: Position, wasBlank: boolean) => {
         setPlacementHistory(prev => [...prev, { tileId, position, wasBlank }]);
+        
+        // Check if we're in draft mode and a tile was grabbed from suggested positions
+        if (isDraftMode) {
+            const suggestedPositions = [
+                { row: 4, col: 2 },
+                { row: 4, col: 5 },
+                { row: 4, col: 8 }
+            ];
+            
+            // Check if any of the suggested positions are now empty (tile was grabbed)
+            const hasEmptySuggestedPosition = suggestedPositions.some(pos => 
+                !draftBoard[pos.row][pos.col].tile
+            );
+            
+            if (hasEmptySuggestedPosition) {
+                // Reroll all 3 suggested tiles
+                const newSuggestedTiles = generateRandomTiles(3);
+                setDraftBoard(prevBoard => {
+                    const newBoard = prevBoard.map(row => [...row]);
+                    suggestedPositions.forEach((pos, index) => {
+                        newBoard[pos.row][pos.col] = {
+                            tile: newSuggestedTiles[index],
+                            locked: false
+                        };
+                    });
+                    return newBoard;
+                });
+            }
+        }
     };
 
     const {
@@ -90,7 +115,14 @@ export default function Home() {
         overBoardPos,
         overRackIndex,
         activeId,
-    } = useDragAndDrop({ board, setBoard, rack, setRack, gameAreaRef, onTilePlaced: handleDragAndDropPlacement });
+    } = useDragAndDrop({ 
+        board: isDraftMode ? draftBoard : board, 
+        setBoard: isDraftMode ? setDraftBoard : setBoard, 
+        rack, 
+        setRack, 
+        gameAreaRef, 
+        onTilePlaced: handleDragAndDropPlacement 
+    });
 
     // Wrapper to intercept blank tile drops
     const handleDragEnd = (event: any) => {
@@ -418,13 +450,6 @@ export default function Home() {
         });
     }, []);
 
-    // Generate suggested tiles when entering draft mode
-    useEffect(() => {
-        if (isDraftMode && suggestedTiles.length === 0) {
-            setSuggestedTiles(generateRandomTiles(3));
-        }
-    }, [isDraftMode, suggestedTiles.length]);
-
     // Helper function to check if all current words are valid
     const areAllCurrentWordsValid = (): boolean => {
         if (!isDictionaryLoaded) {
@@ -541,7 +566,7 @@ export default function Home() {
                     onDragOver={handleDragOver}
                     onDragEnd={handleDragEnd}
                 >
-                    <DebugMenu bag={bag} rack={rack} board={board} setRack={setRack} setBag={setBag} setBoard={setBoard} totalScore={totalScore} setTotalScore={setTotalScore} stickers={stickers} setStickers={setStickers} tileOpacity={tileOpacity} setTileOpacity={setTileOpacity} showCoordinates={showCoordinates} setShowCoordinates={setShowCoordinates} isDraftMode={isDraftMode} setIsDraftMode={setIsDraftMode} />
+                    <DebugMenu bag={bag} rack={rack} board={board} setRack={setRack} setBag={setBag} setBoard={setBoard} draftBoard={draftBoard} setDraftBoard={setDraftBoard} totalScore={totalScore} setTotalScore={setTotalScore} stickers={stickers} setStickers={setStickers} tileOpacity={tileOpacity} setTileOpacity={setTileOpacity} showCoordinates={showCoordinates} setShowCoordinates={setShowCoordinates} isDraftMode={isDraftMode} setIsDraftMode={setIsDraftMode} />
                     <div 
                         ref={gameAreaRef}
                         id="game-area" 
@@ -581,55 +606,55 @@ export default function Home() {
                                 showCoordinates={showCoordinates}
                                 selectedCell={selectedCell}
                                 selectorDirection={selectorDirection}
-                                draftSlots={draftSlots}
-                                suggestedTiles={suggestedTiles}
-                                selectedSlotIndex={selectedSlotIndex}
                             />
                         </Activity>
-                        <div className="relative">
-                            <Rack 
-                                rack={rack} 
-                                setRack={setRack}
-                                boardCellSize={boardCellSize}
-                                overBoardPos={activeId && findTileInRack(rack, activeId) !== null ? overBoardPos : null}
-                                overRackIndex={overRackIndex}
-                                boardRef={boardRef}
-                                rackRef={rackRef}
-                                gameAreaRef={gameAreaRef}
-                                selectedCell={selectedCell}
-                                onRackRightClick={handleRackRightClick}
-                            />
-                            <button 
-                                onClick={handleShuffle}
-                                className="absolute left-full ml-2 top-1/2 -translate-y-1/2 p-2 bg-zinc-600 hover:bg-zinc-500 border border-zinc-500 rounded-lg transition-colors duration-200 flex items-center justify-center"
-                                title="Shuffle rack"
-                            >
-                                <Shuffle className="w-5 h-5 text-white" />
-                            </button>
-                            <button 
-                                onClick={handlePlay}
-                                disabled={!canPlay}
-                                className={`absolute left-full ml-14 top-1/2 -translate-y-1/2 p-2 border rounded-lg transition-colors duration-200 flex items-center justify-center ${
-                                    canPlay 
-                                        ? 'bg-green-600 hover:bg-green-500 border-green-500 cursor-pointer' 
-                                        : 'bg-zinc-600 border-zinc-500 cursor-not-allowed opacity-50'
-                                }`}
-                                title={
-                                    canPlay 
-                                        ? "Play - lock placed tiles" 
-                                        : isDictionaryLoaded 
-                                            ? "Play - no valid words to lock" 
-                                            : "Play - loading dictionary..."
-                                }
-                            >
-                                <Play className="w-5 h-5 text-white" />
-                            </button>
-                        </div>
+                        {/* Only show rack and controls in Game mode */}
+                        <Activity mode={isDraftMode ? "hidden" : "visible"}>
+                            <div className="relative">
+                                <Rack 
+                                    rack={rack} 
+                                    setRack={setRack}
+                                    boardCellSize={boardCellSize}
+                                    overBoardPos={activeId && findTileInRack(rack, activeId) !== null ? overBoardPos : null}
+                                    overRackIndex={overRackIndex}
+                                    boardRef={boardRef}
+                                    rackRef={rackRef}
+                                    gameAreaRef={gameAreaRef}
+                                    selectedCell={selectedCell}
+                                    onRackRightClick={handleRackRightClick}
+                                />
+                                <button 
+                                    onClick={handleShuffle}
+                                    className="absolute left-full ml-2 top-1/2 -translate-y-1/2 p-2 bg-zinc-600 hover:bg-zinc-500 border border-zinc-500 rounded-lg transition-colors duration-200 flex items-center justify-center"
+                                    title="Shuffle rack"
+                                >
+                                    <Shuffle className="w-5 h-5 text-white" />
+                                </button>
+                                <button 
+                                    onClick={handlePlay}
+                                    disabled={!canPlay}
+                                    className={`absolute left-full ml-14 top-1/2 -translate-y-1/2 p-2 border rounded-lg transition-colors duration-200 flex items-center justify-center ${
+                                        canPlay 
+                                            ? 'bg-green-600 hover:bg-green-500 border-green-500 cursor-pointer' 
+                                            : 'bg-zinc-600 border-zinc-500 cursor-not-allowed opacity-50'
+                                    }`}
+                                    title={
+                                        canPlay 
+                                            ? "Play - lock placed tiles" 
+                                            : isDictionaryLoaded 
+                                                ? "Play - no valid words to lock" 
+                                                : "Play - loading dictionary..."
+                                    }
+                                >
+                                    <Play className="w-5 h-5 text-white" />
+                                </button>
+                            </div>
+                        </Activity>
                     </div>
                 </DndContext>
             ) : (
                 <>
-                    <DebugMenu bag={bag} rack={rack} board={board} setRack={setRack} setBag={setBag} setBoard={setBoard} totalScore={totalScore} setTotalScore={setTotalScore} stickers={stickers} setStickers={setStickers} tileOpacity={tileOpacity} setTileOpacity={setTileOpacity} showCoordinates={showCoordinates} setShowCoordinates={setShowCoordinates} isDraftMode={isDraftMode} setIsDraftMode={setIsDraftMode} />
+                    <DebugMenu bag={bag} rack={rack} board={board} setRack={setRack} setBag={setBag} setBoard={setBoard} draftBoard={draftBoard} setDraftBoard={setDraftBoard} totalScore={totalScore} setTotalScore={setTotalScore} stickers={stickers} setStickers={setStickers} tileOpacity={tileOpacity} setTileOpacity={setTileOpacity} showCoordinates={showCoordinates} setShowCoordinates={setShowCoordinates} isDraftMode={isDraftMode} setIsDraftMode={setIsDraftMode} />
                     <div id="game-area" className="grow bg-zinc-500 flex flex-col items-center justify-center gap-4" />
                 </>
             )}
