@@ -159,24 +159,7 @@ export default function Home() {
         return { success: true, position };
     };
 
-    const { selectedCell, selectorDirection } = useKeyboardSelector({
-        onLetterInput: handleKeyboardTilePlacement,
-        onBackspace: handleKeyboardTileRemoval,
-    });
 
-    const handleRightClick = (tile: TileData, position: Position): boolean => {
-        // Find first empty slot in rack
-        const emptySlotIndex = findFirstEmptySlot(rack);
-        
-        if (emptySlotIndex !== null) {
-            // Remove tile from board and add to rack
-            setBoard((prevBoard: BoardState) => removeTileFromBoard(prevBoard, position));
-            setRack((prevRack: RackState) => moveTileToRack(prevRack, tile, emptySlotIndex));
-            return true; // Success
-        }
-        
-        return false; // Rack is full
-    };
 
     const handleShuffle = () => {
         setRack((prevRack: RackState) => shuffleRack(prevRack));
@@ -218,6 +201,80 @@ export default function Home() {
         // Clear placement history after locking tiles
         setPlacementHistory([]);
     };
+
+    const handleKeyboardPlay = () => {
+        if (canPlay) {
+            handlePlay();
+        }
+    };
+
+    const { selectedCell, selectorDirection, advanceSelector } = useKeyboardSelector({
+        onLetterInput: handleKeyboardTilePlacement,
+        onBackspace: handleKeyboardTileRemoval,
+        onShuffle: handleShuffle,
+        onPlay: handleKeyboardPlay,
+        board: board,
+    });
+
+    const handleRightClick = (tile: TileData, position: Position): boolean => {
+        // Find first empty slot in rack
+        const emptySlotIndex = findFirstEmptySlot(rack);
+        
+        if (emptySlotIndex !== null) {
+            // Remove tile from board and add to rack
+            setBoard((prevBoard: BoardState) => removeTileFromBoard(prevBoard, position));
+            setRack((prevRack: RackState) => moveTileToRack(prevRack, tile, emptySlotIndex));
+            return true; // Success
+        }
+        
+        return false; // Rack is full
+    };
+
+    const handleRackRightClick = (tile: TileData, rackIndex: number): boolean => {
+        // Check if selector is visible and we have a selected cell
+        if (!selectedCell) {
+            return false;
+        }
+
+        // Check if target board cell can accept the tile (empty or has non-locked tile)
+        const targetCell = board[selectedCell.row][selectedCell.col];
+        if (targetCell.tile && targetCell.locked) {
+            return false; // Can't place on locked tile
+        }
+
+        // If target has non-locked tile, swap it back to the rack position where the clicked tile was
+        if (targetCell.tile && !targetCell.locked) {
+            setRack((prevRack: RackState) => {
+                const newRack = [...prevRack];
+                newRack[rackIndex] = targetCell.tile; // Put existing tile in rack
+                return newRack;
+            });
+        } else {
+            // Simple placement: remove tile from rack
+            setRack((prevRack: RackState) => {
+                const newRack = [...prevRack];
+                newRack[rackIndex] = null;
+                return newRack;
+            });
+        }
+
+        // Place tile on board
+        setBoard((prevBoard: BoardState) => {
+            const newBoard = prevBoard.map(row => [...row]);
+            newBoard[selectedCell.row][selectedCell.col] = { tile, locked: false };
+            return newBoard;
+        });
+
+        // Add to placement history
+        setPlacementHistory(prev => [...prev, { tileId: tile.id, position: selectedCell }]);
+
+        // Move selector forward after successful placement (same logic as typing)
+        advanceSelector();
+        
+        return true;
+    };
+
+
 
     // Set mounted to true after client-side hydration and initialize bag
     useEffect(() => {
@@ -319,6 +376,8 @@ export default function Home() {
                                 boardRef={boardRef}
                                 rackRef={rackRef}
                                 gameAreaRef={gameAreaRef}
+                                selectedCell={selectedCell}
+                                onRackRightClick={handleRackRightClick}
                             />
                             <button 
                                 onClick={handleShuffle}

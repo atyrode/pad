@@ -5,7 +5,7 @@ import { RackCellProps } from '../types/rack';
 import { getRackTileTransformOverBoard, getTileTransformOverRack } from '../utils/transformUtils';
 import { CELL_GAP } from '../constants/board';
 
-export default function RackCell({ tile, index, boardCellSize, overBoardPos, overRackIndex, boardRef, rackRef, gameAreaRef }: RackCellProps) {
+export default function RackCell({ tile, index, boardCellSize, overBoardPos, overRackIndex, boardRef, rackRef, gameAreaRef, selectedCell, onRackRightClick }: RackCellProps) {
     const rackCellRef = useRef<HTMLDivElement>(null);
     const { attributes, listeners, setNodeRef: setDraggableRef, transform } = useDraggable({
         id: tile ? tile.id : `rack-${index}`,
@@ -20,6 +20,13 @@ export default function RackCell({ tile, index, boardCellSize, overBoardPos, ove
         setDraggableRef(node);
         setDroppableRef(node);
         rackCellRef.current = node as HTMLDivElement | null;
+    };
+
+    const handleRightClick = (e: React.MouseEvent) => {
+        e.preventDefault(); // Prevent default context menu
+        if (tile && selectedCell && onRackRightClick) {
+            onRackRightClick(tile, index);
+        }
     };
 
     // Prioritize rack snapping when dragging over a rack cell
@@ -49,6 +56,7 @@ export default function RackCell({ tile, index, boardCellSize, overBoardPos, ove
                 width: `${cellSize}px`,
                 height: `${cellSize}px`
             }}
+            onContextMenu={handleRightClick}
             {...(tile ? listeners : {})}
             {...(tile ? attributes : {})}
         >

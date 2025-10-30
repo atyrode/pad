@@ -13,6 +13,8 @@ export interface RackCellProps {
     boardRef?: React.RefObject<HTMLDivElement | null>;
     rackRef?: React.RefObject<HTMLDivElement | null>;
     gameAreaRef?: React.RefObject<HTMLDivElement | null>;
+    selectedCell?: Position | null;
+    onRackRightClick?: (tile: TileData, rackIndex: number) => boolean;
 }
 
 export interface RackPosition {
