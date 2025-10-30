@@ -1,18 +1,20 @@
 "use client";
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, Activity } from 'react';
 import {
     DndContext,
     closestCenter,
 } from '@dnd-kit/core';
 import DebugMenu from "../src/components/DebugMenu";
 import Board from "../src/components/Board";
+import DraftBoard from "../src/components/DraftBoard";
 import Rack from "../src/components/Rack";
 import { BoardState, PlacementHistoryEntry } from '../src/types/board';
 import { RackState } from '../src/types/rack';
 import { Bag } from '../src/types/bag';
 import { StickerState } from '../src/types/sticker';
 import { createInitialBoard, removeTileFromBoard, findAllWords, areUnlockedTilesInSingleLine, findTilePosition, parseEmptySlotId } from '../src/utils/boardUtils';
+import { createInitialDraftBoard } from '../src/utils/draftBoardUtils';
 import { createInitialRack, findTileInRack, findFirstEmptySlot, moveTileToRack, shuffleRack } from '../src/utils/rackUtils';
 import { createTileBag } from '../src/utils/bagUtils';
 import { getAllAvailableLetters } from '../src/utils/tileDefinitions';
@@ -51,6 +53,10 @@ export default function Home() {
     // Visual settings
     const [tileOpacity, setTileOpacity] = useState(100);
     const [showCoordinates, setShowCoordinates] = useState(false);
+
+    // Draft mode state
+    const [isDraftMode, setIsDraftMode] = useState(false);
+    const [draftBoard, setDraftBoard] = useState<BoardState>(createInitialDraftBoard);
 
     // Placement history for backspace functionality
     const [placementHistory, setPlacementHistory] = useState<PlacementHistoryEntry[]>([]);
@@ -524,29 +530,48 @@ export default function Home() {
                     onDragOver={handleDragOver}
                     onDragEnd={handleDragEnd}
                 >
-                    <DebugMenu bag={bag} rack={rack} board={board} setRack={setRack} setBag={setBag} setBoard={setBoard} totalScore={totalScore} setTotalScore={setTotalScore} stickers={stickers} setStickers={setStickers} tileOpacity={tileOpacity} setTileOpacity={setTileOpacity} showCoordinates={showCoordinates} setShowCoordinates={setShowCoordinates} />
+                    <DebugMenu bag={bag} rack={rack} board={board} setRack={setRack} setBag={setBag} setBoard={setBoard} totalScore={totalScore} setTotalScore={setTotalScore} stickers={stickers} setStickers={setStickers} tileOpacity={tileOpacity} setTileOpacity={setTileOpacity} showCoordinates={showCoordinates} setShowCoordinates={setShowCoordinates} isDraftMode={isDraftMode} setIsDraftMode={setIsDraftMode} />
                     <div 
                         ref={gameAreaRef}
                         id="game-area" 
                         className="grow bg-zinc-500 flex flex-col items-center justify-center gap-4"
                         style={{ animation: 'fadeIn 0.3s ease-in-out' }}
                     >
-                        <Board 
-                            board={board}
-                            boardCellSize={boardCellSize}
-                            overBoardPos={overBoardPos}
-                            onCellSizeChange={setBoardCellSize}
-                            overRackIndex={overRackIndex}
-                            boardRef={boardRef}
-                            rackRef={rackRef}
-                            gameAreaRef={gameAreaRef}
-                            onRightClick={handleRightClick}
-                            stickers={stickers}
-                            tileOpacity={tileOpacity}
-                            showCoordinates={showCoordinates}
-                            selectedCell={selectedCell}
-                            selectorDirection={selectorDirection}
-                        />
+                        <Activity mode={isDraftMode ? "hidden" : "visible"}>
+                            <Board 
+                                board={board}
+                                boardCellSize={boardCellSize}
+                                overBoardPos={overBoardPos}
+                                onCellSizeChange={setBoardCellSize}
+                                overRackIndex={overRackIndex}
+                                boardRef={boardRef}
+                                rackRef={rackRef}
+                                gameAreaRef={gameAreaRef}
+                                onRightClick={handleRightClick}
+                                stickers={stickers}
+                                tileOpacity={tileOpacity}
+                                showCoordinates={showCoordinates}
+                                selectedCell={selectedCell}
+                                selectorDirection={selectorDirection}
+                            />
+                        </Activity>
+                        <Activity mode={isDraftMode ? "visible" : "hidden"}>
+                            <DraftBoard 
+                                board={draftBoard}
+                                boardCellSize={boardCellSize}
+                                overBoardPos={overBoardPos}
+                                onCellSizeChange={setBoardCellSize}
+                                overRackIndex={overRackIndex}
+                                boardRef={boardRef}
+                                rackRef={rackRef}
+                                gameAreaRef={gameAreaRef}
+                                onRightClick={handleRightClick}
+                                tileOpacity={tileOpacity}
+                                showCoordinates={showCoordinates}
+                                selectedCell={selectedCell}
+                                selectorDirection={selectorDirection}
+                            />
+                        </Activity>
                         <div className="relative">
                             <Rack 
                                 rack={rack} 
@@ -590,7 +615,7 @@ export default function Home() {
                 </DndContext>
             ) : (
                 <>
-                    <DebugMenu bag={bag} rack={rack} board={board} setRack={setRack} setBag={setBag} setBoard={setBoard} totalScore={totalScore} setTotalScore={setTotalScore} stickers={stickers} setStickers={setStickers} tileOpacity={tileOpacity} setTileOpacity={setTileOpacity} showCoordinates={showCoordinates} setShowCoordinates={setShowCoordinates} />
+                    <DebugMenu bag={bag} rack={rack} board={board} setRack={setRack} setBag={setBag} setBoard={setBoard} totalScore={totalScore} setTotalScore={setTotalScore} stickers={stickers} setStickers={setStickers} tileOpacity={tileOpacity} setTileOpacity={setTileOpacity} showCoordinates={showCoordinates} setShowCoordinates={setShowCoordinates} isDraftMode={isDraftMode} setIsDraftMode={setIsDraftMode} />
                     <div id="game-area" className="grow bg-zinc-500 flex flex-col items-center justify-center gap-4" />
                 </>
             )}

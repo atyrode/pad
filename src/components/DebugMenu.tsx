@@ -25,9 +25,11 @@ interface DebugMenuProps {
   setTileOpacity: React.Dispatch<React.SetStateAction<number>>;
   showCoordinates: boolean;
   setShowCoordinates: React.Dispatch<React.SetStateAction<boolean>>;
+  isDraftMode: boolean;
+  setIsDraftMode: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
-export default function DebugMenu({ bag, rack, board, setRack, setBag, setBoard, totalScore, setTotalScore, stickers, setStickers, tileOpacity, setTileOpacity, showCoordinates, setShowCoordinates }: DebugMenuProps) {
+export default function DebugMenu({ bag, rack, board, setRack, setBag, setBoard, totalScore, setTotalScore, stickers, setStickers, tileOpacity, setTileOpacity, showCoordinates, setShowCoordinates, isDraftMode, setIsDraftMode }: DebugMenuProps) {
   const [isDictionaryLoaded, setIsDictionaryLoaded] = useState(false);
 
   // Load dictionary on component mount
@@ -227,6 +229,23 @@ export default function DebugMenu({ bag, rack, board, setRack, setBag, setBoard,
   return (
     <div id="debug-menu" className="w-1/3 h-full bg-zinc-600 p-4 overflow-y-auto">
       <h2 className="text-white text-xl font-bold mb-4">Debug Menu</h2>
+
+      {/* Mode */}
+      <div className="bg-zinc-700 rounded-lg p-4 mb-4">
+        <h3 className="text-white text-lg font-semibold mb-3">Mode</h3>
+        <div className="flex flex-row gap-2 justify-center">
+          <button
+            onClick={() => setIsDraftMode(!isDraftMode)}
+            className={`py-2 px-3 rounded-lg text-white font-semibold text-sm transition-opacity grow ${
+              isDraftMode
+                ? 'bg-blue-600 hover:opacity-80 hover:bg-blue-500'
+                : 'bg-zinc-600 hover:opacity-80 hover:bg-zinc-500'
+            }`}
+          >
+            {isDraftMode ? 'Exit Draft' : 'Enter Draft'}
+          </button>
+        </div>
+      </div>
 
       {/* Reset */}
       <div className="bg-zinc-700 rounded-lg p-4 mb-4">
