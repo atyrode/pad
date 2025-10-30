@@ -17,13 +17,10 @@ import Rack from "../src/components/Rack";
 import DiscardSlot from "../src/components/DiscardSlot";
 import { BoardState, PlacementHistoryEntry } from '../src/types/board';
 import { RackState } from '../src/types/rack';
-import { Bag } from '../src/types/bag';
-import { StickerState } from '../src/types/sticker';
 import { removeTileFromBoard } from '../src/utils/boardUtils';
 import { createInitialDraftBoard, generateUniqueTiles, createBlankTile } from '../src/utils/draftBoardUtils';
 import { findTileInRack, findFirstEmptySlot, moveTileToRack, shuffleRack } from '../src/utils/rackUtils';
 import { getAllAvailableLetters } from '../src/utils/tileDefinitions';
-import { preloadDictionary } from '../src/utils/dictionaryUtils';
 import { useDragAndDrop } from '../src/hooks/useDragAndDrop';
 import { useKeyboardSelector } from '../src/hooks/useKeyboardSelector';
 import { TileData } from '../src/types/tile';
@@ -31,7 +28,7 @@ import { Position } from '../src/types/board';
 import { Shuffle, Play } from 'lucide-react';
 import LetterSelectionPopup from '../src/components/LetterSelectionPopup';
 import { fillRackAfterPlayAction, handlePlayAction, handleKeyboardTilePlacementAction, handleKeyboardTileRemovalAction, drawOneAction, drawAllAction, redrawAction, shuffleBagAction, resetBoardAction, resetRackAction, resetScoreAction, resetStickersAction, resetBagFromDraftAction, computeDrawWithRefill } from "../src/state/gameActions";
-import { areAllCurrentWordsValidSelector, canPlaySelector, canShuffleSelector } from "../src/state/selectors";
+import { canPlaySelector, canShuffleSelector } from "../src/state/selectors";
 import { useBlankTilePlacement } from "../src/hooks/useBlankTilePlacement";
 import { useDragEndWithDiscard } from "../src/hooks/useDragEndWithDiscard";
 
@@ -66,7 +63,6 @@ function HomeContent() {
         setBag,
         setDiscard,
         setStickers,
-        setIsDictionaryLoaded,
         setTotalScore,
         setTileOpacity,
         setShowCoordinates,
@@ -297,13 +293,9 @@ function HomeContent() {
 
 
 
-    // Set mounted to true after client-side hydration and initialize bag
+    // Set mounted to true after client-side hydration
     useEffect(() => {
         setMounted(true);
-        // Load dictionary
-        preloadDictionary().then(() => {
-            setIsDictionaryLoaded(true);
-        });
     }, []);
 
     // In draft mode, whenever any suggested slot becomes empty, reroll all three
