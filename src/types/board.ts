@@ -2,6 +2,8 @@ import React from 'react';
 import { TileData } from './tile';
 import { Sticker } from './sticker';
 
+export type Direction = 'right' | 'down';
+
 export interface BoardCellState {
     tile: TileData | null;
     locked: boolean;
@@ -21,9 +23,19 @@ export interface BoardCellProps {
     sticker?: Sticker | null;
     tileOpacity?: number;
     showCoordinates?: boolean;
+    isSelected?: boolean;
+    selectorDirection?: Direction | null;
 }
 
 export interface Position {
     row: number;
     col: number;
 }
+
+export interface PlacementHistoryEntry {
+    tileId: string;
+    position: Position;
+    wasBlank?: boolean; // true if the tile was originally a "*"
+}
+
+export type PlacementHistory = PlacementHistoryEntry[];

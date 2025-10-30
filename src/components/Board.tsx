@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef } from 'react';
 import BoardCell from './BoardCell';
-import { BoardState, BoardCellState, Position } from '../types/board';
+import { BoardState, BoardCellState, Position, Direction } from '../types/board';
 import { TileData } from '../types/tile';
 import { StickerState } from '../types/sticker';
 import { BOARD_SIZE, CELL_GAP, BOARD_WIDTH, BOARD_MAX_WIDTH } from '../constants/board';
@@ -20,9 +20,11 @@ interface BoardProps {
     stickers?: StickerState;
     tileOpacity?: number;
     showCoordinates?: boolean;
+    selectedCell?: Position | null;
+    selectorDirection?: Direction | null;
 }
 
-export default function Board({ board, boardCellSize, overBoardPos, onCellSizeChange, overRackIndex, boardRef: externalBoardRef, rackRef, gameAreaRef, onRightClick, stickers, tileOpacity, showCoordinates }: BoardProps) {
+export default function Board({ board, boardCellSize, overBoardPos, onCellSizeChange, overRackIndex, boardRef: externalBoardRef, rackRef, gameAreaRef, onRightClick, stickers, tileOpacity, showCoordinates, selectedCell, selectorDirection }: BoardProps) {
     const internalBoardRef = useRef<HTMLDivElement>(null);
     const boardRef = externalBoardRef || internalBoardRef;
 
@@ -68,6 +70,8 @@ export default function Board({ board, boardCellSize, overBoardPos, onCellSizeCh
                         sticker={stickers?.[rowIndex]?.[colIndex] || null}
                         tileOpacity={tileOpacity}
                         showCoordinates={showCoordinates}
+                        isSelected={selectedCell?.row === rowIndex && selectedCell?.col === colIndex}
+                        selectorDirection={selectorDirection}
                     />
                 ))
             )}
