@@ -24,16 +24,14 @@ export function fillRackAfterPlayAction(
     dispatch: GameDispatch
 ) {
     if (args.isDraftMode) return;
-    
+
     const result = TileSupplyService.drawToFill({
         rack: args.rack,
         bag: args.bag,
         discard: args.discard,
     });
 
-    dispatch({ type: 'setDiscard', payload: { discard: result.discard } });
-    dispatch({ type: 'setBag', payload: { bag: result.bag } });
-    dispatch({ type: 'setRack', payload: { rack: result.rack } });
+    dispatch({ type: 'batchUpdate', payload: { discard: result.discard, bag: result.bag, rack: result.rack } });
 }
 
 export function handlePlayAction(
@@ -49,13 +47,11 @@ export function handlePlayAction(
 ) {
     const { totalScore } = calculateCurrentPlayScore(args.board, args.stickers);
     const newTotal = args.currentTotalScore + totalScore;
-    dispatch({ type: 'setTotalScore', payload: { totalScore: newTotal } });
 
     // Lock tiles
     const lockedBoard = args.board.map(row =>
         row.map(cell => (cell.tile && cell.canTake ? { ...cell, canPlace: false, canTake: false } : cell))
     );
-    dispatch({ type: 'setBoard', payload: { board: lockedBoard } });
 
     // Consume stickers where tiles were locked
     let newStickers = args.stickers;
@@ -67,16 +63,27 @@ export function handlePlayAction(
             }
         }
     }
-    dispatch({ type: 'setStickers', payload: { stickers: newStickers } });
-
-    // Clear placement history
-    dispatch({ type: 'setPlacementHistory', payload: { placementHistory: [] } });
 
     // Fill rack
-    fillRackAfterPlayAction(
-        { isDraftMode: false, rack: args.rack, bag: args.bag, discard: args.discard },
-        dispatch
-    );
+    const tileSupplyResult = TileSupplyService.drawToFill({
+        rack: args.rack,
+        bag: args.bag,
+        discard: args.discard,
+    });
+
+    // Batch all updates
+    dispatch({
+        type: 'batchUpdate',
+        payload: {
+            totalScore: newTotal,
+            board: lockedBoard,
+            stickers: newStickers,
+            placementHistory: [],
+            rack: tileSupplyResult.rack,
+            bag: tileSupplyResult.bag,
+            discard: tileSupplyResult.discard,
+        }
+    });
 }
 
 export function handleKeyboardTilePlacementAction(
@@ -235,12 +242,10 @@ export function drawOneAction(
         bag: args.bag,
         discard: args.discard,
     });
-    
+
     if (!result) return;
-    
-    dispatch({ type: 'setDiscard', payload: { discard: result.discard } });
-    dispatch({ type: 'setBag', payload: { bag: result.bag } });
-    dispatch({ type: 'setRack', payload: { rack: result.rack } });
+
+    dispatch({ type: 'batchUpdate', payload: { discard: result.discard, bag: result.bag, rack: result.rack } });
 }
 
 export function drawAllAction(
@@ -253,9 +258,7 @@ export function drawAllAction(
         discard: args.discard,
     });
 
-    dispatch({ type: 'setDiscard', payload: { discard: result.discard } });
-    dispatch({ type: 'setBag', payload: { bag: result.bag } });
-    dispatch({ type: 'setRack', payload: { rack: result.rack } });
+    dispatch({ type: 'batchUpdate', payload: { discard: result.discard, bag: result.bag, rack: result.rack } });
 }
 
 export function redrawAction(
@@ -268,9 +271,7 @@ export function redrawAction(
         discard: args.discard,
     });
 
-    dispatch({ type: 'setDiscard', payload: { discard: result.discard } });
-    dispatch({ type: 'setBag', payload: { bag: result.bag } });
-    dispatch({ type: 'setRack', payload: { rack: result.rack } });
+    dispatch({ type: 'batchUpdate', payload: { discard: result.discard, bag: result.bag, rack: result.rack } });
 }
 
 export function shuffleBagAction(args: { bag: Bag }, dispatch: GameDispatch) {

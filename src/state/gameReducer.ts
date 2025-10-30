@@ -53,6 +53,9 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
                 showCoordinates: action.payload.showCoordinates ?? state.showCoordinates,
             };
         }
+        case "batchUpdate": {
+            return { ...state, ...action.payload };
+        }
         default: {
             return state;
         }

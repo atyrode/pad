@@ -42,6 +42,7 @@ export type GameAction =
     | { type: "bumpDraftReroll" }
     | { type: "recordPlacement"; payload: PlacementHistoryEntry }
     | { type: "setPlacementHistory"; payload: { placementHistory: PlacementHistoryEntry[] } }
-    | { type: "setVisuals"; payload: { tileOpacity?: number; showCoordinates?: boolean } };
+    | { type: "setVisuals"; payload: { tileOpacity?: number; showCoordinates?: boolean } }
+    | { type: "batchUpdate"; payload: Partial<GameState> };
 
 
