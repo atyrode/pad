@@ -5,7 +5,7 @@ import { StickerState } from "../types/sticker";
 import { TileData } from "../types/tile";
 import { GameAction } from "./gameTypes";
 import { findFirstEmptySlot, moveTileToRack, shuffleRack } from "../utils/rackUtils";
-import { drawTileFromBag, shuffleBag } from "../utils/bagUtils";
+import { drawTileFromBag, shuffleBag, drawTileWithRefill, BagRefillState } from "../utils/bagUtils";
 import { removeTileFromBoard, createInitialBoard } from "../utils/boardUtils";
 import { calculateCurrentPlayScore } from "../utils/scoreUtils";
 import { consumeSticker, createInitialStickers } from "../utils/stickerUtils";
@@ -51,27 +51,23 @@ export function fillRackAfterPlayAction(
 ) {
     if (args.isDraftMode) return;
     let rackWork = [...args.rack];
-    let bagWork = args.bag;
-    let discardWork = args.discard;
-    let usedRefill = false;
+    let refillState: BagRefillState = {
+        bag: args.bag,
+        discard: args.discard,
+        didRefill: false,
+    };
 
     while (true) {
         const slot = findFirstEmptySlot(rackWork);
         if (slot === null) break;
-        if (bagWork.length === 0) {
-            if (discardWork.length === 0) break;
-            bagWork = shuffleBag([...discardWork]);
-            discardWork = [];
-            usedRefill = true;
-        }
-        const { tile, newBag } = drawTileFromBag(bagWork);
+        const { tile, newState } = drawTileWithRefill(refillState);
         if (!tile) break;
         rackWork[slot] = tile;
-        bagWork = newBag;
+        refillState = newState;
     }
 
-    if (usedRefill) dispatch({ type: 'setDiscard', payload: { discard: [] } });
-    dispatch({ type: 'setBag', payload: { bag: bagWork } });
+    if (refillState.didRefill) dispatch({ type: 'setDiscard', payload: { discard: [] } });
+    dispatch({ type: 'setBag', payload: { bag: refillState.bag } });
     dispatch({ type: 'setRack', payload: { rack: rackWork } });
 }
 
@@ -243,26 +239,22 @@ export function drawAllAction(
     dispatch: GameDispatch
 ) {
     let rackWork = [...args.rack];
-    let bagWork = args.bag;
-    let discardWork = args.discard;
-    let usedRefill = false;
+    let refillState: BagRefillState = {
+        bag: args.bag,
+        discard: args.discard,
+        didRefill: false,
+    };
 
     for (let i = 0; i < rackWork.length; i++) {
         if (rackWork[i] !== null) continue;
-        if (bagWork.length === 0) {
-            if (discardWork.length === 0) break;
-            bagWork = shuffleBag([...discardWork]);
-            discardWork = [];
-            usedRefill = true;
-        }
-        const { tile, newBag } = drawTileFromBag(bagWork);
+        const { tile, newState } = drawTileWithRefill(refillState);
         if (!tile) break;
         rackWork[i] = tile;
-        bagWork = newBag;
+        refillState = newState;
     }
 
-    if (usedRefill) dispatch({ type: 'setDiscard', payload: { discard: [] } });
-    dispatch({ type: 'setBag', payload: { bag: bagWork } });
+    if (refillState.didRefill) dispatch({ type: 'setDiscard', payload: { discard: [] } });
+    dispatch({ type: 'setBag', payload: { bag: refillState.bag } });
     dispatch({ type: 'setRack', payload: { rack: rackWork } });
 }
 
@@ -271,26 +263,22 @@ export function redrawAction(
     dispatch: GameDispatch
 ) {
     const currentTileCount = args.rack.filter(t => t !== null).length;
-    let bagWork = args.bag;
-    let discardWork = args.discard;
-    let usedRefill = false;
+    let refillState: BagRefillState = {
+        bag: args.bag,
+        discard: args.discard,
+        didRefill: false,
+    };
     const newRack: RackState = Array(args.rack.length).fill(null);
 
     for (let i = 0; i < currentTileCount; i++) {
-        if (bagWork.length === 0) {
-            if (discardWork.length === 0) break;
-            bagWork = shuffleBag([...discardWork]);
-            discardWork = [];
-            usedRefill = true;
-        }
-        const { tile, newBag } = drawTileFromBag(bagWork);
+        const { tile, newState } = drawTileWithRefill(refillState);
         if (!tile) break;
         newRack[i] = tile;
-        bagWork = newBag;
+        refillState = newState;
     }
 
-    if (usedRefill) dispatch({ type: 'setDiscard', payload: { discard: [] } });
-    dispatch({ type: 'setBag', payload: { bag: bagWork } });
+    if (refillState.didRefill) dispatch({ type: 'setDiscard', payload: { discard: [] } });
+    dispatch({ type: 'setBag', payload: { bag: refillState.bag } });
     dispatch({ type: 'setRack', payload: { rack: newRack } });
 }
 

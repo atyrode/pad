@@ -99,3 +99,46 @@ export function getFullBagSize(): number {
     return TILE_DISTRIBUTION.reduce((total, tile) => total + tile.count, 0);
 }
 
+/**
+ * State object for managing bag refills from discard during iteration
+ */
+export interface BagRefillState {
+    bag: Bag;
+    discard: TileData[];
+    didRefill: boolean;
+}
+
+/**
+ * Ensures the bag has tiles by refilling from discard if needed.
+ * Returns updated state with didRefill flag set if a refill occurred.
+ */
+export function ensureBagHasTiles(state: BagRefillState): BagRefillState {
+    if (state.bag.length === 0 && state.discard.length > 0) {
+        return {
+            bag: shuffleBag([...state.discard]),
+            discard: [],
+            didRefill: true, // Set to true if refill occurred
+        };
+    }
+    return state; // Preserve existing didRefill flag
+}
+
+/**
+ * Draws a tile from the bag, automatically refilling from discard if needed.
+ * Returns the drawn tile (or null if bag is empty) and the updated bag state.
+ */
+export function drawTileWithRefill(state: BagRefillState): {
+    tile: TileData | null;
+    newState: BagRefillState;
+} {
+    const ensuredState = ensureBagHasTiles(state);
+    const { tile, newBag } = drawTileFromBag(ensuredState.bag);
+    return {
+        tile,
+        newState: {
+            ...ensuredState,
+            bag: newBag,
+        },
+    };
+}
+
