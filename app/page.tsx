@@ -12,7 +12,7 @@ import { BoardState, PlacementHistoryEntry } from '../src/types/board';
 import { RackState } from '../src/types/rack';
 import { Bag } from '../src/types/bag';
 import { StickerState } from '../src/types/sticker';
-import { createInitialBoard, removeTileFromBoard, findAllWords, areUnlockedTilesInSingleLine } from '../src/utils/boardUtils';
+import { createInitialBoard, removeTileFromBoard, findAllWords, areUnlockedTilesInSingleLine, findTilePosition, parseEmptySlotId } from '../src/utils/boardUtils';
 import { createInitialRack, findTileInRack, findFirstEmptySlot, moveTileToRack, shuffleRack } from '../src/utils/rackUtils';
 import { createTileBag } from '../src/utils/bagUtils';
 import { preloadDictionary, isValidWordSync } from '../src/utils/dictionaryUtils';
@@ -23,6 +23,7 @@ import { useKeyboardSelector } from '../src/hooks/useKeyboardSelector';
 import { TileData } from '../src/types/tile';
 import { Position } from '../src/types/board';
 import { Shuffle, Play } from 'lucide-react';
+import LetterSelectionPopup from '../src/components/LetterSelectionPopup';
 
 export default function Home() {
     // Track client-side mount to prevent hydration mismatch
@@ -53,6 +54,14 @@ export default function Home() {
     // Placement history for backspace functionality
     const [placementHistory, setPlacementHistory] = useState<PlacementHistoryEntry[]>([]);
 
+    // Blank tile popup state
+    const [blankTilePopup, setBlankTilePopup] = useState<{
+        show: boolean;
+        blankTile: TileData | null;
+        targetPosition: Position | null;
+        sourceRackIndex: number | null;
+    } | null>(null);
+
     const [boardCellSize, setBoardCellSize] = useState(44);
     const boardRef = useRef<HTMLDivElement>(null);
     const rackRef = useRef<HTMLDivElement>(null);
@@ -62,11 +71,50 @@ export default function Home() {
         sensors,
         handleDragStart,
         handleDragOver,
-        handleDragEnd,
+        handleDragEnd: originalHandleDragEnd,
         overBoardPos,
         overRackIndex,
         activeId,
     } = useDragAndDrop({ board, setBoard, rack, setRack, gameAreaRef });
+
+    // Wrapper to intercept blank tile drops
+    const handleDragEnd = (event: any) => {
+        const { active, over } = event;
+
+        if (!over) {
+            originalHandleDragEnd(event);
+            return;
+        }
+
+        const activeId = active.id as string;
+        const overId = over.id as string;
+
+        // Check if we're dragging a blank tile from rack to board
+        const activeRackIndex = findTileInRack(rack, activeId);
+        const overBoardPos = findTilePosition(board, overId);
+        const overEmptyPos = parseEmptySlotId(overId);
+
+        if (activeRackIndex !== null && (overBoardPos || overEmptyPos)) {
+            const tile = rack[activeRackIndex];
+            if (tile && tile.value === "*") {
+                // This is a blank tile being dropped on the board
+                // Show popup instead of placing
+                const targetPos = overBoardPos || overEmptyPos;
+                if (targetPos) {
+                    setBlankTilePopup({
+                        show: true,
+                        blankTile: tile,
+                        targetPosition: targetPos,
+                        sourceRackIndex: activeRackIndex
+                    });
+                }
+                return; // Don't call original handler
+            }
+        }
+
+        // For all other cases, use the original handler
+        originalHandleDragEnd(event);
+    };
 
     const handleKeyboardTilePlacement = (letter: string): boolean => {
         // Check if selector is visible
@@ -386,6 +434,79 @@ export default function Home() {
 
     const canPlay = areAllCurrentWordsValid();
 
+    // Helper function to get unique letters from bag
+    const getAvailableLettersFromBag = (bag: Bag): Array<{letter: string, score: number}> => {
+        const uniqueLetters = new Map<string, number>();
+        bag.forEach(tile => {
+            if (tile.value !== "*") { // Exclude blanks from selection
+                uniqueLetters.set(tile.value, tile.score);
+            }
+        });
+        return Array.from(uniqueLetters.entries()).map(([letter, score]) => ({
+            letter,
+            score
+        })).sort((a, b) => a.letter.localeCompare(b.letter));
+    };
+
+    // Popup handlers
+    const handleLetterSelection = (letter: string) => {
+        if (!blankTilePopup) return;
+
+        const { blankTile, targetPosition, sourceRackIndex } = blankTilePopup;
+        if (!blankTile || !targetPosition || sourceRackIndex === null) return;
+
+        // Create transformed blank tile
+        const transformedTile = {
+            ...blankTile,
+            value: letter.toUpperCase(), // For word validation
+            originalValue: "*", // Track that this was originally a blank
+            displayValue: letter.toUpperCase() // What to display
+        };
+
+        // Check if target board cell can accept the tile
+        const targetCell = board[targetPosition.row][targetPosition.col];
+        if (targetCell.tile && targetCell.locked) {
+            // Can't place on locked tile, just close popup
+            setBlankTilePopup(null);
+            return;
+        }
+
+        // Handle tile placement (swap or simple)
+        if (targetCell.tile && !targetCell.locked) {
+            // Swap: move existing tile back to rack
+            setRack((prevRack: RackState) => {
+                const newRack = [...prevRack];
+                newRack[sourceRackIndex] = targetCell.tile; // Put existing tile in rack
+                return newRack;
+            });
+        } else {
+            // Simple placement: remove tile from rack
+            setRack((prevRack: RackState) => {
+                const newRack = [...prevRack];
+                newRack[sourceRackIndex] = null;
+                return newRack;
+            });
+        }
+
+        // Place transformed tile on board
+        setBoard((prevBoard: BoardState) => {
+            const newBoard = prevBoard.map(row => [...row]);
+            newBoard[targetPosition.row][targetPosition.col] = { tile: transformedTile, locked: false };
+            return newBoard;
+        });
+
+        // Add to placement history
+        setPlacementHistory(prev => [...prev, { tileId: transformedTile.id, position: targetPosition, wasBlank: true }]);
+
+        // Close popup
+        setBlankTilePopup(null);
+    };
+
+    const handlePopupCancel = () => {
+        setBlankTilePopup(null);
+        // Tile automatically returns to rack (no action needed)
+    };
+
     return (
         <div id="main" className="h-screen w-screen bg-zinc-500 flex">
             {mounted ? (
@@ -465,6 +586,15 @@ export default function Home() {
                     <DebugMenu bag={bag} rack={rack} board={board} setRack={setRack} setBag={setBag} setBoard={setBoard} totalScore={totalScore} setTotalScore={setTotalScore} stickers={stickers} setStickers={setStickers} tileOpacity={tileOpacity} setTileOpacity={setTileOpacity} showCoordinates={showCoordinates} setShowCoordinates={setShowCoordinates} />
                     <div id="game-area" className="grow bg-zinc-500 flex flex-col items-center justify-center gap-4" />
                 </>
+            )}
+
+            {/* Blank tile letter selection popup */}
+            {blankTilePopup?.show && (
+                <LetterSelectionPopup
+                    availableLetters={getAvailableLettersFromBag(bag)}
+                    onSelect={handleLetterSelection}
+                    onCancel={handlePopupCancel}
+                />
             )}
         </div>
     );
