@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useSyncExternalStore } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Bag } from '../types/bag';
 import { RackState } from '../types/rack';
 import { BoardState } from '../types/board';
@@ -11,7 +11,6 @@ import { isValidWordSync, preloadDictionary } from '../utils/dictionaryUtils';
 import { calculateCurrentPlayScore } from '../utils/scoreUtils';
 import { createInitialStickers, countStickers, consumeSticker } from '../utils/stickerUtils';
 import { TileData } from '../types/tile';
-import { visualSettingsStore } from '../state/visualSettingsStore';
 
 interface DebugMenuProps {
   bag: Bag;
@@ -40,11 +39,6 @@ interface DebugMenuProps {
 
 export default function DebugMenu({ bag, rack, board, setRack, setBag, setBoard, draftBoard, setDraftBoard, totalScore, setTotalScore, stickers, setStickers, tileOpacity, setTileOpacity, showCoordinates, setShowCoordinates, isDraftMode, setIsDraftMode, onResetDraft, onRerollSuggestions, discard = [], setDiscard }: DebugMenuProps) {
   const [isDictionaryLoaded, setIsDictionaryLoaded] = useState(false);
-  const { showTileIds: uiShowTileIds } = useSyncExternalStore(
-    visualSettingsStore.subscribe,
-    visualSettingsStore.getSnapshot,
-    visualSettingsStore.getSnapshot
-  );
 
   // Load dictionary on component mount
   useEffect(() => {
@@ -209,27 +203,6 @@ export default function DebugMenu({ bag, rack, board, setRack, setBag, setBoard,
     const shuffledBag = shuffleBag(bag);
     setBag(shuffledBag);
   };
-
-  // Discard pile view (like the bag)
-  const DiscardPile = () => (
-    <div className="bg-zinc-700 rounded-lg p-4 mt-4">
-      <h3 className="text-white text-lg font-semibold mb-3">
-        Discard pile ({discard.length} tiles)
-      </h3>
-      <div className="grid grid-cols-8 gap-1 overflow-y-auto mb-1">
-        {discard.map((tile, index) => (
-          <div
-            key={index}
-            className="w-6 h-6 bg-zinc-800 rounded flex items-center justify-center text-xs font-mono text-white border border-zinc-600"
-            title={`${tile.value} (${tile.score} points)`}
-          >
-            {tile.value === '*' ? '*' : (tile.displayValue || tile.value)}
-          </div>
-        ))}
-      </div>
-      <p className="text-zinc-400 text-xs">When the bag is empty, draws will refill from this pile.</p>
-    </div>
-  );
 
   // Check if buttons should be disabled
   const isDrawDisabled = bag.length === 0 || findFirstEmptySlot(rack) === null;
@@ -570,7 +543,7 @@ export default function DebugMenu({ bag, rack, board, setRack, setBag, setBoard,
             </button>
           </div>
 
-      {/* Stickers */}
+          {/* Stickers */}
           <div className="bg-zinc-700 rounded-lg p-4 mt-4">
             <h3 className="text-white text-lg font-semibold mb-3">Stickers</h3>
 
@@ -649,21 +622,6 @@ export default function DebugMenu({ bag, rack, board, setRack, setBag, setBoard,
       <div className="bg-zinc-700 rounded-lg p-4 mt-4">
         <h3 className="text-white text-lg font-semibold mb-3">Visual Settings</h3>
 
-        {/* Show Tile IDs Toggle */}
-        <div className="mb-4">
-          <div className="text-white text-sm font-medium mb-2">Show Tile IDs</div>
-          <button
-            onClick={() => visualSettingsStore.setShowTileIds(!uiShowTileIds)}
-            className={`w-full py-2 px-3 rounded-lg text-white font-semibold text-sm transition-opacity ${
-              uiShowTileIds
-                ? 'bg-green-600 hover:opacity-80 hover:bg-green-500'
-                : 'bg-zinc-600 hover:opacity-80 hover:bg-zinc-500'
-            }`}
-          >
-            {uiShowTileIds ? 'Hide' : 'Show'} Tile IDs
-          </button>
-        </div>
-
         {/* Tile Opacity Slider */}
         <div className="mb-4">
           <div className="text-white text-sm font-medium mb-2">Tile Opacity</div>
@@ -697,9 +655,6 @@ export default function DebugMenu({ bag, rack, board, setRack, setBag, setBoard,
           </button>
         </div>
       </div>
-
-      {/* Discard pile */}
-      {!isDraftMode && <DiscardPile />}
 
     </div>
   );

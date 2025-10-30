@@ -71,7 +71,7 @@ export default function RackCell({ tile, index, boardCellSize, overBoardPos, ove
                         transition: transform ? 'none' : 'all 0.1s linear'
                     }}
                 >
-                    <Tile value={tile.value} score={tile.score} originalValue={tile.originalValue} displayValue={tile.displayValue} tileId={tile.id} />
+                    <Tile value={tile.value} score={tile.score} originalValue={tile.originalValue} displayValue={tile.displayValue} />
                 </div>
             )}
         </div>
