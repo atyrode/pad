@@ -14,7 +14,7 @@ import { RackState } from '../src/types/rack';
 import { Bag } from '../src/types/bag';
 import { StickerState } from '../src/types/sticker';
 import { createInitialBoard, removeTileFromBoard, findAllWords, areUnlockedTilesInSingleLine, findTilePosition, parseEmptySlotId } from '../src/utils/boardUtils';
-import { createInitialDraftBoard, generateRandomTiles } from '../src/utils/draftBoardUtils';
+import { createInitialDraftBoard, generateRandomTiles, generateUniqueTiles, createBlankTile } from '../src/utils/draftBoardUtils';
 import { createInitialRack, findTileInRack, findFirstEmptySlot, moveTileToRack, shuffleRack } from '../src/utils/rackUtils';
 import { createTileBag } from '../src/utils/bagUtils';
 import { getAllAvailableLetters } from '../src/utils/tileDefinitions';
@@ -362,6 +362,60 @@ export default function Home() {
         return false; // Rack is full
     };
 
+    // Draft mode: right-click a suggested tile to place it into the first available placement zone cell
+    const handleDraftSuggestionRightClick = (tile: TileData, position: Position): boolean => {
+        if (!isDraftMode) return false;
+
+        // Only handle right-clicks from the three suggested positions
+        const suggestedPositions = [
+            { row: 4, col: 2 },
+            { row: 4, col: 5 },
+            { row: 4, col: 8 }
+        ];
+        const isFromSuggested = suggestedPositions.some(pos => pos.row === position.row && pos.col === position.col);
+        if (!isFromSuggested) return false;
+
+        // Find first empty placement zone cell (rows 7 and 8, center 7 columns)
+        const centerCount = 7;
+        const centerStart = Math.floor((11 - centerCount) / 2); // BOARD_SIZE is 11
+        const centerEnd = centerStart + centerCount - 1;
+        const placementCells: Position[] = [];
+        [7, 8].forEach(r => {
+            for (let c = centerStart; c <= centerEnd; c++) {
+                placementCells.push({ row: r, col: c });
+            }
+        });
+
+        const target = placementCells.find(pos => !draftBoard[pos.row][pos.col].tile);
+        if (!target) {
+            return false; // No available placement cell
+        }
+
+        // Move tile from suggested position to target placement cell
+        setDraftBoard((prevBoard: BoardState) => {
+            const newBoard = prevBoard.map(row => row.map(cell => ({ ...cell })));
+            // Remove from suggested position (preserve flags)
+            newBoard[position.row][position.col] = { ...newBoard[position.row][position.col], tile: null };
+            // Place onto target (preserve flags)
+            newBoard[target.row][target.col] = { ...newBoard[target.row][target.col], tile };
+            return newBoard;
+        });
+
+        // If we just picked the final blank from the middle, clear suggestions entirely
+        if (tile.value === '*') {
+            setDraftBoard((prevBoard: BoardState) => {
+                const newBoard = prevBoard.map(row => [...row]);
+                newBoard[4][2] = { ...newBoard[4][2], tile: null };
+                newBoard[4][5] = { ...newBoard[4][5], tile: null };
+                newBoard[4][8] = { ...newBoard[4][8], tile: null };
+                return newBoard;
+            });
+        }
+
+        // Returning true triggers success feedback in the cell (prevents shake)
+        return true;
+    };
+
     const handleRackRightClick = (tile: TileData, rackIndex: number): boolean => {
         // Check if selector is visible and we have a selected cell
         if (!selectedCell) {
@@ -426,8 +480,12 @@ export default function Home() {
     }, []);
 
     // In draft mode, whenever any suggested slot becomes empty, reroll all three
+    const [draftRerollCount, setDraftRerollCount] = useState(0);
+    const [draftEnded, setDraftEnded] = useState(false);
+    const suggestedOccupancyRef = useRef<[boolean, boolean, boolean] | null>(null);
+
     useEffect(() => {
-        if (!isDraftMode) return;
+        if (!isDraftMode || draftEnded) return;
 
         const suggestedPositions = [
             { row: 4, col: 2 },
@@ -435,22 +493,64 @@ export default function Home() {
             { row: 4, col: 8 }
         ];
 
-        const anyEmpty = suggestedPositions.some(pos => !draftBoard[pos.row][pos.col].tile);
-        if (anyEmpty) {
-            const newSuggestedTiles = generateRandomTiles(3);
+        const occupancy: [boolean, boolean, boolean] = [
+            !!draftBoard[4][2].tile,
+            !!draftBoard[4][5].tile,
+            !!draftBoard[4][8].tile,
+        ];
+
+        // Initialize previous occupancy on first run
+        if (suggestedOccupancyRef.current === null) {
+            suggestedOccupancyRef.current = occupancy;
+            return;
+        }
+
+        const prev = suggestedOccupancyRef.current;
+        const becameTaken = (prev[0] && !occupancy[0]) || (prev[1] && !occupancy[1]) || (prev[2] && !occupancy[2]);
+
+        // Trigger reroll when any suggested tile transitions from present -> empty
+        if (becameTaken) {
+            // Determine next draft type from fixed sequence
+            const draftSequence: Array<'V' | 'C' | '*'> = ['V','C','C','V','C','C','V','C','C','V','C','C','V','*'];
+            const nextIndex = Math.min(draftRerollCount + 1, draftSequence.length - 1);
+            const nextType = draftSequence[nextIndex];
+
             setDraftBoard(prevBoard => {
                 const newBoard = prevBoard.map(row => [...row]);
-                suggestedPositions.forEach((pos, index) => {
-                    newBoard[pos.row][pos.col] = {
-                        tile: newSuggestedTiles[index],
-                        canPlace: false,
-                        canTake: true
-                    };
-                });
+                if (nextType === '*') {
+                    // Only blank in middle; sides empty
+                    newBoard[4][2] = { ...newBoard[4][2], tile: null, canPlace: false, canTake: true };
+                    newBoard[4][5] = { ...newBoard[4][5], tile: createBlankTile('final'), canPlace: false, canTake: true };
+                    newBoard[4][8] = { ...newBoard[4][8], tile: null, canPlace: false, canTake: true };
+                    // Mark draft ended so we don't reroll anymore
+                    setDraftEnded(true);
+                    // Update occupancy to reflect [false, true, false]
+                    suggestedOccupancyRef.current = [false, true, false];
+                } else if (nextType === 'V') {
+                    // Vowel draft: middle empty, sides vowels (unique)
+                    const vowels = generateUniqueTiles(2, 'vowel');
+                    newBoard[4][2] = { ...newBoard[4][2], tile: vowels[0], canPlace: false, canTake: true };
+                    newBoard[4][5] = { ...newBoard[4][5], tile: null, canPlace: false, canTake: true };
+                    newBoard[4][8] = { ...newBoard[4][8], tile: vowels[1], canPlace: false, canTake: true };
+                    // Update occupancy to [true, false, true]
+                    suggestedOccupancyRef.current = [true, false, true];
+                } else {
+                    // Consonant draft: three unique consonants
+                    const consonants = generateUniqueTiles(3, 'consonant');
+                    newBoard[4][2] = { ...newBoard[4][2], tile: consonants[0], canPlace: false, canTake: true };
+                    newBoard[4][5] = { ...newBoard[4][5], tile: consonants[1], canPlace: false, canTake: true };
+                    newBoard[4][8] = { ...newBoard[4][8], tile: consonants[2], canPlace: false, canTake: true };
+                    // Update occupancy to [true, true, true]
+                    suggestedOccupancyRef.current = [true, true, true];
+                }
                 return newBoard;
             });
+            setDraftRerollCount(c => c + 1);
+        } else {
+            // No transition; keep ref in sync
+            suggestedOccupancyRef.current = occupancy;
         }
-    }, [isDraftMode, draftBoard]);
+    }, [isDraftMode, draftBoard, draftRerollCount, draftEnded]);
 
     // Helper function to check if all current words are valid
     const areAllCurrentWordsValid = (): boolean => {
@@ -568,7 +668,7 @@ export default function Home() {
                     onDragOver={handleDragOver}
                     onDragEnd={handleDragEnd}
                 >
-                    <DebugMenu bag={bag} rack={rack} board={board} setRack={setRack} setBag={setBag} setBoard={setBoard} draftBoard={draftBoard} setDraftBoard={setDraftBoard} totalScore={totalScore} setTotalScore={setTotalScore} stickers={stickers} setStickers={setStickers} tileOpacity={tileOpacity} setTileOpacity={setTileOpacity} showCoordinates={showCoordinates} setShowCoordinates={setShowCoordinates} isDraftMode={isDraftMode} setIsDraftMode={setIsDraftMode} />
+                    <DebugMenu bag={bag} rack={rack} board={board} setRack={setRack} setBag={setBag} setBoard={setBoard} draftBoard={draftBoard} setDraftBoard={setDraftBoard} totalScore={totalScore} setTotalScore={setTotalScore} stickers={stickers} setStickers={setStickers} tileOpacity={tileOpacity} setTileOpacity={setTileOpacity} showCoordinates={showCoordinates} setShowCoordinates={setShowCoordinates} isDraftMode={isDraftMode} setIsDraftMode={setIsDraftMode} onResetDraft={() => { setDraftBoard(createInitialDraftBoard()); setDraftRerollCount(0); setDraftEnded(false); suggestedOccupancyRef.current = null; }} />
                     <div 
                         ref={gameAreaRef}
                         id="game-area" 
@@ -603,6 +703,7 @@ export default function Home() {
                                 boardRef={boardRef}
                                 rackRef={rackRef}
                                 gameAreaRef={gameAreaRef}
+                                onRightClick={handleDraftSuggestionRightClick}
                                 tileOpacity={tileOpacity}
                                 showCoordinates={showCoordinates}
                                 selectedCell={selectedCell}
@@ -655,7 +756,7 @@ export default function Home() {
                 </DndContext>
             ) : (
                 <>
-                    <DebugMenu bag={bag} rack={rack} board={board} setRack={setRack} setBag={setBag} setBoard={setBoard} draftBoard={draftBoard} setDraftBoard={setDraftBoard} totalScore={totalScore} setTotalScore={setTotalScore} stickers={stickers} setStickers={setStickers} tileOpacity={tileOpacity} setTileOpacity={setTileOpacity} showCoordinates={showCoordinates} setShowCoordinates={setShowCoordinates} isDraftMode={isDraftMode} setIsDraftMode={setIsDraftMode} />
+                    <DebugMenu bag={bag} rack={rack} board={board} setRack={setRack} setBag={setBag} setBoard={setBoard} draftBoard={draftBoard} setDraftBoard={setDraftBoard} totalScore={totalScore} setTotalScore={setTotalScore} stickers={stickers} setStickers={setStickers} tileOpacity={tileOpacity} setTileOpacity={setTileOpacity} showCoordinates={showCoordinates} setShowCoordinates={setShowCoordinates} isDraftMode={isDraftMode} setIsDraftMode={setIsDraftMode} onResetDraft={() => { setDraftBoard(createInitialDraftBoard()); setDraftRerollCount(0); setDraftEnded(false); suggestedOccupancyRef.current = null; }} />
                     <div id="game-area" className="grow bg-zinc-500 flex flex-col items-center justify-center gap-4" />
                 </>
             )}

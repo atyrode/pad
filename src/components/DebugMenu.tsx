@@ -30,9 +30,10 @@ interface DebugMenuProps {
   setShowCoordinates: React.Dispatch<React.SetStateAction<boolean>>;
   isDraftMode: boolean;
   setIsDraftMode: React.Dispatch<React.SetStateAction<boolean>>;
+  onResetDraft?: () => void;
 }
 
-export default function DebugMenu({ bag, rack, board, setRack, setBag, setBoard, draftBoard, setDraftBoard, totalScore, setTotalScore, stickers, setStickers, tileOpacity, setTileOpacity, showCoordinates, setShowCoordinates, isDraftMode, setIsDraftMode }: DebugMenuProps) {
+export default function DebugMenu({ bag, rack, board, setRack, setBag, setBoard, draftBoard, setDraftBoard, totalScore, setTotalScore, stickers, setStickers, tileOpacity, setTileOpacity, showCoordinates, setShowCoordinates, isDraftMode, setIsDraftMode, onResetDraft }: DebugMenuProps) {
   const [isDictionaryLoaded, setIsDictionaryLoaded] = useState(false);
 
   // Load dictionary on component mount
@@ -559,9 +560,12 @@ export default function DebugMenu({ bag, rack, board, setRack, setBag, setBoard,
               </button>
               <button
                 onClick={() => {
-                  // Reset draft board to initial state
-                  const newDraftBoard = createInitialDraftBoard();
-                  setDraftBoard(newDraftBoard);
+                  if (onResetDraft) {
+                    onResetDraft();
+                  } else {
+                    const newDraftBoard = createInitialDraftBoard();
+                    setDraftBoard(newDraftBoard);
+                  }
                 }}
                 className="py-2 px-3 rounded-lg text-white font-semibold text-sm transition-opacity bg-orange-600 hover:opacity-80 hover:bg-orange-500"
               >

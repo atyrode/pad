@@ -44,6 +44,26 @@ export function generateRandomTiles(count: number): TileData[] {
     return tiles;
 }
 
+const VOWELS = new Set(['A', 'E', 'I', 'O', 'U']);
+
+export function generateUniqueTiles(count: number, type: 'vowel' | 'consonant'): TileData[] {
+    const pool = ALL_TILE_DEFINITIONS.filter(def => type === 'vowel' ? VOWELS.has(def.letter) : !VOWELS.has(def.letter));
+    const tiles: TileData[] = [];
+    const used = new Set<string>();
+    while (tiles.length < count && pool.length > 0) {
+        const randomIndex = Math.floor(Math.random() * pool.length);
+        const def = pool[randomIndex];
+        if (used.has(def.letter)) continue;
+        used.add(def.letter);
+        tiles.push({ id: `random-${def.letter}-${Date.now()}-${tiles.length}`, value: def.letter, score: def.score });
+    }
+    return tiles;
+}
+
+export function createBlankTile(idSuffix: string = ''): TileData {
+    return { id: `blank-${Date.now()}-${idSuffix}`, value: '*', score: 0, originalValue: '*', displayValue: undefined } as any;
+}
+
 /**
  * Create the initial draft board with "DRAFT" spelled out in locked tiles
  * on the second row (row 1), centered in the 11x11 grid
@@ -93,16 +113,12 @@ export function createInitialDraftBoard(): BoardState {
         { row: 4, col: 5 },
         { row: 4, col: 8 }
     ];
-    
-    const randomTiles = generateRandomTiles(3);
-    
-    suggestedPositions.forEach((pos, index) => {
-        board[pos.row][pos.col] = {
-            tile: randomTiles[index],
-            canPlace: false,
-            canTake: true
-        };
-    });
+
+    // Initial suggestions: vowel draft (V): sides vowels, middle empty
+    const initialVowels = generateUniqueTiles(2, 'vowel');
+    board[4][2] = { ...board[4][2], tile: initialVowels[0], canPlace: false, canTake: true };
+    board[4][5] = { ...board[4][5], tile: null, canPlace: false, canTake: true };
+    board[4][8] = { ...board[4][8], tile: initialVowels[1], canPlace: false, canTake: true };
     
     return board;
 }
