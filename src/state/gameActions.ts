@@ -11,6 +11,7 @@ import { calculateCurrentPlayScore } from "../utils/scoreUtils";
 import { consumeSticker, createInitialStickers } from "../utils/stickerUtils";
 import { TileSupplyService } from "../services/TileSupplyService";
 import { TileMovementService } from "../services/TileMovementService";
+import { resolvePlay } from "../services/PlayService";
 
 export type GameDispatch = React.Dispatch<GameAction>;
 
@@ -45,43 +46,18 @@ export function handlePlayAction(
     },
     dispatch: GameDispatch
 ) {
-    const { totalScore } = calculateCurrentPlayScore(args.board, args.stickers);
-    const newTotal = args.currentTotalScore + totalScore;
+    const result = resolvePlay(args);
 
-    // Lock tiles
-    const lockedBoard = args.board.map(row =>
-        row.map(cell => (cell.tile && cell.canTake ? { ...cell, canPlace: false, canTake: false } : cell))
-    );
-
-    // Consume stickers where tiles were locked
-    let newStickers = args.stickers;
-    for (let row = 0; row < args.board.length; row++) {
-        for (let col = 0; col < args.board[row].length; col++) {
-            const cell = args.board[row][col];
-            if (cell.tile && cell.canTake) {
-                newStickers = consumeSticker(newStickers, { row, col });
-            }
-        }
-    }
-
-    // Fill rack
-    const tileSupplyResult = TileSupplyService.drawToFill({
-        rack: args.rack,
-        bag: args.bag,
-        discard: args.discard,
-    });
-
-    // Batch all updates
     dispatch({
         type: 'batchUpdate',
         payload: {
-            totalScore: newTotal,
-            board: lockedBoard,
-            stickers: newStickers,
-            placementHistory: [],
-            rack: tileSupplyResult.rack,
-            bag: tileSupplyResult.bag,
-            discard: tileSupplyResult.discard,
+            totalScore: result.totalScore,
+            board: result.board,
+            stickers: result.stickers,
+            placementHistory: result.placementHistory,
+            rack: result.rack,
+            bag: result.bag,
+            discard: result.discard,
         }
     });
 }
