@@ -14,7 +14,8 @@ import { RackState } from '../src/types/rack';
 import { Bag } from '../src/types/bag';
 import { StickerState } from '../src/types/sticker';
 import { createInitialBoard, removeTileFromBoard, findAllWords, areUnlockedTilesInSingleLine, findTilePosition, parseEmptySlotId } from '../src/utils/boardUtils';
-import { createInitialDraftBoard } from '../src/utils/draftBoardUtils';
+import { createInitialDraftBoard, generateRandomTiles } from '../src/utils/draftBoardUtils';
+import { DraftSlotState } from '../src/types/draft';
 import { createInitialRack, findTileInRack, findFirstEmptySlot, moveTileToRack, shuffleRack } from '../src/utils/rackUtils';
 import { createTileBag } from '../src/utils/bagUtils';
 import { getAllAvailableLetters } from '../src/utils/tileDefinitions';
@@ -57,6 +58,9 @@ export default function Home() {
     // Draft mode state
     const [isDraftMode, setIsDraftMode] = useState(false);
     const [draftBoard, setDraftBoard] = useState<BoardState>(createInitialDraftBoard);
+    const [draftSlots, setDraftSlots] = useState<DraftSlotState>(Array(14).fill(null));
+    const [suggestedTiles, setSuggestedTiles] = useState<TileData[]>([]);
+    const [selectedSlotIndex, setSelectedSlotIndex] = useState<number | null>(null);
 
     // Placement history for backspace functionality
     const [placementHistory, setPlacementHistory] = useState<PlacementHistoryEntry[]>([]);
@@ -414,6 +418,13 @@ export default function Home() {
         });
     }, []);
 
+    // Generate suggested tiles when entering draft mode
+    useEffect(() => {
+        if (isDraftMode && suggestedTiles.length === 0) {
+            setSuggestedTiles(generateRandomTiles(3));
+        }
+    }, [isDraftMode, suggestedTiles.length]);
+
     // Helper function to check if all current words are valid
     const areAllCurrentWordsValid = (): boolean => {
         if (!isDictionaryLoaded) {
@@ -570,6 +581,9 @@ export default function Home() {
                                 showCoordinates={showCoordinates}
                                 selectedCell={selectedCell}
                                 selectorDirection={selectorDirection}
+                                draftSlots={draftSlots}
+                                suggestedTiles={suggestedTiles}
+                                selectedSlotIndex={selectedSlotIndex}
                             />
                         </Activity>
                         <div className="relative">

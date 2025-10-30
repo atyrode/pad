@@ -1,6 +1,6 @@
-import { BoardState } from '../types/board';
+import { BoardState, Position } from '../types/board';
 import { TileData } from '../types/tile';
-import { getTileDefinition } from './tileDefinitions';
+import { getTileDefinition, ALL_TILE_DEFINITIONS } from './tileDefinitions';
 import { createInitialBoard } from './boardUtils';
 
 /**
@@ -17,6 +17,47 @@ function createTileFromLetter(letter: string, id: string): TileData {
         value: letter,
         score: definition.score
     };
+}
+
+/**
+ * Generate random tiles from the tile definitions
+ */
+export function generateRandomTiles(count: number): TileData[] {
+    const tiles: TileData[] = [];
+    
+    for (let i = 0; i < count; i++) {
+        const randomIndex = Math.floor(Math.random() * ALL_TILE_DEFINITIONS.length);
+        const definition = ALL_TILE_DEFINITIONS[randomIndex];
+        
+        tiles.push({
+            id: `suggested-${definition.letter}-${i}-${Date.now()}`,
+            value: definition.letter,
+            score: definition.score
+        });
+    }
+    
+    return tiles;
+}
+
+/**
+ * Get the 14 draft slot positions
+ * Row 8: columns 2, 3, 4, 5, 6, 7, 8 (7 slots)
+ * Row 9: columns 2, 3, 4, 5, 6, 7, 8 (7 slots)
+ */
+export function createDraftSlotPositions(): Position[] {
+    const positions: Position[] = [];
+    
+    // Row 8 slots (indices 0-6)
+    for (let col = 2; col <= 8; col++) {
+        positions.push({ row: 7, col });
+    }
+    
+    // Row 9 slots (indices 7-13)
+    for (let col = 2; col <= 8; col++) {
+        positions.push({ row: 8, col });
+    }
+    
+    return positions;
 }
 
 /**
