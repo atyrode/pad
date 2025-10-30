@@ -6,9 +6,9 @@ import { TileData } from "../types/tile";
 import { GameAction } from "./gameTypes";
 import { findFirstEmptySlot, moveTileToRack, shuffleRack } from "../utils/rackUtils";
 import { drawTileFromBag, shuffleBag } from "../utils/bagUtils";
-import { removeTileFromBoard } from "../utils/boardUtils";
+import { removeTileFromBoard, createInitialBoard } from "../utils/boardUtils";
 import { calculateCurrentPlayScore } from "../utils/scoreUtils";
-import { consumeSticker } from "../utils/stickerUtils";
+import { consumeSticker, createInitialStickers } from "../utils/stickerUtils";
 
 export type GameDispatch = React.Dispatch<GameAction>;
 
@@ -224,6 +224,117 @@ export function handleKeyboardTileRemovalAction(
     dispatch({ type: 'setPlacementHistory', payload: { placementHistory: newHistory } });
     if (removedPosition) return { success: true, position: removedPosition };
     return { success: false };
+}
+
+// === Debug/Control actions ===
+
+export function drawOneAction(
+    args: { rack: RackState; bag: Bag; discard: TileData[] },
+    dispatch: GameDispatch
+) {
+    const { newRack, newBag, didRefill } = computeDrawWithRefill(args.rack, args.bag, args.discard);
+    if (didRefill) dispatch({ type: 'setDiscard', payload: { discard: [] } });
+    dispatch({ type: 'setBag', payload: { bag: newBag } });
+    dispatch({ type: 'setRack', payload: { rack: newRack } });
+}
+
+export function drawAllAction(
+    args: { rack: RackState; bag: Bag; discard: TileData[] },
+    dispatch: GameDispatch
+) {
+    let rackWork = [...args.rack];
+    let bagWork = args.bag;
+    let discardWork = args.discard;
+    let usedRefill = false;
+
+    for (let i = 0; i < rackWork.length; i++) {
+        if (rackWork[i] !== null) continue;
+        if (bagWork.length === 0) {
+            if (discardWork.length === 0) break;
+            bagWork = shuffleBag([...discardWork]);
+            discardWork = [];
+            usedRefill = true;
+        }
+        const { tile, newBag } = drawTileFromBag(bagWork);
+        if (!tile) break;
+        rackWork[i] = tile;
+        bagWork = newBag;
+    }
+
+    if (usedRefill) dispatch({ type: 'setDiscard', payload: { discard: [] } });
+    dispatch({ type: 'setBag', payload: { bag: bagWork } });
+    dispatch({ type: 'setRack', payload: { rack: rackWork } });
+}
+
+export function redrawAction(
+    args: { rack: RackState; bag: Bag; discard: TileData[] },
+    dispatch: GameDispatch
+) {
+    const currentTileCount = args.rack.filter(t => t !== null).length;
+    let bagWork = args.bag;
+    let discardWork = args.discard;
+    let usedRefill = false;
+    const newRack: RackState = Array(args.rack.length).fill(null);
+
+    for (let i = 0; i < currentTileCount; i++) {
+        if (bagWork.length === 0) {
+            if (discardWork.length === 0) break;
+            bagWork = shuffleBag([...discardWork]);
+            discardWork = [];
+            usedRefill = true;
+        }
+        const { tile, newBag } = drawTileFromBag(bagWork);
+        if (!tile) break;
+        newRack[i] = tile;
+        bagWork = newBag;
+    }
+
+    if (usedRefill) dispatch({ type: 'setDiscard', payload: { discard: [] } });
+    dispatch({ type: 'setBag', payload: { bag: bagWork } });
+    dispatch({ type: 'setRack', payload: { rack: newRack } });
+}
+
+export function shuffleBagAction(args: { bag: Bag }, dispatch: GameDispatch) {
+    dispatch({ type: 'setBag', payload: { bag: shuffleBag(args.bag) } });
+}
+
+export function resetBoardAction(dispatch: GameDispatch) {
+    dispatch({ type: 'setBoard', payload: { board: createInitialBoard() } });
+}
+
+export function resetRackAction(args: { rackSize: number }, dispatch: GameDispatch) {
+    const emptyRack: RackState = Array(args.rackSize).fill(null);
+    dispatch({ type: 'setRack', payload: { rack: emptyRack } });
+}
+
+export function resetScoreAction(dispatch: GameDispatch) {
+    dispatch({ type: 'setTotalScore', payload: { totalScore: 0 } });
+}
+
+export function resetStickersAction(args: { board: BoardState }, dispatch: GameDispatch) {
+    let stickers = createInitialStickers();
+    for (let row = 0; row < args.board.length; row++) {
+        for (let col = 0; col < args.board[row].length; col++) {
+            const cell = args.board[row][col];
+            if (cell.tile && !cell.canTake) {
+                stickers = consumeSticker(stickers, { row, col });
+            }
+        }
+    }
+    dispatch({ type: 'setStickers', payload: { stickers } });
+}
+
+export function resetBagFromDraftAction(
+    args: { draftBoard: BoardState },
+    dispatch: GameDispatch
+) {
+    const centerCount = 7;
+    const centerStart = Math.floor((11 - centerCount) / 2);
+    const positions = [7, 8].flatMap(r => Array.from({ length: centerCount }, (_, i) => ({ row: r, col: centerStart + i })));
+    const draftedTiles = positions
+        .map(p => args.draftBoard[p.row][p.col].tile)
+        .filter(Boolean) as TileData[];
+    dispatch({ type: 'setBag', payload: { bag: shuffleBag([...draftedTiles]) } });
 }
 
 

@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { BoardState, Position } from "../types/board";
-import { createBlankTile, generateUniqueTiles } from "../utils/draftBoardUtils";
+import { createBlankTile, generateUniqueTiles, applyDraftTiles } from "../utils/draftBoardUtils";
 
 type Occupancy = [boolean, boolean, boolean];
 
@@ -50,33 +50,57 @@ export function useDraftSuggestionsReroll(args: {
             const nextType = draftSequence[nextIndex];
 
             setDraftBoard(prevBoard => {
-                const newBoard = prevBoard.map(row => [...row]);
                 if (nextType === '*') {
-                    newBoard[4][2] = { ...newBoard[4][2], tile: null, canPlace: false, canTake: true };
-                    newBoard[4][5] = { ...newBoard[4][5], tile: createBlankTile('final'), canPlace: false, canTake: true };
-                    newBoard[4][8] = { ...newBoard[4][8], tile: null, canPlace: false, canTake: true };
+                    const tiles = [null, createBlankTile('final'), null];
+                    const board = applyDraftTiles(prevBoard, tiles, [false, true, false]);
                     setDraftEnded(true);
                     suggestedOccupancyRef.current = [false, true, false];
+                    return board;
                 } else if (nextType === 'V') {
                     const vowels = generateUniqueTiles(2, 'vowel');
-                    newBoard[4][2] = { ...newBoard[4][2], tile: vowels[0], canPlace: false, canTake: true };
-                    newBoard[4][5] = { ...newBoard[4][5], tile: null, canPlace: false, canTake: true };
-                    newBoard[4][8] = { ...newBoard[4][8], tile: vowels[1], canPlace: false, canTake: true };
+                    const tiles = [vowels[0], null, vowels[1]] as any;
+                    const board = applyDraftTiles(prevBoard, tiles, [true, false, true]);
                     suggestedOccupancyRef.current = [true, false, true];
+                    return board;
                 } else {
                     const consonants = generateUniqueTiles(3, 'consonant');
-                    newBoard[4][2] = { ...newBoard[4][2], tile: consonants[0], canPlace: false, canTake: true };
-                    newBoard[4][5] = { ...newBoard[4][5], tile: consonants[1], canPlace: false, canTake: true };
-                    newBoard[4][8] = { ...newBoard[4][8], tile: consonants[2], canPlace: false, canTake: true };
+                    const tiles = [consonants[0], consonants[1], consonants[2]];
+                    const board = applyDraftTiles(prevBoard, tiles, [true, true, true]);
                     suggestedOccupancyRef.current = [true, true, true];
+                    return board;
                 }
-                return newBoard;
             });
             setDraftRerollCount(c => c + 1);
         } else {
             suggestedOccupancyRef.current = occupancy;
         }
     }, [isDraftMode, draftBoard, draftRerollCount, draftEnded]);
+
+    function rerollSuggestions() {
+        if (!isDraftMode || draftEnded) return;
+        const draftSequence: Array<'V' | 'C' | '*'> = ['V','C','C','V','C','C','V','C','C','V','C','C','V','*'];
+        const currentIndex = Math.min(draftRerollCount, draftSequence.length - 1);
+        const type = draftSequence[currentIndex];
+        setDraftBoard(prevBoard => {
+            if (type === '*') {
+                return prevBoard;
+            } else if (type === 'V') {
+                const vowels = generateUniqueTiles(2, 'vowel');
+                const tiles = [vowels[0], null, vowels[1]] as any;
+                const board = applyDraftTiles(prevBoard, tiles, [true, false, true]);
+                suggestedOccupancyRef.current = [true, false, true];
+                return board;
+            } else {
+                const consonants = generateUniqueTiles(3, 'consonant');
+                const tiles = [consonants[0], consonants[1], consonants[2]];
+                const board = applyDraftTiles(prevBoard, tiles, [true, true, true]);
+                suggestedOccupancyRef.current = [true, true, true];
+                return board;
+            }
+        });
+    }
+
+    return { rerollSuggestions };
 }
 
 

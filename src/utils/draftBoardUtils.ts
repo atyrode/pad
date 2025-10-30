@@ -122,3 +122,35 @@ export function createInitialDraftBoard(): BoardState {
     
     return board;
 }
+
+/**
+ * Positions used for suggested tiles in draft mode (row 4, cols 2/5/8).
+ */
+export function getDraftCenterPositions() {
+    return [
+        { row: 4, col: 2 },
+        { row: 4, col: 5 },
+        { row: 4, col: 8 },
+    ];
+}
+
+/**
+ * Apply provided tiles to the draft suggestion positions with an occupancy pattern.
+ * occupancyPattern is a boolean array of length 3 indicating whether a tile is present at each spot.
+ * Returns a new board instance with canPlace=false and canTake=true at those cells.
+ */
+export function applyDraftTiles(
+    board: BoardState,
+    tiles: Array<TileData | null>,
+    occupancyPattern: [boolean, boolean, boolean]
+): BoardState {
+    const positions = getDraftCenterPositions();
+    const next = board.map(row => [...row]);
+    for (let i = 0; i < positions.length; i++) {
+        const { row, col } = positions[i];
+        const present = occupancyPattern[i];
+        const tile = present ? tiles[i] : null;
+        next[row][col] = { ...next[row][col], tile: tile ?? null, canPlace: false, canTake: true };
+    }
+    return next;
+}

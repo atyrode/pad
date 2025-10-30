@@ -1,16 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Bag } from '../types/bag';
 import { RackState } from '../types/rack';
 import { BoardState } from '../types/board';
 import { StickerState } from '../types/sticker';
 import { drawTileFromBag, shuffleBag } from '../utils/bagUtils';
 import { findFirstEmptySlot, moveTileToRack } from '../utils/rackUtils';
-import { createInitialBoard, findAllWords } from '../utils/boardUtils';
+import { findAllWords } from '../utils/boardUtils';
 import { createInitialDraftBoard, generateRandomTiles } from '../utils/draftBoardUtils';
-import { isValidWordSync, preloadDictionary } from '../utils/dictionaryUtils';
+import { isValidWordSync } from '../utils/dictionaryUtils';
 import { calculateCurrentPlayScore } from '../utils/scoreUtils';
-import { createInitialStickers, countStickers, consumeSticker } from '../utils/stickerUtils';
+import { countStickers } from '../utils/stickerUtils';
 import { TileData } from '../types/tile';
+import { useGame } from '../state/GameContext';
 
 interface DebugMenuProps {
   bag: Bag;
@@ -35,17 +36,20 @@ interface DebugMenuProps {
   onRerollSuggestions?: () => void;
   discard?: TileData[];
   setDiscard?: React.Dispatch<React.SetStateAction<TileData[]>>;
+  onDraw?: () => void;
+  onDrawAll?: () => void;
+  onRedraw?: () => void;
+  onClearRack?: () => void;
+  onResetGame?: () => void;
+  onResetBoard?: () => void;
+  onResetBag?: () => void;
+  onResetScore?: () => void;
+  onResetStickers?: () => void;
+  onShuffleBag?: () => void;
 }
 
-export default function DebugMenu({ bag, rack, board, setRack, setBag, setBoard, draftBoard, setDraftBoard, totalScore, setTotalScore, stickers, setStickers, tileOpacity, setTileOpacity, showCoordinates, setShowCoordinates, isDraftMode, setIsDraftMode, onResetDraft, onRerollSuggestions, discard = [], setDiscard }: DebugMenuProps) {
-  const [isDictionaryLoaded, setIsDictionaryLoaded] = useState(false);
-
-  // Load dictionary on component mount
-  useEffect(() => {
-    preloadDictionary().then(() => {
-      setIsDictionaryLoaded(true);
-    });
-  }, []);
+export default function DebugMenu({ bag, rack, board, setRack, setBag, setBoard, draftBoard, setDraftBoard, totalScore, setTotalScore, stickers, setStickers, tileOpacity, setTileOpacity, showCoordinates, setShowCoordinates, isDraftMode, setIsDraftMode, onResetDraft, onRerollSuggestions, discard = [], setDiscard, onDraw, onDrawAll, onRedraw, onClearRack, onResetGame, onResetBoard, onResetBag, onResetScore, onResetStickers, onShuffleBag }: DebugMenuProps) {
+  const { isDictionaryLoaded } = useGame();
 
   const refillBagFromDiscardIfNeeded = (currentBag: Bag): Bag => {
     if (currentBag.length === 0 && discard.length > 0 && setDiscard) {
@@ -121,88 +125,7 @@ export default function DebugMenu({ bag, rack, board, setRack, setBag, setBoard,
     setRack(newRack);
   };
 
-  const handleClear = () => {
-    // Empty the rack
-    const emptyRack = Array(rack.length).fill(null);
-    setRack(emptyRack);
-  };
-
-  const handleResetGame = () => {
-    // Clear the board, rack, reset score and stickers; seed bag from current draft
-    const emptyBoard = createInitialBoard();
-    const emptyRack = Array(rack.length).fill(null);
-    const newStickers = createInitialStickers();
-
-    // Collect drafted tiles from placement zone: rows 7 and 8, center 7 columns
-    const centerCount = 7;
-    const centerStart = Math.floor((11 - centerCount) / 2);
-    const draftedPositions: { row: number; col: number }[] = [];
-    [7, 8].forEach(r => {
-      for (let c = centerStart; c < centerStart + centerCount; c++) {
-        draftedPositions.push({ row: r, col: c });
-      }
-    });
-    const draftedTiles = draftedPositions
-      .map(p => draftBoard[p.row][p.col].tile)
-      .filter(Boolean) as any[];
-
-    setBoard(emptyBoard);
-    setRack(emptyRack);
-    setBag(shuffleBag([...draftedTiles]));
-    setTotalScore(0);
-    setStickers(newStickers);
-  };
-
-  const handleResetScore = () => {
-    // Reset only the score
-    setTotalScore(0);
-  };
-
-  const handleResetBoard = () => {
-    // Clear the board only
-    const emptyBoard = createInitialBoard();
-    setBoard(emptyBoard);
-  };
-
-  const handleResetStickers = () => {
-    // Reset stickers to initial state
-    let newStickers = createInitialStickers();
-    
-    // Consume any stickers that have non-takeable (locked) tiles on top
-    for (let row = 0; row < board.length; row++) {
-      for (let col = 0; col < board[row].length; col++) {
-        const cell = board[row][col];
-        if (cell.tile && !cell.canTake) {
-          // This position has a locked tile, so consume the sticker if it exists
-          newStickers = consumeSticker(newStickers, { row, col });
-        }
-      }
-    }
-    
-    setStickers(newStickers);
-  };
-
-  const handleResetBag = () => {
-    // Seed the bag from the current draft placement zone
-    const centerCount = 7;
-    const centerStart = Math.floor((11 - centerCount) / 2);
-    const draftedPositions: { row: number; col: number }[] = [];
-    [7, 8].forEach(r => {
-      for (let c = centerStart; c < centerStart + centerCount; c++) {
-        draftedPositions.push({ row: r, col: c });
-      }
-    });
-    const draftedTiles = draftedPositions
-      .map(p => draftBoard[p.row][p.col].tile)
-      .filter(Boolean) as any[];
-    setBag(shuffleBag([...draftedTiles]));
-  };
-
-  const handleShuffle = () => {
-    // Shuffle the current bag
-    const shuffledBag = shuffleBag(bag);
-    setBag(shuffledBag);
-  };
+  // All mutating handlers are injected via props; this component remains presentational.
 
   // Check if buttons should be disabled
   const isDrawDisabled = bag.length === 0 || findFirstEmptySlot(rack) === null;
@@ -316,7 +239,7 @@ export default function DebugMenu({ bag, rack, board, setRack, setBag, setBoard,
             <h3 className="text-white text-lg font-semibold mb-3">Reset</h3>
             <div className="flex flex-row gap-2 justify-center mb-2">
               <button
-                onClick={handleResetGame}
+                onClick={onResetGame}
                 disabled={isGameResetDisabled}
                 className={`py-2 px-3 rounded-lg text-white font-semibold text-sm transition-opacity grow ${isGameResetDisabled
                   ? 'bg-zinc-800 opacity-50 cursor-not-allowed'
@@ -328,7 +251,7 @@ export default function DebugMenu({ bag, rack, board, setRack, setBag, setBoard,
             </div>
             <div className="flex flex-row gap-2 justify-center">
               <button
-                onClick={handleResetBoard}
+                onClick={onResetBoard}
                 disabled={isBoardResetDisabled}
                 className={`py-2 px-3 rounded-lg text-white font-semibold text-sm transition-opacity grow ${isBoardResetDisabled
                   ? 'bg-zinc-800 opacity-50 cursor-not-allowed'
@@ -338,7 +261,7 @@ export default function DebugMenu({ bag, rack, board, setRack, setBag, setBoard,
                 Board
               </button>
               <button
-                onClick={handleClear}
+                onClick={onClearRack}
                 disabled={isRackResetDisabled}
                 className={`py-2 px-3 rounded-lg text-white font-semibold text-sm transition-opacity grow ${isRackResetDisabled
                   ? 'bg-zinc-800 opacity-50 cursor-not-allowed'
@@ -348,7 +271,7 @@ export default function DebugMenu({ bag, rack, board, setRack, setBag, setBoard,
                 Rack
               </button>
               <button
-                onClick={handleResetBag}
+                onClick={onResetBag}
                 disabled={isBagResetDisabled}
                 className={`py-2 px-3 rounded-lg text-white font-semibold text-sm transition-opacity grow ${isBagResetDisabled
                   ? 'bg-zinc-800 opacity-50 cursor-not-allowed'
@@ -358,7 +281,7 @@ export default function DebugMenu({ bag, rack, board, setRack, setBag, setBoard,
                 Bag
               </button>
               <button
-                onClick={handleResetScore}
+                onClick={onResetScore}
                 disabled={isScoreResetDisabled}
                 className={`py-2 px-3 rounded-lg text-white font-semibold text-sm transition-opacity grow ${isScoreResetDisabled
                   ? 'bg-zinc-800 opacity-50 cursor-not-allowed'
@@ -368,7 +291,7 @@ export default function DebugMenu({ bag, rack, board, setRack, setBag, setBoard,
                 Score
               </button>
               <button
-                onClick={handleResetStickers}
+                onClick={onResetStickers}
                 disabled={isStickersResetDisabled}
                 className={`py-2 px-3 rounded-lg text-white font-semibold text-sm transition-opacity grow ${isStickersResetDisabled
                   ? 'bg-zinc-800 opacity-50 cursor-not-allowed'
@@ -385,7 +308,7 @@ export default function DebugMenu({ bag, rack, board, setRack, setBag, setBoard,
             <h3 className="text-white text-lg font-semibold mb-3">Draw</h3>
             <div className="flex flex-row gap-2 justify-center">
               <button
-                onClick={handleDraw}
+                onClick={onDraw}
                 disabled={isDrawDisabled}
                 className={`py-2 px-3 rounded-lg text-white font-semibold text-sm transition-opacity grow ${isDrawDisabled
                   ? 'bg-zinc-800 opacity-50 cursor-not-allowed'
@@ -395,7 +318,7 @@ export default function DebugMenu({ bag, rack, board, setRack, setBag, setBoard,
                 Draw
               </button>
               <button
-                onClick={handleDrawAll}
+                onClick={onDrawAll}
                 disabled={isDrawAllDisabled}
                 className={`py-2 px-3 rounded-lg text-white font-semibold text-sm transition-opacity grow ${isDrawAllDisabled
                   ? 'bg-zinc-800 opacity-50 cursor-not-allowed'
@@ -405,7 +328,7 @@ export default function DebugMenu({ bag, rack, board, setRack, setBag, setBoard,
                 Draw All
               </button>
               <button
-                onClick={handleRedraw}
+                onClick={onRedraw}
                 disabled={isRedrawDisabled}
                 className={`py-2 px-3 rounded-lg text-white font-semibold text-sm transition-opacity grow ${isRedrawDisabled
                   ? 'bg-zinc-800 opacity-50 cursor-not-allowed'
@@ -532,7 +455,7 @@ export default function DebugMenu({ bag, rack, board, setRack, setBag, setBoard,
               ))}
             </div>
             <button
-              onClick={handleShuffle}
+              onClick={onShuffleBag}
               disabled={bag.length === 0}
               className={`w-full py-2 px-3 rounded-lg text-white font-semibold text-sm transition-opacity ${bag.length === 0
                 ? 'bg-zinc-800 opacity-50 cursor-not-allowed'

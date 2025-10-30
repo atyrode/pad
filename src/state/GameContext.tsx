@@ -1,12 +1,13 @@
 "use client";
 
-import { createContext, useContext, useMemo, useReducer, ReactNode } from "react";
+import { createContext, useContext, useMemo, useReducer, ReactNode, useEffect } from "react";
 import { GameState, GameAction } from "./gameTypes";
 import { gameReducer } from "./gameReducer";
 import { createInitialBoard } from "../utils/boardUtils";
 import { createInitialRack } from "../utils/rackUtils";
 import { createInitialDraftBoard } from "../utils/draftBoardUtils";
 import { createInitialStickers } from "../utils/stickerUtils";
+import { preloadDictionary } from "../utils/dictionaryUtils";
 
 const GameStateContext = createContext<GameState | undefined>(undefined);
 const GameDispatchContext = createContext<React.Dispatch<GameAction> | undefined>(undefined);
@@ -41,6 +42,26 @@ export function GameProvider({ children }: { children: ReactNode }) {
 
     const stateValue = useMemo(() => state, [state]);
     const dispatchValue = useMemo(() => dispatch, [dispatch]);
+
+    // Preload dictionary once at provider level and expose loaded flag
+    useEffect(() => {
+        let isMounted = true;
+        preloadDictionary()
+            .then(() => {
+                if (isMounted) {
+                    dispatch({ type: "initDictionaryLoaded", payload: { loaded: true } });
+                }
+            })
+            .catch(() => {
+                if (isMounted) {
+                    // Even on failure, mark as loaded to avoid blocking UI; utils returns empty set on error
+                    dispatch({ type: "initDictionaryLoaded", payload: { loaded: true } });
+                }
+            });
+        return () => {
+            isMounted = false;
+        };
+    }, []);
 
     return (
         <GameStateContext.Provider value={stateValue}>
