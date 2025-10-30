@@ -3,7 +3,7 @@ import { Bag } from '../types/bag';
 import { RackState } from '../types/rack';
 import { BoardState } from '../types/board';
 import { StickerState } from '../types/sticker';
-import { drawTileFromBag, createTileBag, shuffleBag, getFullBagSize } from '../utils/bagUtils';
+import { drawTileFromBag, shuffleBag } from '../utils/bagUtils';
 import { findFirstEmptySlot, moveTileToRack } from '../utils/rackUtils';
 import { createInitialBoard, findAllWords } from '../utils/boardUtils';
 import { createInitialDraftBoard, generateRandomTiles } from '../utils/draftBoardUtils';
@@ -113,14 +113,27 @@ export default function DebugMenu({ bag, rack, board, setRack, setBag, setBoard,
   };
 
   const handleResetGame = () => {
-    // Clear the board, rack, refill the bag, reset score, and reset stickers
+    // Clear the board, rack, reset score and stickers; seed bag from current draft
     const emptyBoard = createInitialBoard();
     const emptyRack = Array(rack.length).fill(null);
-    const newBag = createTileBag();
     const newStickers = createInitialStickers();
+
+    // Collect drafted tiles from placement zone: rows 7 and 8, center 7 columns
+    const centerCount = 7;
+    const centerStart = Math.floor((11 - centerCount) / 2);
+    const draftedPositions: { row: number; col: number }[] = [];
+    [7, 8].forEach(r => {
+      for (let c = centerStart; c < centerStart + centerCount; c++) {
+        draftedPositions.push({ row: r, col: c });
+      }
+    });
+    const draftedTiles = draftedPositions
+      .map(p => draftBoard[p.row][p.col].tile)
+      .filter(Boolean) as any[];
+
     setBoard(emptyBoard);
     setRack(emptyRack);
-    setBag(newBag);
+    setBag(shuffleBag([...draftedTiles]));
     setTotalScore(0);
     setStickers(newStickers);
   };
@@ -155,9 +168,19 @@ export default function DebugMenu({ bag, rack, board, setRack, setBag, setBoard,
   };
 
   const handleResetBag = () => {
-    // Refill the bag, keeping the rack and board as is
-    const newBag = createTileBag();
-    setBag(newBag);
+    // Seed the bag from the current draft placement zone
+    const centerCount = 7;
+    const centerStart = Math.floor((11 - centerCount) / 2);
+    const draftedPositions: { row: number; col: number }[] = [];
+    [7, 8].forEach(r => {
+      for (let c = centerStart; c < centerStart + centerCount; c++) {
+        draftedPositions.push({ row: r, col: c });
+      }
+    });
+    const draftedTiles = draftedPositions
+      .map(p => draftBoard[p.row][p.col].tile)
+      .filter(Boolean) as any[];
+    setBag(shuffleBag([...draftedTiles]));
   };
 
   const handleShuffle = () => {
@@ -206,9 +229,27 @@ export default function DebugMenu({ bag, rack, board, setRack, setBag, setBoard,
   // Check if rack is empty (all slots are null)
   const isRackEmpty = rack.every(tile => tile === null);
 
-  // Full bag size (calculated from TILE_DISTRIBUTION)
-  const FULL_BAG_SIZE = getFullBagSize();
-  const isBagFull = bag.length >= FULL_BAG_SIZE;
+  // Draft-based bag: consider draft unavailable if no drafted tiles present
+  const centerCount = 7;
+  const centerStart = Math.floor((11 - centerCount) / 2);
+  const draftedCount = [7, 8].flatMap(r => Array.from({ length: centerCount }, (_, i) => ({ row: r, col: centerStart + i })))
+    .filter(pos => draftBoard[pos.row][pos.col].tile)
+    .length;
+
+  // Helper: collect all drafted tiles (14 center slots)
+  const collectDraftedTiles = () => {
+    const positions = [7, 8].flatMap(r => Array.from({ length: centerCount }, (_, i) => ({ row: r, col: centerStart + i })));
+    return positions.map(p => draftBoard[p.row][p.col].tile).filter(Boolean) as any[];
+  };
+
+  // Compare current bag to drafted tiles (order-agnostic, by tile.id)
+  const isBagSameAsDraft = () => {
+    const draftedTiles = collectDraftedTiles();
+    if (draftedTiles.length === 0) return false;
+    if (bag.length !== draftedTiles.length) return false;
+    const draftedIds = new Set(draftedTiles.map(t => t.id));
+    return bag.every(t => draftedIds.has(t!.id));
+  };
 
   // Check if score is zero
   const isScoreZero = totalScore === 0;
@@ -216,7 +257,7 @@ export default function DebugMenu({ bag, rack, board, setRack, setBag, setBoard,
   // Calculate disabled states for reset buttons
   const isBoardResetDisabled = isBoardEmpty;
   const isRackResetDisabled = isRackEmpty;
-  const isBagResetDisabled = isBagFull;
+  const isBagResetDisabled = draftedCount === 0 || isBagSameAsDraft();
   const isScoreResetDisabled = isScoreZero;
 
   // Check if stickers are in initial state

@@ -16,7 +16,7 @@ import { StickerState } from '../src/types/sticker';
 import { createInitialBoard, removeTileFromBoard, findAllWords, areUnlockedTilesInSingleLine, findTilePosition, parseEmptySlotId } from '../src/utils/boardUtils';
 import { createInitialDraftBoard, generateRandomTiles, generateUniqueTiles, createBlankTile } from '../src/utils/draftBoardUtils';
 import { createInitialRack, findTileInRack, findFirstEmptySlot, moveTileToRack, shuffleRack } from '../src/utils/rackUtils';
-import { createTileBag } from '../src/utils/bagUtils';
+import { drawTileFromBag, shuffleBag } from '../src/utils/bagUtils';
 import { getAllAvailableLetters } from '../src/utils/tileDefinitions';
 import { preloadDictionary, isValidWordSync } from '../src/utils/dictionaryUtils';
 import { calculateCurrentPlayScore, calculateTotalScore } from '../src/utils/scoreUtils';
@@ -73,6 +73,8 @@ export default function Home() {
     const boardRef = useRef<HTMLDivElement>(null);
     const rackRef = useRef<HTMLDivElement>(null);
     const gameAreaRef = useRef<HTMLDivElement>(null);
+    const [exitingDraft, setExitingDraft] = useState(false);
+    const [hasSeededFromDraft, setHasSeededFromDraft] = useState(false);
 
     const handleDragAndDropPlacement = (tileId: string, position: Position, wasBlank: boolean) => {
         setPlacementHistory(prev => [...prev, { tileId, position, wasBlank }]);
@@ -471,8 +473,6 @@ export default function Home() {
     // Set mounted to true after client-side hydration and initialize bag
     useEffect(() => {
         setMounted(true);
-        // Initialize the bag only on the client side
-        setBag(createTileBag());
         // Load dictionary
         preloadDictionary().then(() => {
             setIsDictionaryLoaded(true);
@@ -551,6 +551,32 @@ export default function Home() {
             suggestedOccupancyRef.current = occupancy;
         }
     }, [isDraftMode, draftBoard, draftRerollCount, draftEnded]);
+
+    // On draft completion: when draft ends and 14 tiles are placed, seed the game bag from draft (shuffled) exactly once
+    useEffect(() => {
+        if (!isDraftMode || !draftEnded || hasSeededFromDraft) return;
+
+        // Collect drafted tiles from placement zone: rows 7 and 8, center 7 columns
+        const centerCount = 7;
+        const centerStart = Math.floor((11 - centerCount) / 2);
+        const positions: Position[] = [];
+        [7, 8].forEach(r => {
+            for (let c = centerStart; c < centerStart + centerCount; c++) {
+                positions.push({ row: r, col: c });
+            }
+        });
+
+        const drafted = positions
+            .map(p => draftBoard[p.row][p.col].tile)
+            .filter(Boolean) as TileData[];
+
+        if (drafted.length !== 14) return;
+
+        // Seed bag from drafted tiles and shuffle; do not auto-exit or reset/draw
+        const newBag = shuffleBag([...drafted]);
+        setBag(newBag);
+        setHasSeededFromDraft(true);
+    }, [isDraftMode, draftBoard, draftEnded, hasSeededFromDraft]);
 
     // Helper function to check if all current words are valid
     const areAllCurrentWordsValid = (): boolean => {
@@ -668,7 +694,7 @@ export default function Home() {
                     onDragOver={handleDragOver}
                     onDragEnd={handleDragEnd}
                 >
-                    <DebugMenu bag={bag} rack={rack} board={board} setRack={setRack} setBag={setBag} setBoard={setBoard} draftBoard={draftBoard} setDraftBoard={setDraftBoard} totalScore={totalScore} setTotalScore={setTotalScore} stickers={stickers} setStickers={setStickers} tileOpacity={tileOpacity} setTileOpacity={setTileOpacity} showCoordinates={showCoordinates} setShowCoordinates={setShowCoordinates} isDraftMode={isDraftMode} setIsDraftMode={setIsDraftMode} onResetDraft={() => { setDraftBoard(createInitialDraftBoard()); setDraftRerollCount(0); setDraftEnded(false); suggestedOccupancyRef.current = null; }} onRerollSuggestions={() => {
+                    <DebugMenu bag={bag} rack={rack} board={board} setRack={setRack} setBag={setBag} setBoard={setBoard} draftBoard={draftBoard} setDraftBoard={setDraftBoard} totalScore={totalScore} setTotalScore={setTotalScore} stickers={stickers} setStickers={setStickers} tileOpacity={tileOpacity} setTileOpacity={setTileOpacity} showCoordinates={showCoordinates} setShowCoordinates={setShowCoordinates} isDraftMode={isDraftMode} setIsDraftMode={setIsDraftMode} onResetDraft={() => { setDraftBoard(createInitialDraftBoard()); setDraftRerollCount(0); setDraftEnded(false); setHasSeededFromDraft(false); suggestedOccupancyRef.current = null; }} onRerollSuggestions={() => {
                         if (!isDraftMode || draftEnded) return;
                         const draftSequence: Array<'V' | 'C' | '*'> = ['V','C','C','V','C','C','V','C','C','V','C','C','V','*'];
                         const currentIndex = Math.min(draftRerollCount, draftSequence.length - 1);
@@ -700,7 +726,8 @@ export default function Home() {
                         className="grow bg-zinc-500 flex flex-col items-center justify-center gap-4"
                         style={{ animation: 'fadeIn 0.3s ease-in-out' }}
                     >
-                        <Activity mode={isDraftMode ? "hidden" : "visible"}>
+                        <Activity mode={!isDraftMode && !exitingDraft ? "visible" : "hidden"}>
+                            <div className={`transition-opacity duration-300 ${!isDraftMode && !exitingDraft ? 'opacity-100' : 'opacity-0'}`}>
                             <Board 
                                 board={board}
                                 boardCellSize={boardCellSize}
@@ -717,8 +744,10 @@ export default function Home() {
                                 selectedCell={selectedCell}
                                 selectorDirection={selectorDirection}
                             />
+                            </div>
                         </Activity>
-                        <Activity mode={isDraftMode ? "visible" : "hidden"}>
+                        <Activity mode={isDraftMode || exitingDraft ? "visible" : "hidden"}>
+                            <div className={`transition-opacity duration-300 ${exitingDraft ? 'opacity-0' : (isDraftMode ? 'opacity-100' : 'opacity-0')}`}>
                             <DraftBoard 
                                 board={draftBoard}
                                 boardCellSize={boardCellSize}
@@ -734,6 +763,7 @@ export default function Home() {
                                 selectedCell={selectedCell}
                                 selectorDirection={selectorDirection}
                             />
+                            </div>
                         </Activity>
                         {/* Only show rack and controls in Game mode */}
                         <Activity mode={isDraftMode ? "hidden" : "visible"}>
@@ -781,7 +811,7 @@ export default function Home() {
                 </DndContext>
             ) : (
                 <>
-                    <DebugMenu bag={bag} rack={rack} board={board} setRack={setRack} setBag={setBag} setBoard={setBoard} draftBoard={draftBoard} setDraftBoard={setDraftBoard} totalScore={totalScore} setTotalScore={setTotalScore} stickers={stickers} setStickers={setStickers} tileOpacity={tileOpacity} setTileOpacity={setTileOpacity} showCoordinates={showCoordinates} setShowCoordinates={setShowCoordinates} isDraftMode={isDraftMode} setIsDraftMode={setIsDraftMode} onResetDraft={() => { setDraftBoard(createInitialDraftBoard()); setDraftRerollCount(0); setDraftEnded(false); suggestedOccupancyRef.current = null; }} onRerollSuggestions={() => {
+                    <DebugMenu bag={bag} rack={rack} board={board} setRack={setRack} setBag={setBag} setBoard={setBoard} draftBoard={draftBoard} setDraftBoard={setDraftBoard} totalScore={totalScore} setTotalScore={setTotalScore} stickers={stickers} setStickers={setStickers} tileOpacity={tileOpacity} setTileOpacity={setTileOpacity} showCoordinates={showCoordinates} setShowCoordinates={setShowCoordinates} isDraftMode={isDraftMode} setIsDraftMode={setIsDraftMode} onResetDraft={() => { setDraftBoard(createInitialDraftBoard()); setDraftRerollCount(0); setDraftEnded(false); setHasSeededFromDraft(false); suggestedOccupancyRef.current = null; }} onRerollSuggestions={() => {
                         if (!isDraftMode || draftEnded) return;
                         const draftSequence: Array<'V' | 'C' | '*'> = ['V','C','C','V','C','C','V','C','C','V','C','C','V','*'];
                         const currentIndex = Math.min(draftRerollCount, draftSequence.length - 1);
