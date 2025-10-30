@@ -13,7 +13,7 @@ import { BoardState, PlacementHistoryEntry } from '../src/types/board';
 import { RackState } from '../src/types/rack';
 import { Bag } from '../src/types/bag';
 import { StickerState } from '../src/types/sticker';
-import { createInitialBoard, removeTileFromBoard, findAllWords, areUnlockedTilesInSingleLine, findTilePosition, parseEmptySlotId } from '../src/utils/boardUtils';
+import { createInitialBoard, removeTileFromBoard, findAllWords, areUnlockedTilesInSingleLine, findTilePosition, parseEmptySlotId, doesCurrentPlayTouchLocked } from '../src/utils/boardUtils';
 import { createInitialDraftBoard, generateRandomTiles, generateUniqueTiles, createBlankTile } from '../src/utils/draftBoardUtils';
 import { createInitialRack, findTileInRack, findFirstEmptySlot, moveTileToRack, shuffleRack } from '../src/utils/rackUtils';
 import { drawTileFromBag, shuffleBag } from '../src/utils/bagUtils';
@@ -615,6 +615,12 @@ export default function Home() {
                 doesWordCoverStartSticker(wordInfo, stickers)
             );
             if (!allWordsCoverStart) {
+                return false;
+            }
+        } else {
+            // After the first move, ensure the current play touches existing locked tiles
+            const hasLockedTiles = board.some(row => row.some(cell => cell.tile && !cell.canTake));
+            if (hasLockedTiles && !doesCurrentPlayTouchLocked(board)) {
                 return false;
             }
         }

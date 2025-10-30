@@ -241,3 +241,56 @@ export function areUnlockedTilesInSingleLine(board: BoardState): boolean {
     // Tiles are scattered across multiple rows AND columns
     return false;
 }
+
+/**
+ * Returns true if any currently placed unlocked tile (canTake === true)
+ * is orthogonally adjacent to at least one locked tile (canTake === false).
+ * Used to enforce that a new play connects to existing words.
+ */
+export function doesCurrentPlayTouchLocked(board: BoardState): boolean {
+    let hasLockedTile = false;
+
+    // Pre-scan to see if there are any locked tiles at all
+    for (let row = 0; row < BOARD_SIZE; row++) {
+        for (let col = 0; col < BOARD_SIZE; col++) {
+            const cell = board[row][col];
+            if (cell.tile && !cell.canTake) {
+                hasLockedTile = true;
+                break;
+            }
+        }
+        if (hasLockedTile) break;
+    }
+
+    if (!hasLockedTile) {
+        return false;
+    }
+
+    const deltas = [
+        { dr: -1, dc: 0 }, // up
+        { dr: 1, dc: 0 },  // down
+        { dr: 0, dc: -1 }, // left
+        { dr: 0, dc: 1 },  // right
+    ];
+
+    for (let row = 0; row < BOARD_SIZE; row++) {
+        for (let col = 0; col < BOARD_SIZE; col++) {
+            const cell = board[row][col];
+            if (!cell.tile || !cell.canTake) {
+                continue; // Only consider currently placed (unlocked) tiles
+            }
+
+            for (const { dr, dc } of deltas) {
+                const nr = row + dr;
+                const nc = col + dc;
+                if (nr < 0 || nr >= BOARD_SIZE || nc < 0 || nc >= BOARD_SIZE) continue;
+                const neighbor = board[nr][nc];
+                if (neighbor.tile && !neighbor.canTake) {
+                    return true; // Touches a locked tile
+                }
+            }
+        }
+    }
+
+    return false;
+}
