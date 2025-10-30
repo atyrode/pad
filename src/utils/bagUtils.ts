@@ -100,45 +100,57 @@ export function getFullBagSize(): number {
 }
 
 /**
- * State object for managing bag refills from discard during iteration
+ * Refills the bag from the discard pile if the bag is empty.
+ * This is a standalone operation that can be called independently.
+ * 
+ * @param bag - Current bag state
+ * @param discard - Current discard pile
+ * @returns New bag (refilled from discard if needed), cleared discard, and refill flag
  */
-export interface BagRefillState {
-    bag: Bag;
-    discard: TileData[];
+export function refillBagFromDiscard(bag: Bag, discard: TileData[]): {
+    newBag: Bag;
+    newDiscard: TileData[];
     didRefill: boolean;
-}
-
-/**
- * Ensures the bag has tiles by refilling from discard if needed.
- * Returns updated state with didRefill flag set if a refill occurred.
- */
-export function ensureBagHasTiles(state: BagRefillState): BagRefillState {
-    if (state.bag.length === 0 && state.discard.length > 0) {
+} {
+    if (bag.length === 0 && discard.length > 0) {
         return {
-            bag: shuffleBag([...state.discard]),
-            discard: [],
-            didRefill: true, // Set to true if refill occurred
+            newBag: shuffleBag([...discard]),
+            newDiscard: [],
+            didRefill: true,
         };
     }
-    return state; // Preserve existing didRefill flag
+    return {
+        newBag: bag,
+        newDiscard: discard,
+        didRefill: false,
+    };
 }
 
 /**
- * Draws a tile from the bag, automatically refilling from discard if needed.
- * Returns the drawn tile (or null if bag is empty) and the updated bag state.
+ * Draws a tile from the bag, automatically refilling from discard if the bag is empty.
+ * Refilling happens transparently - callers don't need to worry about it.
+ * 
+ * @param bag - Current bag state
+ * @param discard - Current discard pile
+ * @returns Drawn tile (or null if bag/discard are both empty), new bag, new discard, and refill flag
  */
-export function drawTileWithRefill(state: BagRefillState): {
+export function drawTile(bag: Bag, discard: TileData[]): {
     tile: TileData | null;
-    newState: BagRefillState;
+    newBag: Bag;
+    newDiscard: TileData[];
+    didRefill: boolean;
 } {
-    const ensuredState = ensureBagHasTiles(state);
-    const { tile, newBag } = drawTileFromBag(ensuredState.bag);
+    // Automatically refill if bag is empty
+    const { newBag, newDiscard, didRefill } = refillBagFromDiscard(bag, discard);
+    
+    // Draw from the (potentially refilled) bag
+    const { tile, newBag: updatedBag } = drawTileFromBag(newBag);
+    
     return {
         tile,
-        newState: {
-            ...ensuredState,
-            bag: newBag,
-        },
+        newBag: updatedBag,
+        newDiscard,
+        didRefill,
     };
 }
 

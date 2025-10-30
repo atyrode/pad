@@ -18,7 +18,6 @@ import { findFirstEmptySlot, moveTileToRack, shuffleRack, findTileInRack } from 
 import { createInitialDraftBoard } from "../utils/draftBoardUtils";
 import { getAllAvailableLetters } from "../utils/tileDefinitions";
 import {
-  computeDrawWithRefill,
   drawAllAction,
   drawOneAction,
   fillRackAfterPlayAction,
@@ -119,7 +118,6 @@ export function useGameController() {
     setPlacementHistory,
     openBlankTilePopup,
     originalHandleDragEnd,
-    computeDrawWithRefill,
   });
 
   // Keyboard placement/removal

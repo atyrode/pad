@@ -3,8 +3,9 @@ import { BoardState, Position, PlacementHistoryEntry } from '../types/board';
 import { RackState } from '../types/rack';
 import { TileData } from '../types/tile';
 import { removeTileFromBoard } from '../utils/boardUtils';
-import { findTileInRack } from '../utils/rackUtils';
+import { findTileInRack, findFirstEmptySlot } from '../utils/rackUtils';
 import { findTilePosition, parseEmptySlotId } from '../utils/boardUtils';
+import { drawTile } from '../utils/bagUtils';
 
 type SetState<T> = (updater: (prev: T) => T) => void;
 
@@ -20,12 +21,6 @@ export interface UseDragEndWithDiscardParams {
     setPlacementHistory: (updater: PlacementHistoryEntry[] | ((prev: PlacementHistoryEntry[]) => PlacementHistoryEntry[])) => void;
     openBlankTilePopup: (args: { blankTile: TileData; targetPosition: Position; sourceRackIndex: number }) => void;
     originalHandleDragEnd: (event: any) => void;
-    computeDrawWithRefill: (
-        rack: RackState,
-        bag: TileData[],
-        discard: TileData[],
-        preferredIndex?: number
-    ) => { newRack: RackState; newBag: TileData[]; didRefill: boolean };
 }
 
 export function useDragEndWithDiscard(params: UseDragEndWithDiscardParams) {
@@ -41,7 +36,6 @@ export function useDragEndWithDiscard(params: UseDragEndWithDiscardParams) {
         setPlacementHistory,
         openBlankTilePopup,
         originalHandleDragEnd,
-        computeDrawWithRefill,
     } = params;
 
     const [discardAnim, setDiscardAnim] = useState<{ tile: TileData } | null>(null);
@@ -105,12 +99,15 @@ export function useDragEndWithDiscard(params: UseDragEndWithDiscardParams) {
 
                 // Perform atomic draw using composed snapshots
                 setRack(prevRack => {
-                    const { newRack, newBag, didRefill } = computeDrawWithRefill(
-                        prevRack,
-                        bagForRefill,
-                        discardForRefill,
-                        sourceRackIndex !== null ? sourceRackIndex : undefined
-                    );
+                    const slotIndex = sourceRackIndex !== null ? sourceRackIndex : findFirstEmptySlot(prevRack);
+                    if (slotIndex === null) return prevRack;
+                    
+                    const { tile, newBag, newDiscard, didRefill } = drawTile(bagForRefill, discardForRefill);
+                    if (!tile) return prevRack;
+                    
+                    const newRack = [...prevRack];
+                    newRack[slotIndex] = tile;
+                    
                     if (didRefill) {
                         // Clear discard if we refilled from it
                         typeof setDiscard === 'function' && (setDiscard as any)([]);
