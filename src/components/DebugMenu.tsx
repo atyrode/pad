@@ -10,6 +10,7 @@ import { createInitialDraftBoard, generateRandomTiles } from '../utils/draftBoar
 import { isValidWordSync, preloadDictionary } from '../utils/dictionaryUtils';
 import { calculateCurrentPlayScore } from '../utils/scoreUtils';
 import { createInitialStickers, countStickers, consumeSticker } from '../utils/stickerUtils';
+import { TileData } from '../types/tile';
 
 interface DebugMenuProps {
   bag: Bag;
@@ -32,9 +33,11 @@ interface DebugMenuProps {
   setIsDraftMode: React.Dispatch<React.SetStateAction<boolean>>;
   onResetDraft?: () => void;
   onRerollSuggestions?: () => void;
+  discard?: TileData[];
+  setDiscard?: React.Dispatch<React.SetStateAction<TileData[]>>;
 }
 
-export default function DebugMenu({ bag, rack, board, setRack, setBag, setBoard, draftBoard, setDraftBoard, totalScore, setTotalScore, stickers, setStickers, tileOpacity, setTileOpacity, showCoordinates, setShowCoordinates, isDraftMode, setIsDraftMode, onResetDraft, onRerollSuggestions }: DebugMenuProps) {
+export default function DebugMenu({ bag, rack, board, setRack, setBag, setBoard, draftBoard, setDraftBoard, totalScore, setTotalScore, stickers, setStickers, tileOpacity, setTileOpacity, showCoordinates, setShowCoordinates, isDraftMode, setIsDraftMode, onResetDraft, onRerollSuggestions, discard = [], setDiscard }: DebugMenuProps) {
   const [isDictionaryLoaded, setIsDictionaryLoaded] = useState(false);
 
   // Load dictionary on component mount
@@ -44,15 +47,25 @@ export default function DebugMenu({ bag, rack, board, setRack, setBag, setBoard,
     });
   }, []);
 
+  const refillBagFromDiscardIfNeeded = (currentBag: Bag): Bag => {
+    if (currentBag.length === 0 && discard.length > 0 && setDiscard) {
+      const refilled = shuffleBag([...discard]);
+      setDiscard([]);
+      return refilled;
+    }
+    return currentBag;
+  };
+
   const handleDraw = () => {
     // Check if bag has tiles and rack has space
-    if (bag.length === 0) return;
+    let workingBag = refillBagFromDiscardIfNeeded(bag);
+    if (workingBag.length === 0) return;
 
     const emptySlot = findFirstEmptySlot(rack);
     if (emptySlot === null) return; // Rack is full
 
     // Draw tile from bag
-    const { tile, newBag } = drawTileFromBag(bag);
+    const { tile, newBag } = drawTileFromBag(workingBag);
     if (tile === null) return;
 
     // Update states
@@ -61,9 +74,10 @@ export default function DebugMenu({ bag, rack, board, setRack, setBag, setBoard,
   };
 
   const handleDrawAll = () => {
-    if (bag.length === 0) return;
+    let workingBag = refillBagFromDiscardIfNeeded(bag);
+    if (workingBag.length === 0) return;
 
-    let currentBag = bag;
+    let currentBag = workingBag;
     let newRack = [...rack];
 
     // Fill all empty slots
@@ -82,7 +96,8 @@ export default function DebugMenu({ bag, rack, board, setRack, setBag, setBoard,
   };
 
   const handleRedraw = () => {
-    if (bag.length === 0) return;
+    let workingBag = refillBagFromDiscardIfNeeded(bag);
+    if (workingBag.length === 0) return;
 
     // Count how many tiles are currently in the rack
     const currentTileCount = rack.filter(tile => tile !== null).length;
@@ -91,7 +106,7 @@ export default function DebugMenu({ bag, rack, board, setRack, setBag, setBoard,
     const emptyRack = Array(rack.length).fill(null);
 
     // Draw the same number of tiles
-    let currentBag = bag;
+    let currentBag = workingBag;
     let newRack = [...emptyRack];
 
     for (let i = 0; i < currentTileCount && currentBag.length > 0; i++) {
