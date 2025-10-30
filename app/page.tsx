@@ -67,6 +67,10 @@ export default function Home() {
     const rackRef = useRef<HTMLDivElement>(null);
     const gameAreaRef = useRef<HTMLDivElement>(null);
 
+    const handleDragAndDropPlacement = (tileId: string, position: Position, wasBlank: boolean) => {
+        setPlacementHistory(prev => [...prev, { tileId, position, wasBlank }]);
+    };
+
     const {
         sensors,
         handleDragStart,
@@ -75,7 +79,7 @@ export default function Home() {
         overBoardPos,
         overRackIndex,
         activeId,
-    } = useDragAndDrop({ board, setBoard, rack, setRack, gameAreaRef });
+    } = useDragAndDrop({ board, setBoard, rack, setRack, gameAreaRef, onTilePlaced: handleDragAndDropPlacement });
 
     // Wrapper to intercept blank tile drops
     const handleDragEnd = (event: any) => {
@@ -197,47 +201,62 @@ export default function Home() {
             return { success: false };
         }
 
-        // Get the most recent placement (don't remove from history yet)
-        const lastPlacement = placementHistory[placementHistory.length - 1];
-        const { tileId, position, wasBlank } = lastPlacement;
-
-        // Verify tile still exists at that position with matching ID
-        const cell = board[position.row][position.col];
-        if (!cell.tile || cell.tile.id !== tileId || cell.locked) {
-            // Tile was moved/removed/locked, pop from history and return false
-            setPlacementHistory(prev => prev.slice(0, -1));
-            return { success: false };
-        }
-
         // Find first empty rack slot
         const emptySlotIndex = findFirstEmptySlot(rack);
         if (emptySlotIndex === null) {
-            return { success: false }; // Rack is full, don't pop history
+            return { success: false }; // Rack is full, don't modify history
         }
 
-        // Remove tile from board
-        setBoard((prevBoard: BoardState) => removeTileFromBoard(prevBoard, position));
+        // Keep trying to remove tiles from history until we find a valid one
+        let newHistory = [...placementHistory];
+        let removedPosition: Position | null = null;
 
-        // Add tile back to rack - revert blank if it was originally a blank
-        if (wasBlank && cell.tile) {
-            // Revert blank tile back to "*"
-            const revertedTile = {
-                ...cell.tile,
-                value: "*",
-                originalValue: undefined,
-                displayValue: undefined
-            };
-            setRack((prevRack: RackState) => moveTileToRack(prevRack, revertedTile, emptySlotIndex));
+        while (newHistory.length > 0) {
+            const lastPlacement = newHistory[newHistory.length - 1];
+            const { tileId, position, wasBlank } = lastPlacement;
+
+            // Verify tile still exists at that position with matching ID
+            const cell = board[position.row][position.col];
+            if (!cell.tile || cell.tile.id !== tileId || cell.locked) {
+                // Tile was moved/removed/locked, skip this entry
+                newHistory = newHistory.slice(0, -1);
+                continue;
+            }
+
+            // Found a valid tile to remove
+            // Remove tile from board
+            setBoard((prevBoard: BoardState) => removeTileFromBoard(prevBoard, position));
+
+            // Add tile back to rack - revert blank if it was originally a blank
+            if (wasBlank && cell.tile) {
+                // Revert blank tile back to "*"
+                const revertedTile = {
+                    ...cell.tile,
+                    value: "*",
+                    originalValue: undefined,
+                    displayValue: undefined
+                };
+                setRack((prevRack: RackState) => moveTileToRack(prevRack, revertedTile, emptySlotIndex));
+            } else {
+                // Return tile as-is
+                setRack((prevRack: RackState) => moveTileToRack(prevRack, cell.tile!, emptySlotIndex));
+            }
+
+            // Remove this entry from history
+            newHistory = newHistory.slice(0, -1);
+            removedPosition = position;
+            break;
+        }
+
+        // Update history with all invalid entries removed
+        setPlacementHistory(newHistory);
+
+        // Return success with position for selector movement if we removed something
+        if (removedPosition) {
+            return { success: true, position: removedPosition };
         } else {
-            // Return tile as-is
-            setRack((prevRack: RackState) => moveTileToRack(prevRack, cell.tile!, emptySlotIndex));
+            return { success: false };
         }
-
-        // Remove from placement history
-        setPlacementHistory(prev => prev.slice(0, -1));
-
-        // Return success with position for selector movement
-        return { success: true, position };
     };
 
 

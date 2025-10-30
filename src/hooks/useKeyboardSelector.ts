@@ -165,8 +165,17 @@ export const useKeyboardSelector = (props?: UseKeyboardSelectorProps) => {
   }, [props?.onLetterInput, selectorState.visible, selectorState.direction, findNextNonLockedCell]);
 
   const handleBackspace = useCallback(() => {
-    if (!props?.onBackspace || !selectorState.visible) {
+    if (!props?.onBackspace) {
       return false;
+    }
+
+    // If selector is not visible, make it visible first
+    if (!selectorState.visible) {
+      setSelectorState(prevState => ({
+        ...prevState,
+        visible: true,
+        direction: 'right', // Default direction
+      }));
     }
 
     // Call the removal handler and get result with position
@@ -176,6 +185,7 @@ export const useKeyboardSelector = (props?: UseKeyboardSelectorProps) => {
       setSelectorState(prevState => ({
         ...prevState,
         position: result.position!,
+        visible: true, // Ensure it stays visible
       }));
     }
     return result.success;

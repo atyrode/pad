@@ -19,9 +19,10 @@ interface UseDragAndDropProps {
     rack: RackState;
     setRack: React.Dispatch<React.SetStateAction<RackState>>;
     gameAreaRef?: React.RefObject<HTMLDivElement | null>;
+    onTilePlaced?: (tileId: string, position: Position, wasBlank: boolean) => void;
 }
 
-export function useDragAndDrop({ board, setBoard, rack, setRack, gameAreaRef }: UseDragAndDropProps) {
+export function useDragAndDrop({ board, setBoard, rack, setRack, gameAreaRef, onTilePlaced }: UseDragAndDropProps) {
     // Track what's being dragged over
     const [overBoardPos, setOverBoardPos] = useState<Position | null>(null);
     const [overRackIndex, setOverRackIndex] = useState<number | null>(null);
@@ -135,6 +136,12 @@ export function useDragAndDrop({ board, setBoard, rack, setRack, gameAreaRef }: 
                         return newRack;
                     });
                     setBoard((prevBoard: BoardState) => placeTileOnBoard(prevBoard, tile, targetPos));
+                    
+                    // Track the placement in history
+                    if (onTilePlaced) {
+                        const wasBlank = tile.originalValue === "*";
+                        onTilePlaced(tile.id, targetPos, wasBlank);
+                    }
                 }
             }
         }
