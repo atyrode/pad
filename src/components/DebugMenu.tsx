@@ -3,8 +3,8 @@ import { Bag } from '../types/bag';
 import { RackState } from '../types/rack';
 import { BoardState } from '../types/board';
 import { StickerState } from '../types/sticker';
-import { drawTileFromBag, shuffleBag } from '../utils/bagUtils';
-import { findFirstEmptySlot, moveTileToRack } from '../utils/rackUtils';
+import { shuffleBag } from '../utils/bagUtils';
+import { findFirstEmptySlot } from '../utils/rackUtils';
 import { findAllWords } from '../utils/boardUtils';
 import { createInitialDraftBoard, generateRandomTiles } from '../utils/draftBoardUtils';
 import { isValidWordSync } from '../utils/dictionaryUtils';
@@ -12,6 +12,7 @@ import { calculateCurrentPlayScore } from '../utils/scoreUtils';
 import { countStickers } from '../utils/stickerUtils';
 import { TileData } from '../types/tile';
 import { useGame } from '../state/GameContext';
+import { TileSupplyService } from '../services/TileSupplyService';
 
 interface DebugMenuProps {
   bag: Bag;
@@ -51,78 +52,48 @@ interface DebugMenuProps {
 export default function DebugMenu({ bag, rack, board, setRack, setBag, setBoard, draftBoard, setDraftBoard, totalScore, setTotalScore, stickers, setStickers, tileOpacity, setTileOpacity, showCoordinates, setShowCoordinates, isDraftMode, setIsDraftMode, onResetDraft, onRerollSuggestions, discard = [], setDiscard, onDraw, onDrawAll, onRedraw, onClearRack, onResetGame, onResetBoard, onResetBag, onResetScore, onResetStickers, onShuffleBag }: DebugMenuProps) {
   const { isDictionaryLoaded } = useGame();
 
-  const refillBagFromDiscardIfNeeded = (currentBag: Bag): Bag => {
-    if (currentBag.length === 0 && discard.length > 0 && setDiscard) {
-      const refilled = shuffleBag([...discard]);
-      setDiscard([]);
-      return refilled;
-    }
-    return currentBag;
-  };
-
   const handleDraw = () => {
-    // Check if bag has tiles and rack has space
-    let workingBag = refillBagFromDiscardIfNeeded(bag);
-    if (workingBag.length === 0) return;
-
-    const emptySlot = findFirstEmptySlot(rack);
-    if (emptySlot === null) return; // Rack is full
-
-    // Draw tile from bag
-    const { tile, newBag } = drawTileFromBag(workingBag);
-    if (tile === null) return;
-
-    // Update states
-    setBag(newBag);
-    setRack((prevRack) => moveTileToRack(prevRack, tile, emptySlot));
+    const result = TileSupplyService.drawOne({
+      rack,
+      bag,
+      discard: discard || [],
+    });
+    
+    if (!result) return;
+    
+    setBag(result.bag);
+    setRack(result.rack);
+    if (setDiscard) {
+      setDiscard(result.discard);
+    }
   };
 
   const handleDrawAll = () => {
-    let workingBag = refillBagFromDiscardIfNeeded(bag);
-    if (workingBag.length === 0) return;
+    const result = TileSupplyService.drawToFill({
+      rack,
+      bag,
+      discard: discard || [],
+    });
 
-    let currentBag = workingBag;
-    let newRack = [...rack];
-
-    // Fill all empty slots
-    for (let i = 0; i < newRack.length; i++) {
-      if (newRack[i] === null && currentBag.length > 0) {
-        const { tile, newBag } = drawTileFromBag(currentBag);
-        if (tile) {
-          newRack[i] = tile;
-          currentBag = newBag;
-        }
-      }
+    setBag(result.bag);
+    setRack(result.rack);
+    if (setDiscard) {
+      setDiscard(result.discard);
     }
-
-    setBag(currentBag);
-    setRack(newRack);
   };
 
   const handleRedraw = () => {
-    let workingBag = refillBagFromDiscardIfNeeded(bag);
-    if (workingBag.length === 0) return;
+    const result = TileSupplyService.redraw({
+      rack,
+      bag,
+      discard: discard || [],
+    });
 
-    // Count how many tiles are currently in the rack
-    const currentTileCount = rack.filter(tile => tile !== null).length;
-
-    // Empty the rack
-    const emptyRack = Array(rack.length).fill(null);
-
-    // Draw the same number of tiles
-    let currentBag = workingBag;
-    let newRack = [...emptyRack];
-
-    for (let i = 0; i < currentTileCount && currentBag.length > 0; i++) {
-      const { tile, newBag } = drawTileFromBag(currentBag);
-      if (tile) {
-        newRack[i] = tile;
-        currentBag = newBag;
-      }
+    setBag(result.bag);
+    setRack(result.rack);
+    if (setDiscard) {
+      setDiscard(result.discard);
     }
-
-    setBag(currentBag);
-    setRack(newRack);
   };
 
   // All mutating handlers are injected via props; this component remains presentational.

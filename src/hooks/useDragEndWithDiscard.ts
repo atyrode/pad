@@ -3,9 +3,9 @@ import { BoardState, Position, PlacementHistoryEntry } from '../types/board';
 import { RackState } from '../types/rack';
 import { TileData } from '../types/tile';
 import { removeTileFromBoard } from '../utils/boardUtils';
-import { findTileInRack, findFirstEmptySlot } from '../utils/rackUtils';
+import { findTileInRack } from '../utils/rackUtils';
 import { findTilePosition, parseEmptySlotId } from '../utils/boardUtils';
-import { drawTile } from '../utils/bagUtils';
+import { TileSupplyService } from '../services/TileSupplyService';
 
 type SetState<T> = (updater: (prev: T) => T) => void;
 
@@ -91,33 +91,37 @@ export function useDragEndWithDiscard(params: UseDragEndWithDiscardParams) {
             setDiscardAnim({ tile: tileToDiscard });
 
             window.setTimeout(() => {
-                const discardForRefill = [...discard, tileToDiscard!];
-                const bagForRefill = bag;
-
-                // Add to discard pile
-                setDiscard(prev => [...prev, tileToDiscard!]);
-
-                // Perform atomic draw using composed snapshots
+                // Get current state after tile removal for discard+draw operation
                 setRack(prevRack => {
-                    const slotIndex = sourceRackIndex !== null ? sourceRackIndex : findFirstEmptySlot(prevRack);
-                    if (slotIndex === null) return prevRack;
-                    
-                    const { tile, newBag, newDiscard, didRefill } = drawTile(bagForRefill, discardForRefill);
-                    if (!tile) return prevRack;
-                    
-                    const newRack = [...prevRack];
-                    newRack[slotIndex] = tile;
-                    
-                    if (didRefill) {
-                        // Clear discard if we refilled from it
-                        typeof setDiscard === 'function' && (setDiscard as any)([]);
-                    }
-                    setBag(newBag);
-                    return newRack;
-                });
+                    const result = TileSupplyService.discardAndDraw(
+                        tileToDiscard!,
+                        sourceRackIndex,
+                        {
+                            rack: prevRack,
+                            bag,
+                            discard,
+                        }
+                    );
 
-                setDiscardAnim(null);
-                setIsDiscarding(false);
+                    if (!result) {
+                        // Just add to discard if operation fails
+                        setDiscard(prev => [...prev, tileToDiscard!]);
+                        setDiscardAnim(null);
+                        setIsDiscarding(false);
+                        return prevRack;
+                    }
+
+                    // Update all states with the result
+                    setBag(result.bag);
+                    if (typeof setDiscard === 'function') {
+                        // Always use updater form since it's compatible with both types
+                        setDiscard(() => result.discard);
+                    }
+
+                    setDiscardAnim(null);
+                    setIsDiscarding(false);
+                    return result.rack;
+                });
             }, 180);
 
             return;

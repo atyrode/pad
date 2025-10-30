@@ -5,10 +5,11 @@ import { StickerState } from "../types/sticker";
 import { TileData } from "../types/tile";
 import { GameAction } from "./gameTypes";
 import { findFirstEmptySlot, moveTileToRack, shuffleRack } from "../utils/rackUtils";
-import { shuffleBag, drawTile } from "../utils/bagUtils";
+import { shuffleBag } from "../utils/bagUtils";
 import { removeTileFromBoard, createInitialBoard } from "../utils/boardUtils";
 import { calculateCurrentPlayScore } from "../utils/scoreUtils";
 import { consumeSticker, createInitialStickers } from "../utils/stickerUtils";
+import { TileSupplyService } from "../services/TileSupplyService";
 
 export type GameDispatch = React.Dispatch<GameAction>;
 
@@ -22,25 +23,16 @@ export function fillRackAfterPlayAction(
     dispatch: GameDispatch
 ) {
     if (args.isDraftMode) return;
-    let rackWork = [...args.rack];
-    let currentBag = args.bag;
-    let currentDiscard = args.discard;
-    let didRefill = false;
+    
+    const result = TileSupplyService.drawToFill({
+        rack: args.rack,
+        bag: args.bag,
+        discard: args.discard,
+    });
 
-    while (true) {
-        const slot = findFirstEmptySlot(rackWork);
-        if (slot === null) break;
-        const { tile, newBag, newDiscard, didRefill: refilled } = drawTile(currentBag, currentDiscard);
-        if (!tile) break;
-        rackWork[slot] = tile;
-        currentBag = newBag;
-        currentDiscard = newDiscard;
-        if (refilled) didRefill = true;
-    }
-
-    if (didRefill) dispatch({ type: 'setDiscard', payload: { discard: currentDiscard } });
-    dispatch({ type: 'setBag', payload: { bag: currentBag } });
-    dispatch({ type: 'setRack', payload: { rack: rackWork } });
+    dispatch({ type: 'setDiscard', payload: { discard: result.discard } });
+    dispatch({ type: 'setBag', payload: { bag: result.bag } });
+    dispatch({ type: 'setRack', payload: { rack: result.rack } });
 }
 
 export function handlePlayAction(
@@ -200,66 +192,47 @@ export function drawOneAction(
     args: { rack: RackState; bag: Bag; discard: TileData[] },
     dispatch: GameDispatch
 ) {
-    const slotIndex = findFirstEmptySlot(args.rack);
-    if (slotIndex === null) return;
+    const result = TileSupplyService.drawOne({
+        rack: args.rack,
+        bag: args.bag,
+        discard: args.discard,
+    });
     
-    const { tile, newBag, newDiscard, didRefill } = drawTile(args.bag, args.discard);
-    if (!tile) return;
+    if (!result) return;
     
-    const newRack = [...args.rack];
-    newRack[slotIndex] = tile;
-    
-    if (didRefill) dispatch({ type: 'setDiscard', payload: { discard: newDiscard } });
-    dispatch({ type: 'setBag', payload: { bag: newBag } });
-    dispatch({ type: 'setRack', payload: { rack: newRack } });
+    dispatch({ type: 'setDiscard', payload: { discard: result.discard } });
+    dispatch({ type: 'setBag', payload: { bag: result.bag } });
+    dispatch({ type: 'setRack', payload: { rack: result.rack } });
 }
 
 export function drawAllAction(
     args: { rack: RackState; bag: Bag; discard: TileData[] },
     dispatch: GameDispatch
 ) {
-    let rackWork = [...args.rack];
-    let currentBag = args.bag;
-    let currentDiscard = args.discard;
-    let didRefill = false;
+    const result = TileSupplyService.drawToFill({
+        rack: args.rack,
+        bag: args.bag,
+        discard: args.discard,
+    });
 
-    for (let i = 0; i < rackWork.length; i++) {
-        if (rackWork[i] !== null) continue;
-        const { tile, newBag, newDiscard, didRefill: refilled } = drawTile(currentBag, currentDiscard);
-        if (!tile) break;
-        rackWork[i] = tile;
-        currentBag = newBag;
-        currentDiscard = newDiscard;
-        if (refilled) didRefill = true;
-    }
-
-    if (didRefill) dispatch({ type: 'setDiscard', payload: { discard: currentDiscard } });
-    dispatch({ type: 'setBag', payload: { bag: currentBag } });
-    dispatch({ type: 'setRack', payload: { rack: rackWork } });
+    dispatch({ type: 'setDiscard', payload: { discard: result.discard } });
+    dispatch({ type: 'setBag', payload: { bag: result.bag } });
+    dispatch({ type: 'setRack', payload: { rack: result.rack } });
 }
 
 export function redrawAction(
     args: { rack: RackState; bag: Bag; discard: TileData[] },
     dispatch: GameDispatch
 ) {
-    const currentTileCount = args.rack.filter(t => t !== null).length;
-    let currentBag = args.bag;
-    let currentDiscard = args.discard;
-    let didRefill = false;
-    const newRack: RackState = Array(args.rack.length).fill(null);
+    const result = TileSupplyService.redraw({
+        rack: args.rack,
+        bag: args.bag,
+        discard: args.discard,
+    });
 
-    for (let i = 0; i < currentTileCount; i++) {
-        const { tile, newBag, newDiscard, didRefill: refilled } = drawTile(currentBag, currentDiscard);
-        if (!tile) break;
-        newRack[i] = tile;
-        currentBag = newBag;
-        currentDiscard = newDiscard;
-        if (refilled) didRefill = true;
-    }
-
-    if (didRefill) dispatch({ type: 'setDiscard', payload: { discard: currentDiscard } });
-    dispatch({ type: 'setBag', payload: { bag: currentBag } });
-    dispatch({ type: 'setRack', payload: { rack: newRack } });
+    dispatch({ type: 'setDiscard', payload: { discard: result.discard } });
+    dispatch({ type: 'setBag', payload: { bag: result.bag } });
+    dispatch({ type: 'setRack', payload: { rack: result.rack } });
 }
 
 export function shuffleBagAction(args: { bag: Bag }, dispatch: GameDispatch) {
