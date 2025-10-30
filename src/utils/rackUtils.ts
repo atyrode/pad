@@ -7,15 +7,6 @@ export function createInitialRack(): RackState {
     return Array(RACK_SIZE).fill(null);
 }
 
-export function findTileInRack(rack: RackState, tileId: string): number | null {
-    for (let i = 0; i < rack.length; i++) {
-        if (rack[i]?.id === tileId) {
-            return i;
-        }
-    }
-    return null;
-}
-
 export function isRackSlotId(id: string): boolean {
     return id.startsWith('rack-');
 }

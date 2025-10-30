@@ -11,7 +11,7 @@ import { StickerState } from '../types/sticker';
 import { TileData } from '../types/tile';
 import { Position, Direction } from '../types/board';
 import { Shuffle, Play } from 'lucide-react';
-import { findTileInRack } from '../utils/rackUtils';
+import { TileMovementService } from '../services/TileMovementService';
 
 interface GameAreaProps {
     // State
@@ -172,7 +172,7 @@ export default function GameArea({
                         rack={rack} 
                         setRack={setRack}
                         boardCellSize={boardCellSize}
-                        overBoardPos={activeId && findTileInRack(rack, activeId) !== null ? overBoardPos : null}
+                        overBoardPos={activeId && TileMovementService.findTileInRack(rack, activeId) !== null ? overBoardPos : null}
                         overRackIndex={overRackIndex}
                         boardRef={boardRef}
                         rackRef={rackRef}
