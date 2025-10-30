@@ -74,18 +74,37 @@ export default function Home() {
             return false;
         }
 
-        // Find matching tile in rack (case-insensitive, first match)
-        const rackIndex = rack.findIndex(tile => 
+        // First, try to find exact letter match in rack
+        let rackIndex = rack.findIndex(tile => 
             tile && tile.value.toUpperCase() === letter.toUpperCase()
         );
 
+        let tile = rack[rackIndex];
+        let wasBlank = false;
+
+        // If no exact match found, look for a blank tile ("*")
         if (rackIndex === -1) {
-            return false; // No matching tile in rack
+            rackIndex = rack.findIndex(tile => 
+                tile && tile.value === "*"
+            );
+            
+            if (rackIndex !== -1) {
+                const blankTile = rack[rackIndex];
+                if (blankTile) {
+                    // Create transformed blank tile
+                    tile = {
+                        ...blankTile,
+                        value: letter.toUpperCase(), // For word validation
+                        originalValue: "*", // Track that this was originally a blank
+                        displayValue: letter.toUpperCase() // What to display
+                    };
+                    wasBlank = true;
+                }
+            }
         }
 
-        const tile = rack[rackIndex];
-        if (!tile) {
-            return false;
+        if (rackIndex === -1 || !tile) {
+            return false; // No matching tile or blank in rack
         }
 
         // Check if target board cell is valid (empty or has unlocked tile)
@@ -119,7 +138,7 @@ export default function Home() {
         });
 
         // Add to placement history
-        setPlacementHistory(prev => [...prev, { tileId: tile.id, position: selectedCell }]);
+        setPlacementHistory(prev => [...prev, { tileId: tile.id, position: selectedCell, wasBlank }]);
 
         return true;
     };
@@ -132,7 +151,7 @@ export default function Home() {
 
         // Get the most recent placement (don't remove from history yet)
         const lastPlacement = placementHistory[placementHistory.length - 1];
-        const { tileId, position } = lastPlacement;
+        const { tileId, position, wasBlank } = lastPlacement;
 
         // Verify tile still exists at that position with matching ID
         const cell = board[position.row][position.col];
@@ -148,9 +167,23 @@ export default function Home() {
             return { success: false }; // Rack is full, don't pop history
         }
 
-        // Remove tile from board and add to rack
+        // Remove tile from board
         setBoard((prevBoard: BoardState) => removeTileFromBoard(prevBoard, position));
-        setRack((prevRack: RackState) => moveTileToRack(prevRack, cell.tile!, emptySlotIndex));
+
+        // Add tile back to rack - revert blank if it was originally a blank
+        if (wasBlank && cell.tile) {
+            // Revert blank tile back to "*"
+            const revertedTile = {
+                ...cell.tile,
+                value: "*",
+                originalValue: undefined,
+                displayValue: undefined
+            };
+            setRack((prevRack: RackState) => moveTileToRack(prevRack, revertedTile, emptySlotIndex));
+        } else {
+            // Return tile as-is
+            setRack((prevRack: RackState) => moveTileToRack(prevRack, cell.tile!, emptySlotIndex));
+        }
 
         // Remove from placement history
         setPlacementHistory(prev => prev.slice(0, -1));
@@ -221,9 +254,23 @@ export default function Home() {
         const emptySlotIndex = findFirstEmptySlot(rack);
         
         if (emptySlotIndex !== null) {
-            // Remove tile from board and add to rack
+            // Remove tile from board
             setBoard((prevBoard: BoardState) => removeTileFromBoard(prevBoard, position));
-            setRack((prevRack: RackState) => moveTileToRack(prevRack, tile, emptySlotIndex));
+            
+            // Add tile to rack - revert blank if it was originally a blank
+            if (tile.originalValue === "*") {
+                // Revert blank tile back to "*"
+                const revertedTile = {
+                    ...tile,
+                    value: "*",
+                    originalValue: undefined,
+                    displayValue: undefined
+                };
+                setRack((prevRack: RackState) => moveTileToRack(prevRack, revertedTile, emptySlotIndex));
+            } else {
+                // Return tile as-is
+                setRack((prevRack: RackState) => moveTileToRack(prevRack, tile, emptySlotIndex));
+            }
             return true; // Success
         }
         
@@ -241,6 +288,12 @@ export default function Home() {
         if (targetCell.tile && targetCell.locked) {
             return false; // Can't place on locked tile
         }
+
+        // For blank tiles, we need to prompt for a letter or use a default
+        // For now, we'll place blank tiles as "*" without transformation
+        // (transformation only happens via keyboard input)
+        let tileToPlace = tile;
+        let wasBlank = false;
 
         // If target has non-locked tile, swap it back to the rack position where the clicked tile was
         if (targetCell.tile && !targetCell.locked) {
@@ -261,12 +314,12 @@ export default function Home() {
         // Place tile on board
         setBoard((prevBoard: BoardState) => {
             const newBoard = prevBoard.map(row => [...row]);
-            newBoard[selectedCell.row][selectedCell.col] = { tile, locked: false };
+            newBoard[selectedCell.row][selectedCell.col] = { tile: tileToPlace, locked: false };
             return newBoard;
         });
 
         // Add to placement history
-        setPlacementHistory(prev => [...prev, { tileId: tile.id, position: selectedCell }]);
+        setPlacementHistory(prev => [...prev, { tileId: tileToPlace.id, position: selectedCell, wasBlank }]);
 
         // Move selector forward after successful placement (same logic as typing)
         advanceSelector();

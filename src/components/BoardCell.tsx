@@ -127,7 +127,7 @@ export default function BoardCell({ tile, locked, row, col, overRackIndex, rackR
                             transition: transform ? 'none' : 'all 0.1s linear'
                         }}
                     >
-                        <Tile value={tile.value} score={tile.score} locked={locked} />
+                        <Tile value={tile.value} score={tile.score} locked={locked} originalValue={tile.originalValue} displayValue={tile.displayValue} />
                     </div>
                 )}
 

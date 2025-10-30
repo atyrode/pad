@@ -35,6 +35,7 @@ export interface Position {
 export interface PlacementHistoryEntry {
     tileId: string;
     position: Position;
+    wasBlank?: boolean; // true if the tile was originally a "*"
 }
 
 export type PlacementHistory = PlacementHistoryEntry[];
