@@ -84,16 +84,16 @@ export function calculateCurrentPlayScore(board: BoardState, stickers?: StickerS
     const words = findAllWords(board);
     const currentWords = words.filter(w => !w.isLocked);
     
-    let totalScore = 0;
     let totalPoints = 0;
     let totalLetters = 0;
     let stickerPoints = 0;
     let stickerMulti = 0;
+    let bingoAchieved = false; // true if any current word uses exactly 7 placed tiles
 
     for (const word of currentWords) {
-        const wordScore = calculateWordScore(word, board, stickers);
-        totalScore += wordScore;
-        
+        // Count placed (unlocked) tiles in this word; ignore locked tiles for bingo
+        let placedCount = 0;
+
         // Add to breakdown totals
         if (word.direction === 'horizontal') {
             for (let col = word.position.col; col < word.position.col + word.word.length; col++) {
@@ -101,6 +101,9 @@ export function calculateCurrentPlayScore(board: BoardState, stickers?: StickerS
                 if (cell.tile) {
                     totalPoints += cell.tile.score;
                     totalLetters++;
+                    if (cell.canTake) {
+                        placedCount++;
+                    }
                     
                     // Check for active stickers under this tile
                     if (stickers && isStickerActive(stickers, { row: word.position.row, col })) {
@@ -121,6 +124,9 @@ export function calculateCurrentPlayScore(board: BoardState, stickers?: StickerS
                 if (cell.tile) {
                     totalPoints += cell.tile.score;
                     totalLetters++;
+                    if (cell.canTake) {
+                        placedCount++;
+                    }
                     
                     // Check for active stickers under this tile
                     if (stickers && isStickerActive(stickers, { row, col: word.position.col })) {
@@ -136,13 +142,22 @@ export function calculateCurrentPlayScore(board: BoardState, stickers?: StickerS
                 }
             }
         }
+
+        if (placedCount === 7) {
+            bingoAchieved = true;
+        }
+    }
+
+    // Apply bingo bonus once if any current word used exactly 7 placed tiles
+    if (bingoAchieved) {
+        stickerPoints += 50;
     }
 
     const finalPoints = totalPoints + stickerPoints;
     const finalMulti = totalLetters + stickerMulti;
 
     return {
-        totalScore,
+        totalScore: finalPoints * finalMulti,
         breakdown: {
             baseTilePoints: totalPoints,
             stickerPoints: stickerPoints,

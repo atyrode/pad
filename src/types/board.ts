@@ -6,14 +6,16 @@ export type Direction = 'right' | 'down';
 
 export interface BoardCellState {
     tile: TileData | null;
-    locked: boolean;
+    canPlace: boolean;
+    canTake: boolean;
 }
 
 export type BoardState = BoardCellState[][];
 
 export interface BoardCellProps {
     tile: TileData | null;
-    locked: boolean;
+    canPlace: boolean;
+    canTake: boolean;
     row: number;
     col: number;
     overRackIndex: number | null;

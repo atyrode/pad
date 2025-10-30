@@ -3,9 +3,10 @@ import { Bag } from '../types/bag';
 import { RackState } from '../types/rack';
 import { BoardState } from '../types/board';
 import { StickerState } from '../types/sticker';
-import { drawTileFromBag, createTileBag, shuffleBag, getFullBagSize } from '../utils/bagUtils';
+import { drawTileFromBag, shuffleBag } from '../utils/bagUtils';
 import { findFirstEmptySlot, moveTileToRack } from '../utils/rackUtils';
 import { createInitialBoard, findAllWords } from '../utils/boardUtils';
+import { createInitialDraftBoard, generateRandomTiles } from '../utils/draftBoardUtils';
 import { isValidWordSync, preloadDictionary } from '../utils/dictionaryUtils';
 import { calculateCurrentPlayScore } from '../utils/scoreUtils';
 import { createInitialStickers, countStickers, consumeSticker } from '../utils/stickerUtils';
@@ -17,6 +18,8 @@ interface DebugMenuProps {
   setRack: React.Dispatch<React.SetStateAction<RackState>>;
   setBag: React.Dispatch<React.SetStateAction<Bag>>;
   setBoard: React.Dispatch<React.SetStateAction<BoardState>>;
+  draftBoard: BoardState;
+  setDraftBoard: React.Dispatch<React.SetStateAction<BoardState>>;
   totalScore: number;
   setTotalScore: React.Dispatch<React.SetStateAction<number>>;
   stickers: StickerState;
@@ -25,9 +28,13 @@ interface DebugMenuProps {
   setTileOpacity: React.Dispatch<React.SetStateAction<number>>;
   showCoordinates: boolean;
   setShowCoordinates: React.Dispatch<React.SetStateAction<boolean>>;
+  isDraftMode: boolean;
+  setIsDraftMode: React.Dispatch<React.SetStateAction<boolean>>;
+  onResetDraft?: () => void;
+  onRerollSuggestions?: () => void;
 }
 
-export default function DebugMenu({ bag, rack, board, setRack, setBag, setBoard, totalScore, setTotalScore, stickers, setStickers, tileOpacity, setTileOpacity, showCoordinates, setShowCoordinates }: DebugMenuProps) {
+export default function DebugMenu({ bag, rack, board, setRack, setBag, setBoard, draftBoard, setDraftBoard, totalScore, setTotalScore, stickers, setStickers, tileOpacity, setTileOpacity, showCoordinates, setShowCoordinates, isDraftMode, setIsDraftMode, onResetDraft, onRerollSuggestions }: DebugMenuProps) {
   const [isDictionaryLoaded, setIsDictionaryLoaded] = useState(false);
 
   // Load dictionary on component mount
@@ -106,14 +113,27 @@ export default function DebugMenu({ bag, rack, board, setRack, setBag, setBoard,
   };
 
   const handleResetGame = () => {
-    // Clear the board, rack, refill the bag, reset score, and reset stickers
+    // Clear the board, rack, reset score and stickers; seed bag from current draft
     const emptyBoard = createInitialBoard();
     const emptyRack = Array(rack.length).fill(null);
-    const newBag = createTileBag();
     const newStickers = createInitialStickers();
+
+    // Collect drafted tiles from placement zone: rows 7 and 8, center 7 columns
+    const centerCount = 7;
+    const centerStart = Math.floor((11 - centerCount) / 2);
+    const draftedPositions: { row: number; col: number }[] = [];
+    [7, 8].forEach(r => {
+      for (let c = centerStart; c < centerStart + centerCount; c++) {
+        draftedPositions.push({ row: r, col: c });
+      }
+    });
+    const draftedTiles = draftedPositions
+      .map(p => draftBoard[p.row][p.col].tile)
+      .filter(Boolean) as any[];
+
     setBoard(emptyBoard);
     setRack(emptyRack);
-    setBag(newBag);
+    setBag(shuffleBag([...draftedTiles]));
     setTotalScore(0);
     setStickers(newStickers);
   };
@@ -133,11 +153,11 @@ export default function DebugMenu({ bag, rack, board, setRack, setBag, setBoard,
     // Reset stickers to initial state
     let newStickers = createInitialStickers();
     
-    // Consume any stickers that have locked tiles on top
+    // Consume any stickers that have non-takeable (locked) tiles on top
     for (let row = 0; row < board.length; row++) {
       for (let col = 0; col < board[row].length; col++) {
         const cell = board[row][col];
-        if (cell.tile && cell.locked) {
+        if (cell.tile && !cell.canTake) {
           // This position has a locked tile, so consume the sticker if it exists
           newStickers = consumeSticker(newStickers, { row, col });
         }
@@ -148,9 +168,19 @@ export default function DebugMenu({ bag, rack, board, setRack, setBag, setBoard,
   };
 
   const handleResetBag = () => {
-    // Refill the bag, keeping the rack and board as is
-    const newBag = createTileBag();
-    setBag(newBag);
+    // Seed the bag from the current draft placement zone
+    const centerCount = 7;
+    const centerStart = Math.floor((11 - centerCount) / 2);
+    const draftedPositions: { row: number; col: number }[] = [];
+    [7, 8].forEach(r => {
+      for (let c = centerStart; c < centerStart + centerCount; c++) {
+        draftedPositions.push({ row: r, col: c });
+      }
+    });
+    const draftedTiles = draftedPositions
+      .map(p => draftBoard[p.row][p.col].tile)
+      .filter(Boolean) as any[];
+    setBag(shuffleBag([...draftedTiles]));
   };
 
   const handleShuffle = () => {
@@ -199,9 +229,27 @@ export default function DebugMenu({ bag, rack, board, setRack, setBag, setBoard,
   // Check if rack is empty (all slots are null)
   const isRackEmpty = rack.every(tile => tile === null);
 
-  // Full bag size (calculated from TILE_DISTRIBUTION)
-  const FULL_BAG_SIZE = getFullBagSize();
-  const isBagFull = bag.length >= FULL_BAG_SIZE;
+  // Draft-based bag: consider draft unavailable if no drafted tiles present
+  const centerCount = 7;
+  const centerStart = Math.floor((11 - centerCount) / 2);
+  const draftedCount = [7, 8].flatMap(r => Array.from({ length: centerCount }, (_, i) => ({ row: r, col: centerStart + i })))
+    .filter(pos => draftBoard[pos.row][pos.col].tile)
+    .length;
+
+  // Helper: collect all drafted tiles (14 center slots)
+  const collectDraftedTiles = () => {
+    const positions = [7, 8].flatMap(r => Array.from({ length: centerCount }, (_, i) => ({ row: r, col: centerStart + i })));
+    return positions.map(p => draftBoard[p.row][p.col].tile).filter(Boolean) as any[];
+  };
+
+  // Compare current bag to drafted tiles (order-agnostic, by tile.id)
+  const isBagSameAsDraft = () => {
+    const draftedTiles = collectDraftedTiles();
+    if (draftedTiles.length === 0) return false;
+    if (bag.length !== draftedTiles.length) return false;
+    const draftedIds = new Set(draftedTiles.map(t => t.id));
+    return bag.every(t => draftedIds.has(t!.id));
+  };
 
   // Check if score is zero
   const isScoreZero = totalScore === 0;
@@ -209,7 +257,7 @@ export default function DebugMenu({ bag, rack, board, setRack, setBag, setBoard,
   // Calculate disabled states for reset buttons
   const isBoardResetDisabled = isBoardEmpty;
   const isRackResetDisabled = isRackEmpty;
-  const isBagResetDisabled = isBagFull;
+  const isBagResetDisabled = draftedCount === 0 || isBagSameAsDraft();
   const isScoreResetDisabled = isScoreZero;
 
   // Check if stickers are in initial state
@@ -228,273 +276,332 @@ export default function DebugMenu({ bag, rack, board, setRack, setBag, setBoard,
     <div id="debug-menu" className="w-1/3 h-full bg-zinc-600 p-4 overflow-y-auto">
       <h2 className="text-white text-xl font-bold mb-4">Debug Menu</h2>
 
-      {/* Reset */}
+      {/* Mode */}
       <div className="bg-zinc-700 rounded-lg p-4 mb-4">
-        <h3 className="text-white text-lg font-semibold mb-3">Reset</h3>
-        <div className="flex flex-row gap-2 justify-center mb-2">
-          <button
-            onClick={handleResetGame}
-            disabled={isGameResetDisabled}
-            className={`py-2 px-3 rounded-lg text-white font-semibold text-sm transition-opacity grow ${isGameResetDisabled
-              ? 'bg-zinc-800 opacity-50 cursor-not-allowed'
-              : 'bg-red-600 hover:opacity-80 hover:bg-red-500'
-              }`}
-          >
-            Game
-          </button>
-        </div>
+        <h3 className="text-white text-lg font-semibold mb-3">Mode</h3>
         <div className="flex flex-row gap-2 justify-center">
           <button
-            onClick={handleResetBoard}
-            disabled={isBoardResetDisabled}
-            className={`py-2 px-3 rounded-lg text-white font-semibold text-sm transition-opacity grow ${isBoardResetDisabled
-              ? 'bg-zinc-800 opacity-50 cursor-not-allowed'
-              : 'bg-orange-600 hover:opacity-80 hover:bg-orange-500'
-              }`}
-          >
-            Board
-          </button>
-          <button
-            onClick={handleClear}
-            disabled={isRackResetDisabled}
-            className={`py-2 px-3 rounded-lg text-white font-semibold text-sm transition-opacity grow ${isRackResetDisabled
-              ? 'bg-zinc-800 opacity-50 cursor-not-allowed'
-              : 'bg-yellow-600 hover:opacity-80 hover:bg-yellow-500'
-              }`}
-          >
-            Rack
-          </button>
-          <button
-            onClick={handleResetBag}
-            disabled={isBagResetDisabled}
-            className={`py-2 px-3 rounded-lg text-white font-semibold text-sm transition-opacity grow ${isBagResetDisabled
-              ? 'bg-zinc-800 opacity-50 cursor-not-allowed'
-              : 'bg-green-600 hover:opacity-80 hover:bg-green-500'
-              }`}
-          >
-            Bag
-          </button>
-          <button
-            onClick={handleResetScore}
-            disabled={isScoreResetDisabled}
-            className={`py-2 px-3 rounded-lg text-white font-semibold text-sm transition-opacity grow ${isScoreResetDisabled
-              ? 'bg-zinc-800 opacity-50 cursor-not-allowed'
-              : 'bg-purple-600 hover:opacity-80 hover:bg-purple-500'
-              }`}
-          >
-            Score
-          </button>
-          <button
-            onClick={handleResetStickers}
-            disabled={isStickersResetDisabled}
-            className={`py-2 px-3 rounded-lg text-white font-semibold text-sm transition-opacity grow ${isStickersResetDisabled
-              ? 'bg-zinc-800 opacity-50 cursor-not-allowed'
-              : 'bg-indigo-600 hover:opacity-80 hover:bg-indigo-500'
-              }`}
-          >
-            Stickers
-          </button>
-        </div>
-      </div>
-
-      {/* Draw */}
-      <div className="bg-zinc-700 rounded-lg p-4 mt-4">
-        <h3 className="text-white text-lg font-semibold mb-3">Draw</h3>
-        <div className="flex flex-row gap-2 justify-center">
-          <button
-            onClick={handleDraw}
-            disabled={isDrawDisabled}
-            className={`py-2 px-3 rounded-lg text-white font-semibold text-sm transition-opacity grow ${isDrawDisabled
-              ? 'bg-zinc-800 opacity-50 cursor-not-allowed'
-              : 'bg-zinc-600 hover:opacity-80 hover:bg-zinc-500'
-              }`}
-          >
-            Draw
-          </button>
-          <button
-            onClick={handleDrawAll}
-            disabled={isDrawAllDisabled}
-            className={`py-2 px-3 rounded-lg text-white font-semibold text-sm transition-opacity grow ${isDrawAllDisabled
-              ? 'bg-zinc-800 opacity-50 cursor-not-allowed'
-              : 'bg-zinc-600 hover:opacity-80 hover:bg-zinc-500'
-              }`}
-          >
-            Draw All
-          </button>
-          <button
-            onClick={handleRedraw}
-            disabled={isRedrawDisabled}
-            className={`py-2 px-3 rounded-lg text-white font-semibold text-sm transition-opacity grow ${isRedrawDisabled
-              ? 'bg-zinc-800 opacity-50 cursor-not-allowed'
-              : 'bg-zinc-600 hover:opacity-80 hover:bg-zinc-500'
-              }`}
-          >
-            Redraw
-          </button>
-        </div>
-        {(isDrawDisabled || isDrawAllDisabled || isRedrawDisabled) && (
-          <p className="text-zinc-400 text-xs mt-2 text-center">
-            {bag.length === 0 ? 'Bag is empty' :
-              isRedrawDisabled && rack.every(tile => tile === null) ? 'Rack is empty' : 'Rack is full'}
-          </p>
-        )}
-      </div>
-
-      {/* Score */}
-      <div className="bg-zinc-700 rounded-lg p-4 mt-4">
-        <h3 className="text-white text-lg font-semibold mb-3">Score</h3>
-
-        {/* Total Score */}
-        <div className="mb-3">
-          <div className="text-white text-sm font-medium mb-1">Total Score</div>
-          <div className="text-green-400 text-2xl font-bold">
-            {totalScore}
-          </div>
-        </div>
-
-        {/* Current Play Score */}
-        <div className="mb-3">
-          <div className="text-white text-sm font-medium mb-2">Current Play</div>
-          <div className="bg-zinc-800 rounded px-3 py-2">
-            <div className="flex justify-between items-center mb-1">
-              <span className="text-zinc-300 text-xs">Points:</span>
-              <span className="text-white text-sm font-mono">
-                {currentPlayScore.breakdown.baseTilePoints}
-                {currentPlayScore.breakdown.stickerPoints > 0 && (
-                  <span className="text-green-400"> (+{currentPlayScore.breakdown.stickerPoints})</span>
-                )}
-              </span>
-            </div>
-            <div className="flex justify-between items-center mb-1">
-              <span className="text-zinc-300 text-xs">Multi:</span>
-              <span className="text-white text-sm font-mono">
-                {currentPlayScore.breakdown.baseTileMulti}
-                {currentPlayScore.breakdown.stickerMulti > 0 && (
-                  <span className="text-green-400"> (+{currentPlayScore.breakdown.stickerMulti})</span>
-                )}
-              </span>
-            </div>
-            <div className="flex justify-between items-center border-t border-zinc-600 pt-1">
-              <span className="text-zinc-300 text-xs font-medium">Total:</span>
-              <span className="text-green-400 text-sm font-bold font-mono">{currentPlayScore.breakdown.total}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Board */}
-      <div className="bg-zinc-700 rounded-lg p-4 mt-4">
-        <h3 className="text-white text-lg font-semibold mb-3">Board</h3>
-
-        {/* Current Words Section */}
-        <div className="mb-4">
-          <h4 className="text-white text-sm font-medium mb-2">Current</h4>
-          {currentWords.length === 0 ? (
-            <p className="text-zinc-400 text-xs text-center">No current words</p>
-          ) : (
-            <div className="space-y-1">
-              {currentWords.map((wordInfo, index) => (
-                <div
-                  key={`current-${index}`}
-                  className="text-white text-sm font-mono bg-zinc-800 rounded px-2 py-1 flex justify-between items-center"
-                >
-                  <span>
-                    {wordInfo.word.toUpperCase()} at ({wordInfo.position.row},{wordInfo.position.col}) {wordInfo.direction}
-                  </span>
-                  {getValidationIcon(wordInfo.word)}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Played Words Section */}
-        <div>
-          <h4 className="text-white text-sm font-medium mb-2">Played</h4>
-          {playedWords.length === 0 ? (
-            <p className="text-zinc-400 text-xs text-center">No played words</p>
-          ) : (
-            <div className="space-y-1">
-              {playedWords.map((wordInfo, index) => (
-                <div
-                  key={`played-${index}`}
-                  className="text-white text-sm font-mono bg-zinc-800 rounded px-2 py-1 flex justify-between items-center"
-                >
-                  <span>
-                    {wordInfo.word.toUpperCase()} at ({wordInfo.position.row},{wordInfo.position.col}) {wordInfo.direction}
-                  </span>
-                  {getValidationIcon(wordInfo.word)}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Tile Bag */}
-      <div className="bg-zinc-700 rounded-lg p-4 mt-4">
-        <h3 className="text-white text-lg font-semibold mb-3">
-          Tile Bag ({bag.length} tiles)
-        </h3>
-
-        <div className="grid grid-cols-8 gap-1 overflow-y-auto mb-3">
-          {bag.map((tile, index) => (
-            <div
-              key={index}
-              className="w-6 h-6 bg-zinc-800 rounded flex items-center justify-center text-xs font-mono text-white border border-zinc-600"
-              title={`${tile.value} (${tile.score} points)`}
-            >
-              {tile.value === '*' ? '*' : tile.value}
-            </div>
-          ))}
-        </div>
-        <button
-          onClick={handleShuffle}
-          disabled={bag.length === 0}
-          className={`w-full py-2 px-3 rounded-lg text-white font-semibold text-sm transition-opacity ${bag.length === 0
-            ? 'bg-zinc-800 opacity-50 cursor-not-allowed'
-            : 'bg-zinc-600 hover:opacity-80 hover:bg-zinc-500'
+            onClick={() => setIsDraftMode(!isDraftMode)}
+            className={`py-2 px-3 rounded-lg text-white font-semibold text-sm transition-opacity grow ${
+              isDraftMode
+                ? 'bg-blue-600 hover:opacity-80 hover:bg-blue-500'
+                : 'bg-zinc-600 hover:opacity-80 hover:bg-zinc-500'
             }`}
-        >
-          Shuffle
-        </button>
-      </div>
-
-      {/* Stickers */}
-      <div className="bg-zinc-700 rounded-lg p-4 mt-4">
-        <h3 className="text-white text-lg font-semibold mb-3">Stickers</h3>
-
-        <div className="grid grid-cols-2 gap-2 mb-3">
-          <div className="bg-zinc-800 rounded px-3 py-2">
-            <div className="text-purple-300 text-xs font-medium mb-1">Multi (x2)</div>
-            <div className="text-white text-sm">
-              <span className="text-green-400">{stickerCounts.multiActive}</span>
-              <span className="text-zinc-400"> / </span>
-              <span className="text-zinc-500">{stickerCounts.multiConsumed}</span>
-            </div>
-          </div>
-          <div className="bg-zinc-800 rounded px-3 py-2">
-            <div className="text-blue-300 text-xs font-medium mb-1">Points (+10)</div>
-            <div className="text-white text-sm">
-              <span className="text-green-400">{stickerCounts.pointsActive}</span>
-              <span className="text-zinc-400"> / </span>
-              <span className="text-zinc-500">{stickerCounts.pointsConsumed}</span>
-            </div>
-          </div>
-          <div className="bg-zinc-800 rounded px-3 py-2">
-            <div className="text-yellow-300 text-xs font-medium mb-1">Start (★)</div>
-            <div className="text-white text-sm">
-              <span className="text-green-400">{stickerCounts.startActive}</span>
-              <span className="text-zinc-400"> / </span>
-              <span className="text-zinc-500">{stickerCounts.startConsumed}</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="text-xs text-zinc-400 text-center">
-          Active / Consumed
+          >
+            {isDraftMode ? 'Exit Draft' : 'Enter Draft'}
+          </button>
         </div>
       </div>
+
+      {/* Game Mode Sections - Only show when NOT in draft mode */}
+      {!isDraftMode && (
+        <>
+          {/* Reset */}
+          <div className="bg-zinc-700 rounded-lg p-4 mb-4">
+            <h3 className="text-white text-lg font-semibold mb-3">Reset</h3>
+            <div className="flex flex-row gap-2 justify-center mb-2">
+              <button
+                onClick={handleResetGame}
+                disabled={isGameResetDisabled}
+                className={`py-2 px-3 rounded-lg text-white font-semibold text-sm transition-opacity grow ${isGameResetDisabled
+                  ? 'bg-zinc-800 opacity-50 cursor-not-allowed'
+                  : 'bg-red-600 hover:opacity-80 hover:bg-red-500'
+                  }`}
+              >
+                Game
+              </button>
+            </div>
+            <div className="flex flex-row gap-2 justify-center">
+              <button
+                onClick={handleResetBoard}
+                disabled={isBoardResetDisabled}
+                className={`py-2 px-3 rounded-lg text-white font-semibold text-sm transition-opacity grow ${isBoardResetDisabled
+                  ? 'bg-zinc-800 opacity-50 cursor-not-allowed'
+                  : 'bg-orange-600 hover:opacity-80 hover:bg-orange-500'
+                  }`}
+              >
+                Board
+              </button>
+              <button
+                onClick={handleClear}
+                disabled={isRackResetDisabled}
+                className={`py-2 px-3 rounded-lg text-white font-semibold text-sm transition-opacity grow ${isRackResetDisabled
+                  ? 'bg-zinc-800 opacity-50 cursor-not-allowed'
+                  : 'bg-yellow-600 hover:opacity-80 hover:bg-yellow-500'
+                  }`}
+              >
+                Rack
+              </button>
+              <button
+                onClick={handleResetBag}
+                disabled={isBagResetDisabled}
+                className={`py-2 px-3 rounded-lg text-white font-semibold text-sm transition-opacity grow ${isBagResetDisabled
+                  ? 'bg-zinc-800 opacity-50 cursor-not-allowed'
+                  : 'bg-green-600 hover:opacity-80 hover:bg-green-500'
+                  }`}
+              >
+                Bag
+              </button>
+              <button
+                onClick={handleResetScore}
+                disabled={isScoreResetDisabled}
+                className={`py-2 px-3 rounded-lg text-white font-semibold text-sm transition-opacity grow ${isScoreResetDisabled
+                  ? 'bg-zinc-800 opacity-50 cursor-not-allowed'
+                  : 'bg-purple-600 hover:opacity-80 hover:bg-purple-500'
+                  }`}
+              >
+                Score
+              </button>
+              <button
+                onClick={handleResetStickers}
+                disabled={isStickersResetDisabled}
+                className={`py-2 px-3 rounded-lg text-white font-semibold text-sm transition-opacity grow ${isStickersResetDisabled
+                  ? 'bg-zinc-800 opacity-50 cursor-not-allowed'
+                  : 'bg-indigo-600 hover:opacity-80 hover:bg-indigo-500'
+                  }`}
+              >
+                Stickers
+              </button>
+            </div>
+          </div>
+
+          {/* Draw */}
+          <div className="bg-zinc-700 rounded-lg p-4 mt-4">
+            <h3 className="text-white text-lg font-semibold mb-3">Draw</h3>
+            <div className="flex flex-row gap-2 justify-center">
+              <button
+                onClick={handleDraw}
+                disabled={isDrawDisabled}
+                className={`py-2 px-3 rounded-lg text-white font-semibold text-sm transition-opacity grow ${isDrawDisabled
+                  ? 'bg-zinc-800 opacity-50 cursor-not-allowed'
+                  : 'bg-zinc-600 hover:opacity-80 hover:bg-zinc-500'
+                  }`}
+              >
+                Draw
+              </button>
+              <button
+                onClick={handleDrawAll}
+                disabled={isDrawAllDisabled}
+                className={`py-2 px-3 rounded-lg text-white font-semibold text-sm transition-opacity grow ${isDrawAllDisabled
+                  ? 'bg-zinc-800 opacity-50 cursor-not-allowed'
+                  : 'bg-zinc-600 hover:opacity-80 hover:bg-zinc-500'
+                  }`}
+              >
+                Draw All
+              </button>
+              <button
+                onClick={handleRedraw}
+                disabled={isRedrawDisabled}
+                className={`py-2 px-3 rounded-lg text-white font-semibold text-sm transition-opacity grow ${isRedrawDisabled
+                  ? 'bg-zinc-800 opacity-50 cursor-not-allowed'
+                  : 'bg-zinc-600 hover:opacity-80 hover:bg-zinc-500'
+                  }`}
+              >
+                Redraw
+              </button>
+            </div>
+            {(isDrawDisabled || isDrawAllDisabled || isRedrawDisabled) && (
+              <p className="text-zinc-400 text-xs mt-2 text-center">
+                {bag.length === 0 ? 'Bag is empty' :
+                  isRedrawDisabled && rack.every(tile => tile === null) ? 'Rack is empty' : 'Rack is full'}
+              </p>
+            )}
+          </div>
+
+          {/* Score */}
+          <div className="bg-zinc-700 rounded-lg p-4 mt-4">
+            <h3 className="text-white text-lg font-semibold mb-3">Score</h3>
+
+            {/* Total Score */}
+            <div className="mb-3">
+              <div className="text-white text-sm font-medium mb-1">Total Score</div>
+              <div className="text-green-400 text-2xl font-bold">
+                {totalScore}
+              </div>
+            </div>
+
+            {/* Current Play Score */}
+            <div className="mb-3">
+              <div className="text-white text-sm font-medium mb-2">Current Play</div>
+              <div className="bg-zinc-800 rounded px-3 py-2">
+                <div className="flex justify-between items-center mb-1">
+                  <span className="text-zinc-300 text-xs">Points:</span>
+                  <span className="text-white text-sm font-mono">
+                    {currentPlayScore.breakdown.baseTilePoints}
+                    {currentPlayScore.breakdown.stickerPoints > 0 && (
+                      <span className="text-green-400"> (+{currentPlayScore.breakdown.stickerPoints})</span>
+                    )}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center mb-1">
+                  <span className="text-zinc-300 text-xs">Multi:</span>
+                  <span className="text-white text-sm font-mono">
+                    {currentPlayScore.breakdown.baseTileMulti}
+                    {currentPlayScore.breakdown.stickerMulti > 0 && (
+                      <span className="text-green-400"> (+{currentPlayScore.breakdown.stickerMulti})</span>
+                    )}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center border-t border-zinc-600 pt-1">
+                  <span className="text-zinc-300 text-xs font-medium">Total:</span>
+                  <span className="text-green-400 text-sm font-bold font-mono">{currentPlayScore.breakdown.total}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Board */}
+          <div className="bg-zinc-700 rounded-lg p-4 mt-4">
+            <h3 className="text-white text-lg font-semibold mb-3">Board</h3>
+
+            {/* Current Words Section */}
+            <div className="mb-4">
+              <h4 className="text-white text-sm font-medium mb-2">Current</h4>
+              {currentWords.length === 0 ? (
+                <p className="text-zinc-400 text-xs text-center">No current words</p>
+              ) : (
+                <div className="space-y-1">
+                  {currentWords.map((wordInfo, index) => (
+                    <div
+                      key={`current-${index}`}
+                      className="text-white text-sm font-mono bg-zinc-800 rounded px-2 py-1 flex justify-between items-center"
+                    >
+                      <span>
+                        {wordInfo.word.toUpperCase()} at ({wordInfo.position.row},{wordInfo.position.col}) {wordInfo.direction}
+                      </span>
+                      {getValidationIcon(wordInfo.word)}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Played Words Section */}
+            <div>
+              <h4 className="text-white text-sm font-medium mb-2">Played</h4>
+              {playedWords.length === 0 ? (
+                <p className="text-zinc-400 text-xs text-center">No played words</p>
+              ) : (
+                <div className="space-y-1">
+                  {playedWords.map((wordInfo, index) => (
+                    <div
+                      key={`played-${index}`}
+                      className="text-white text-sm font-mono bg-zinc-800 rounded px-2 py-1 flex justify-between items-center"
+                    >
+                      <span>
+                        {wordInfo.word.toUpperCase()} at ({wordInfo.position.row},{wordInfo.position.col}) {wordInfo.direction}
+                      </span>
+                      {getValidationIcon(wordInfo.word)}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Tile Bag */}
+          <div className="bg-zinc-700 rounded-lg p-4 mt-4">
+            <h3 className="text-white text-lg font-semibold mb-3">
+              Tile Bag ({bag.length} tiles)
+            </h3>
+
+            <div className="grid grid-cols-8 gap-1 overflow-y-auto mb-3">
+              {bag.map((tile, index) => (
+                <div
+                  key={index}
+                  className="w-6 h-6 bg-zinc-800 rounded flex items-center justify-center text-xs font-mono text-white border border-zinc-600"
+                  title={`${tile.value} (${tile.score} points)`}
+                >
+                  {tile.value === '*' ? '*' : tile.value}
+                </div>
+              ))}
+            </div>
+            <button
+              onClick={handleShuffle}
+              disabled={bag.length === 0}
+              className={`w-full py-2 px-3 rounded-lg text-white font-semibold text-sm transition-opacity ${bag.length === 0
+                ? 'bg-zinc-800 opacity-50 cursor-not-allowed'
+                : 'bg-zinc-600 hover:opacity-80 hover:bg-zinc-500'
+                }`}
+            >
+              Shuffle
+            </button>
+          </div>
+
+          {/* Stickers */}
+          <div className="bg-zinc-700 rounded-lg p-4 mt-4">
+            <h3 className="text-white text-lg font-semibold mb-3">Stickers</h3>
+
+            <div className="grid grid-cols-2 gap-2 mb-3">
+              <div className="bg-zinc-800 rounded px-3 py-2">
+                <div className="text-purple-300 text-xs font-medium mb-1">Multi (x2)</div>
+                <div className="text-white text-sm">
+                  <span className="text-green-400">{stickerCounts.multiActive}</span>
+                  <span className="text-zinc-400"> / </span>
+                  <span className="text-zinc-500">{stickerCounts.multiConsumed}</span>
+                </div>
+              </div>
+              <div className="bg-zinc-800 rounded px-3 py-2">
+                <div className="text-blue-300 text-xs font-medium mb-1">Points (+10)</div>
+                <div className="text-white text-sm">
+                  <span className="text-green-400">{stickerCounts.pointsActive}</span>
+                  <span className="text-zinc-400"> / </span>
+                  <span className="text-zinc-500">{stickerCounts.pointsConsumed}</span>
+                </div>
+              </div>
+              <div className="bg-zinc-800 rounded px-3 py-2">
+                <div className="text-yellow-300 text-xs font-medium mb-1">Start (★)</div>
+                <div className="text-white text-sm">
+                  <span className="text-green-400">{stickerCounts.startActive}</span>
+                  <span className="text-zinc-400"> / </span>
+                  <span className="text-zinc-500">{stickerCounts.startConsumed}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="text-xs text-zinc-400 text-center">
+              Active / Consumed
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Draft Mode Sections - Only show when in draft mode */}
+      {isDraftMode && (
+        <>
+          <div className="bg-zinc-700 rounded-lg p-4 mb-4">
+            <h3 className="text-white text-lg font-semibold mb-3">Draft Mode</h3>
+            <p className="text-zinc-400 text-sm text-center mb-3">
+              Draft mode is active. Use the suggested tiles to build words!
+            </p>
+            <div className="flex flex-row gap-2 justify-center">
+              <button
+                onClick={() => {
+                  if (onRerollSuggestions) {
+                    onRerollSuggestions();
+                  }
+                }}
+                className="py-2 px-3 rounded-lg text-white font-semibold text-sm transition-opacity bg-blue-600 hover:opacity-80 hover:bg-blue-500"
+              >
+                New Suggestions
+              </button>
+              <button
+                onClick={() => {
+                  if (onResetDraft) {
+                    onResetDraft();
+                  } else {
+                    const newDraftBoard = createInitialDraftBoard();
+                    setDraftBoard(newDraftBoard);
+                  }
+                }}
+                className="py-2 px-3 rounded-lg text-white font-semibold text-sm transition-opacity bg-orange-600 hover:opacity-80 hover:bg-orange-500"
+              >
+                Reset Draft
+              </button>
+            </div>
+          </div>
+        </>
+      )}
 
       {/* Visual Settings */}
       <div className="bg-zinc-700 rounded-lg p-4 mt-4">

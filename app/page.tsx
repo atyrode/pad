@@ -1,20 +1,22 @@
 "use client";
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, Activity } from 'react';
 import {
     DndContext,
     closestCenter,
 } from '@dnd-kit/core';
 import DebugMenu from "../src/components/DebugMenu";
 import Board from "../src/components/Board";
+import DraftBoard from "../src/components/DraftBoard";
 import Rack from "../src/components/Rack";
 import { BoardState, PlacementHistoryEntry } from '../src/types/board';
 import { RackState } from '../src/types/rack';
 import { Bag } from '../src/types/bag';
 import { StickerState } from '../src/types/sticker';
-import { createInitialBoard, removeTileFromBoard, findAllWords, areUnlockedTilesInSingleLine, findTilePosition, parseEmptySlotId } from '../src/utils/boardUtils';
+import { createInitialBoard, removeTileFromBoard, findAllWords, areUnlockedTilesInSingleLine, findTilePosition, parseEmptySlotId, doesCurrentPlayTouchLocked } from '../src/utils/boardUtils';
+import { createInitialDraftBoard, generateRandomTiles, generateUniqueTiles, createBlankTile } from '../src/utils/draftBoardUtils';
 import { createInitialRack, findTileInRack, findFirstEmptySlot, moveTileToRack, shuffleRack } from '../src/utils/rackUtils';
-import { createTileBag } from '../src/utils/bagUtils';
+import { drawTileFromBag, shuffleBag } from '../src/utils/bagUtils';
 import { getAllAvailableLetters } from '../src/utils/tileDefinitions';
 import { preloadDictionary, isValidWordSync } from '../src/utils/dictionaryUtils';
 import { calculateCurrentPlayScore, calculateTotalScore } from '../src/utils/scoreUtils';
@@ -52,6 +54,10 @@ export default function Home() {
     const [tileOpacity, setTileOpacity] = useState(100);
     const [showCoordinates, setShowCoordinates] = useState(false);
 
+    // Draft mode state
+    const [isDraftMode, setIsDraftMode] = useState(false);
+    const [draftBoard, setDraftBoard] = useState<BoardState>(createInitialDraftBoard);
+
     // Placement history for backspace functionality
     const [placementHistory, setPlacementHistory] = useState<PlacementHistoryEntry[]>([]);
 
@@ -67,6 +73,8 @@ export default function Home() {
     const boardRef = useRef<HTMLDivElement>(null);
     const rackRef = useRef<HTMLDivElement>(null);
     const gameAreaRef = useRef<HTMLDivElement>(null);
+    const [exitingDraft, setExitingDraft] = useState(false);
+    const [hasSeededFromDraft, setHasSeededFromDraft] = useState(false);
 
     const handleDragAndDropPlacement = (tileId: string, position: Position, wasBlank: boolean) => {
         setPlacementHistory(prev => [...prev, { tileId, position, wasBlank }]);
@@ -80,7 +88,14 @@ export default function Home() {
         overBoardPos,
         overRackIndex,
         activeId,
-    } = useDragAndDrop({ board, setBoard, rack, setRack, gameAreaRef, onTilePlaced: handleDragAndDropPlacement });
+    } = useDragAndDrop({ 
+        board: isDraftMode ? draftBoard : board, 
+        setBoard: isDraftMode ? setDraftBoard : setBoard, 
+        rack, 
+        setRack, 
+        gameAreaRef, 
+        onTilePlaced: handleDragAndDropPlacement 
+    });
 
     // Wrapper to intercept blank tile drops
     const handleDragEnd = (event: any) => {
@@ -160,14 +175,14 @@ export default function Home() {
             return false; // No matching tile or blank in rack
         }
 
-        // Check if target board cell is valid (empty or has unlocked tile)
+        // Check if target board cell is valid (can accept a tile)
         const targetCell = board[selectedCell.row][selectedCell.col];
-        if (targetCell.tile && targetCell.locked) {
-            return false; // Can't place on locked tile
+        if (!targetCell.canPlace) {
+            return false; // Can't place on non-placeable cell
         }
 
         // Mimic Rack → Board logic from useDragAndDrop
-        if (targetCell.tile && !targetCell.locked) {
+        if (targetCell.tile && targetCell.canTake) {
             // Swap: move existing tile back to rack, place new tile on board
             setRack((prevRack: RackState) => {
                 const newRack = [...prevRack];
@@ -186,7 +201,7 @@ export default function Home() {
         // Place tile on board
         setBoard((prevBoard: BoardState) => {
             const newBoard = prevBoard.map(row => [...row]);
-            newBoard[selectedCell.row][selectedCell.col] = { tile, locked: false };
+            newBoard[selectedCell.row][selectedCell.col] = { tile, canPlace: true, canTake: true };
             return newBoard;
         });
 
@@ -218,7 +233,7 @@ export default function Home() {
 
             // Verify tile still exists at that position with matching ID
             const cell = board[position.row][position.col];
-            if (!cell.tile || cell.tile.id !== tileId || cell.locked) {
+            if (!cell.tile || cell.tile.id !== tileId || !cell.canTake) {
                 // Tile was moved/removed/locked, skip this entry
                 newHistory = newHistory.slice(0, -1);
                 continue;
@@ -277,8 +292,8 @@ export default function Home() {
         setBoard((prevBoard: BoardState) => 
             prevBoard.map(row => 
                 row.map(cell => 
-                    cell.tile && !cell.locked 
-                        ? { ...cell, locked: true } 
+                    cell.tile && cell.canTake 
+                        ? { ...cell, canPlace: false, canTake: false } 
                         : cell
                 )
             )
@@ -290,7 +305,7 @@ export default function Home() {
             for (let row = 0; row < board.length; row++) {
                 for (let col = 0; col < board[row].length; col++) {
                     const cell = board[row][col];
-                    if (cell.tile && !cell.locked) {
+                    if (cell.tile && cell.canTake) {
                         // This tile will be locked, so consume the sticker if it exists
                         newStickers = consumeSticker(newStickers, { row, col });
                     }
@@ -318,6 +333,10 @@ export default function Home() {
     });
 
     const handleRightClick = (tile: TileData, position: Position): boolean => {
+        // Disable right-click behavior in draft mode (no rack, board-to-board only)
+        if (isDraftMode) {
+            return false;
+        }
         // Find first empty slot in rack
         const emptySlotIndex = findFirstEmptySlot(rack);
         
@@ -345,16 +364,70 @@ export default function Home() {
         return false; // Rack is full
     };
 
+    // Draft mode: right-click a suggested tile to place it into the first available placement zone cell
+    const handleDraftSuggestionRightClick = (tile: TileData, position: Position): boolean => {
+        if (!isDraftMode) return false;
+
+        // Only handle right-clicks from the three suggested positions
+        const suggestedPositions = [
+            { row: 4, col: 2 },
+            { row: 4, col: 5 },
+            { row: 4, col: 8 }
+        ];
+        const isFromSuggested = suggestedPositions.some(pos => pos.row === position.row && pos.col === position.col);
+        if (!isFromSuggested) return false;
+
+        // Find first empty placement zone cell (rows 7 and 8, center 7 columns)
+        const centerCount = 7;
+        const centerStart = Math.floor((11 - centerCount) / 2); // BOARD_SIZE is 11
+        const centerEnd = centerStart + centerCount - 1;
+        const placementCells: Position[] = [];
+        [7, 8].forEach(r => {
+            for (let c = centerStart; c <= centerEnd; c++) {
+                placementCells.push({ row: r, col: c });
+            }
+        });
+
+        const target = placementCells.find(pos => !draftBoard[pos.row][pos.col].tile);
+        if (!target) {
+            return false; // No available placement cell
+        }
+
+        // Move tile from suggested position to target placement cell
+        setDraftBoard((prevBoard: BoardState) => {
+            const newBoard = prevBoard.map(row => row.map(cell => ({ ...cell })));
+            // Remove from suggested position (preserve flags)
+            newBoard[position.row][position.col] = { ...newBoard[position.row][position.col], tile: null };
+            // Place onto target (preserve flags)
+            newBoard[target.row][target.col] = { ...newBoard[target.row][target.col], tile };
+            return newBoard;
+        });
+
+        // If we just picked the final blank from the middle, clear suggestions entirely
+        if (tile.value === '*') {
+            setDraftBoard((prevBoard: BoardState) => {
+                const newBoard = prevBoard.map(row => [...row]);
+                newBoard[4][2] = { ...newBoard[4][2], tile: null };
+                newBoard[4][5] = { ...newBoard[4][5], tile: null };
+                newBoard[4][8] = { ...newBoard[4][8], tile: null };
+                return newBoard;
+            });
+        }
+
+        // Returning true triggers success feedback in the cell (prevents shake)
+        return true;
+    };
+
     const handleRackRightClick = (tile: TileData, rackIndex: number): boolean => {
         // Check if selector is visible and we have a selected cell
         if (!selectedCell) {
             return false;
         }
 
-        // Check if target board cell can accept the tile (empty or has non-locked tile)
+        // Check if target board cell can accept the tile
         const targetCell = board[selectedCell.row][selectedCell.col];
-        if (targetCell.tile && targetCell.locked) {
-            return false; // Can't place on locked tile
+        if (!targetCell.canPlace) {
+            return false; // Can't place on non-placeable cell
         }
 
         // For blank tiles, we need to prompt for a letter or use a default
@@ -363,8 +436,8 @@ export default function Home() {
         let tileToPlace = tile;
         let wasBlank = false;
 
-        // If target has non-locked tile, swap it back to the rack position where the clicked tile was
-        if (targetCell.tile && !targetCell.locked) {
+        // If target has takeable tile, swap it back to the rack position where the clicked tile was
+        if (targetCell.tile && targetCell.canTake) {
             setRack((prevRack: RackState) => {
                 const newRack = [...prevRack];
                 newRack[rackIndex] = targetCell.tile; // Put existing tile in rack
@@ -382,7 +455,7 @@ export default function Home() {
         // Place tile on board
         setBoard((prevBoard: BoardState) => {
             const newBoard = prevBoard.map(row => [...row]);
-            newBoard[selectedCell.row][selectedCell.col] = { tile: tileToPlace, locked: false };
+            newBoard[selectedCell.row][selectedCell.col] = { tile: tileToPlace, canPlace: true, canTake: true };
             return newBoard;
         });
 
@@ -400,13 +473,110 @@ export default function Home() {
     // Set mounted to true after client-side hydration and initialize bag
     useEffect(() => {
         setMounted(true);
-        // Initialize the bag only on the client side
-        setBag(createTileBag());
         // Load dictionary
         preloadDictionary().then(() => {
             setIsDictionaryLoaded(true);
         });
     }, []);
+
+    // In draft mode, whenever any suggested slot becomes empty, reroll all three
+    const [draftRerollCount, setDraftRerollCount] = useState(0);
+    const [draftEnded, setDraftEnded] = useState(false);
+    const suggestedOccupancyRef = useRef<[boolean, boolean, boolean] | null>(null);
+
+    useEffect(() => {
+        if (!isDraftMode || draftEnded) return;
+
+        const suggestedPositions = [
+            { row: 4, col: 2 },
+            { row: 4, col: 5 },
+            { row: 4, col: 8 }
+        ];
+
+        const occupancy: [boolean, boolean, boolean] = [
+            !!draftBoard[4][2].tile,
+            !!draftBoard[4][5].tile,
+            !!draftBoard[4][8].tile,
+        ];
+
+        // Initialize previous occupancy on first run
+        if (suggestedOccupancyRef.current === null) {
+            suggestedOccupancyRef.current = occupancy;
+            return;
+        }
+
+        const prev = suggestedOccupancyRef.current;
+        const becameTaken = (prev[0] && !occupancy[0]) || (prev[1] && !occupancy[1]) || (prev[2] && !occupancy[2]);
+
+        // Trigger reroll when any suggested tile transitions from present -> empty
+        if (becameTaken) {
+            // Determine next draft type from fixed sequence
+            const draftSequence: Array<'V' | 'C' | '*'> = ['V','C','C','V','C','C','V','C','C','V','C','C','V','*'];
+            const nextIndex = Math.min(draftRerollCount + 1, draftSequence.length - 1);
+            const nextType = draftSequence[nextIndex];
+
+            setDraftBoard(prevBoard => {
+                const newBoard = prevBoard.map(row => [...row]);
+                if (nextType === '*') {
+                    // Only blank in middle; sides empty
+                    newBoard[4][2] = { ...newBoard[4][2], tile: null, canPlace: false, canTake: true };
+                    newBoard[4][5] = { ...newBoard[4][5], tile: createBlankTile('final'), canPlace: false, canTake: true };
+                    newBoard[4][8] = { ...newBoard[4][8], tile: null, canPlace: false, canTake: true };
+                    // Mark draft ended so we don't reroll anymore
+                    setDraftEnded(true);
+                    // Update occupancy to reflect [false, true, false]
+                    suggestedOccupancyRef.current = [false, true, false];
+                } else if (nextType === 'V') {
+                    // Vowel draft: middle empty, sides vowels (unique)
+                    const vowels = generateUniqueTiles(2, 'vowel');
+                    newBoard[4][2] = { ...newBoard[4][2], tile: vowels[0], canPlace: false, canTake: true };
+                    newBoard[4][5] = { ...newBoard[4][5], tile: null, canPlace: false, canTake: true };
+                    newBoard[4][8] = { ...newBoard[4][8], tile: vowels[1], canPlace: false, canTake: true };
+                    // Update occupancy to [true, false, true]
+                    suggestedOccupancyRef.current = [true, false, true];
+                } else {
+                    // Consonant draft: three unique consonants
+                    const consonants = generateUniqueTiles(3, 'consonant');
+                    newBoard[4][2] = { ...newBoard[4][2], tile: consonants[0], canPlace: false, canTake: true };
+                    newBoard[4][5] = { ...newBoard[4][5], tile: consonants[1], canPlace: false, canTake: true };
+                    newBoard[4][8] = { ...newBoard[4][8], tile: consonants[2], canPlace: false, canTake: true };
+                    // Update occupancy to [true, true, true]
+                    suggestedOccupancyRef.current = [true, true, true];
+                }
+                return newBoard;
+            });
+            setDraftRerollCount(c => c + 1);
+        } else {
+            // No transition; keep ref in sync
+            suggestedOccupancyRef.current = occupancy;
+        }
+    }, [isDraftMode, draftBoard, draftRerollCount, draftEnded]);
+
+    // On draft completion: when draft ends and 14 tiles are placed, seed the game bag from draft (shuffled) exactly once
+    useEffect(() => {
+        if (!isDraftMode || !draftEnded || hasSeededFromDraft) return;
+
+        // Collect drafted tiles from placement zone: rows 7 and 8, center 7 columns
+        const centerCount = 7;
+        const centerStart = Math.floor((11 - centerCount) / 2);
+        const positions: Position[] = [];
+        [7, 8].forEach(r => {
+            for (let c = centerStart; c < centerStart + centerCount; c++) {
+                positions.push({ row: r, col: c });
+            }
+        });
+
+        const drafted = positions
+            .map(p => draftBoard[p.row][p.col].tile)
+            .filter(Boolean) as TileData[];
+
+        if (drafted.length !== 14) return;
+
+        // Seed bag from drafted tiles and shuffle; do not auto-exit or reset/draw
+        const newBag = shuffleBag([...drafted]);
+        setBag(newBag);
+        setHasSeededFromDraft(true);
+    }, [isDraftMode, draftBoard, draftEnded, hasSeededFromDraft]);
 
     // Helper function to check if all current words are valid
     const areAllCurrentWordsValid = (): boolean => {
@@ -447,6 +617,12 @@ export default function Home() {
             if (!allWordsCoverStart) {
                 return false;
             }
+        } else {
+            // After the first move, ensure the current play touches existing locked tiles
+            const hasLockedTiles = board.some(row => row.some(cell => cell.tile && !cell.canTake));
+            if (hasLockedTiles && !doesCurrentPlayTouchLocked(board)) {
+                return false;
+            }
         }
 
         return true;
@@ -472,14 +648,14 @@ export default function Home() {
 
         // Check if target board cell can accept the tile
         const targetCell = board[targetPosition.row][targetPosition.col];
-        if (targetCell.tile && targetCell.locked) {
-            // Can't place on locked tile, just close popup
+        if (!targetCell.canPlace) {
+            // Can't place on non-placeable cell, just close popup
             setBlankTilePopup(null);
             return;
         }
 
         // Handle tile placement (swap or simple)
-        if (targetCell.tile && !targetCell.locked) {
+        if (targetCell.tile && targetCell.canTake) {
             // Swap: move existing tile back to rack
             setRack((prevRack: RackState) => {
                 const newRack = [...prevRack];
@@ -498,7 +674,7 @@ export default function Home() {
         // Place transformed tile on board
         setBoard((prevBoard: BoardState) => {
             const newBoard = prevBoard.map(row => [...row]);
-            newBoard[targetPosition.row][targetPosition.col] = { tile: transformedTile, locked: false };
+            newBoard[targetPosition.row][targetPosition.col] = { tile: transformedTile, canPlace: true, canTake: true };
             return newBoard;
         });
 
@@ -524,73 +700,148 @@ export default function Home() {
                     onDragOver={handleDragOver}
                     onDragEnd={handleDragEnd}
                 >
-                    <DebugMenu bag={bag} rack={rack} board={board} setRack={setRack} setBag={setBag} setBoard={setBoard} totalScore={totalScore} setTotalScore={setTotalScore} stickers={stickers} setStickers={setStickers} tileOpacity={tileOpacity} setTileOpacity={setTileOpacity} showCoordinates={showCoordinates} setShowCoordinates={setShowCoordinates} />
+                    <DebugMenu bag={bag} rack={rack} board={board} setRack={setRack} setBag={setBag} setBoard={setBoard} draftBoard={draftBoard} setDraftBoard={setDraftBoard} totalScore={totalScore} setTotalScore={setTotalScore} stickers={stickers} setStickers={setStickers} tileOpacity={tileOpacity} setTileOpacity={setTileOpacity} showCoordinates={showCoordinates} setShowCoordinates={setShowCoordinates} isDraftMode={isDraftMode} setIsDraftMode={setIsDraftMode} onResetDraft={() => { setDraftBoard(createInitialDraftBoard()); setDraftRerollCount(0); setDraftEnded(false); setHasSeededFromDraft(false); suggestedOccupancyRef.current = null; }} onRerollSuggestions={() => {
+                        if (!isDraftMode || draftEnded) return;
+                        const draftSequence: Array<'V' | 'C' | '*'> = ['V','C','C','V','C','C','V','C','C','V','C','C','V','*'];
+                        const currentIndex = Math.min(draftRerollCount, draftSequence.length - 1);
+                        const type = draftSequence[currentIndex];
+                        setDraftBoard(prevBoard => {
+                            const newBoard = prevBoard.map(row => [...row]);
+                            if (type === '*') {
+                                // Final step: keep as-is; do not reroll
+                                return newBoard;
+                            } else if (type === 'V') {
+                                const vowels = generateUniqueTiles(2, 'vowel');
+                                newBoard[4][2] = { ...newBoard[4][2], tile: vowels[0], canPlace: false, canTake: true };
+                                newBoard[4][5] = { ...newBoard[4][5], tile: null, canPlace: false, canTake: true };
+                                newBoard[4][8] = { ...newBoard[4][8], tile: vowels[1], canPlace: false, canTake: true };
+                                suggestedOccupancyRef.current = [true, false, true];
+                            } else {
+                                const consonants = generateUniqueTiles(3, 'consonant');
+                                newBoard[4][2] = { ...newBoard[4][2], tile: consonants[0], canPlace: false, canTake: true };
+                                newBoard[4][5] = { ...newBoard[4][5], tile: consonants[1], canPlace: false, canTake: true };
+                                newBoard[4][8] = { ...newBoard[4][8], tile: consonants[2], canPlace: false, canTake: true };
+                                suggestedOccupancyRef.current = [true, true, true];
+                            }
+                            return newBoard;
+                        });
+                    }} />
                     <div 
                         ref={gameAreaRef}
                         id="game-area" 
                         className="grow bg-zinc-500 flex flex-col items-center justify-center gap-4"
                         style={{ animation: 'fadeIn 0.3s ease-in-out' }}
                     >
-                        <Board 
-                            board={board}
-                            boardCellSize={boardCellSize}
-                            overBoardPos={overBoardPos}
-                            onCellSizeChange={setBoardCellSize}
-                            overRackIndex={overRackIndex}
-                            boardRef={boardRef}
-                            rackRef={rackRef}
-                            gameAreaRef={gameAreaRef}
-                            onRightClick={handleRightClick}
-                            stickers={stickers}
-                            tileOpacity={tileOpacity}
-                            showCoordinates={showCoordinates}
-                            selectedCell={selectedCell}
-                            selectorDirection={selectorDirection}
-                        />
-                        <div className="relative">
-                            <Rack 
-                                rack={rack} 
-                                setRack={setRack}
+                        <Activity mode={!isDraftMode && !exitingDraft ? "visible" : "hidden"}>
+                            <div className={`transition-opacity duration-300 ${!isDraftMode && !exitingDraft ? 'opacity-100' : 'opacity-0'}`}>
+                            <Board 
+                                board={board}
                                 boardCellSize={boardCellSize}
-                                overBoardPos={activeId && findTileInRack(rack, activeId) !== null ? overBoardPos : null}
+                                overBoardPos={overBoardPos}
+                                onCellSizeChange={setBoardCellSize}
                                 overRackIndex={overRackIndex}
                                 boardRef={boardRef}
                                 rackRef={rackRef}
                                 gameAreaRef={gameAreaRef}
+                                onRightClick={handleRightClick}
+                                stickers={stickers}
+                                tileOpacity={tileOpacity}
+                                showCoordinates={showCoordinates}
                                 selectedCell={selectedCell}
-                                onRackRightClick={handleRackRightClick}
+                                selectorDirection={selectorDirection}
                             />
-                            <button 
-                                onClick={handleShuffle}
-                                className="absolute left-full ml-2 top-1/2 -translate-y-1/2 p-2 bg-zinc-600 hover:bg-zinc-500 border border-zinc-500 rounded-lg transition-colors duration-200 flex items-center justify-center"
-                                title="Shuffle rack"
-                            >
-                                <Shuffle className="w-5 h-5 text-white" />
-                            </button>
-                            <button 
-                                onClick={handlePlay}
-                                disabled={!canPlay}
-                                className={`absolute left-full ml-14 top-1/2 -translate-y-1/2 p-2 border rounded-lg transition-colors duration-200 flex items-center justify-center ${
-                                    canPlay 
-                                        ? 'bg-green-600 hover:bg-green-500 border-green-500 cursor-pointer' 
-                                        : 'bg-zinc-600 border-zinc-500 cursor-not-allowed opacity-50'
-                                }`}
-                                title={
-                                    canPlay 
-                                        ? "Play - lock placed tiles" 
-                                        : isDictionaryLoaded 
-                                            ? "Play - no valid words to lock" 
-                                            : "Play - loading dictionary..."
-                                }
-                            >
-                                <Play className="w-5 h-5 text-white" />
-                            </button>
-                        </div>
+                            </div>
+                        </Activity>
+                        <Activity mode={isDraftMode || exitingDraft ? "visible" : "hidden"}>
+                            <div className={`transition-opacity duration-300 ${exitingDraft ? 'opacity-0' : (isDraftMode ? 'opacity-100' : 'opacity-0')}`}>
+                            <DraftBoard 
+                                board={draftBoard}
+                                boardCellSize={boardCellSize}
+                                overBoardPos={overBoardPos}
+                                onCellSizeChange={setBoardCellSize}
+                                overRackIndex={overRackIndex}
+                                boardRef={boardRef}
+                                rackRef={rackRef}
+                                gameAreaRef={gameAreaRef}
+                                onRightClick={handleDraftSuggestionRightClick}
+                                tileOpacity={tileOpacity}
+                                showCoordinates={showCoordinates}
+                                selectedCell={selectedCell}
+                                selectorDirection={selectorDirection}
+                            />
+                            </div>
+                        </Activity>
+                        {/* Only show rack and controls in Game mode */}
+                        <Activity mode={isDraftMode ? "hidden" : "visible"}>
+                            <div className="relative">
+                                <Rack 
+                                    rack={rack} 
+                                    setRack={setRack}
+                                    boardCellSize={boardCellSize}
+                                    overBoardPos={activeId && findTileInRack(rack, activeId) !== null ? overBoardPos : null}
+                                    overRackIndex={overRackIndex}
+                                    boardRef={boardRef}
+                                    rackRef={rackRef}
+                                    gameAreaRef={gameAreaRef}
+                                    selectedCell={selectedCell}
+                                    onRackRightClick={handleRackRightClick}
+                                />
+                                <button 
+                                    onClick={handleShuffle}
+                                    className="absolute left-full ml-2 top-1/2 -translate-y-1/2 p-2 bg-zinc-600 hover:bg-zinc-500 border border-zinc-500 rounded-lg transition-colors duration-200 flex items-center justify-center"
+                                    title="Shuffle rack"
+                                >
+                                    <Shuffle className="w-5 h-5 text-white" />
+                                </button>
+                                <button 
+                                    onClick={handlePlay}
+                                    disabled={!canPlay}
+                                    className={`absolute left-full ml-14 top-1/2 -translate-y-1/2 p-2 border rounded-lg transition-colors duration-200 flex items-center justify-center ${
+                                        canPlay 
+                                            ? 'bg-green-600 hover:bg-green-500 border-green-500 cursor-pointer' 
+                                            : 'bg-zinc-600 border-zinc-500 cursor-not-allowed opacity-50'
+                                    }`}
+                                    title={
+                                        canPlay 
+                                            ? "Play - lock placed tiles" 
+                                            : isDictionaryLoaded 
+                                                ? "Play - no valid words to lock" 
+                                                : "Play - loading dictionary..."
+                                    }
+                                >
+                                    <Play className="w-5 h-5 text-white" />
+                                </button>
+                            </div>
+                        </Activity>
                     </div>
                 </DndContext>
             ) : (
                 <>
-                    <DebugMenu bag={bag} rack={rack} board={board} setRack={setRack} setBag={setBag} setBoard={setBoard} totalScore={totalScore} setTotalScore={setTotalScore} stickers={stickers} setStickers={setStickers} tileOpacity={tileOpacity} setTileOpacity={setTileOpacity} showCoordinates={showCoordinates} setShowCoordinates={setShowCoordinates} />
+                    <DebugMenu bag={bag} rack={rack} board={board} setRack={setRack} setBag={setBag} setBoard={setBoard} draftBoard={draftBoard} setDraftBoard={setDraftBoard} totalScore={totalScore} setTotalScore={setTotalScore} stickers={stickers} setStickers={setStickers} tileOpacity={tileOpacity} setTileOpacity={setTileOpacity} showCoordinates={showCoordinates} setShowCoordinates={setShowCoordinates} isDraftMode={isDraftMode} setIsDraftMode={setIsDraftMode} onResetDraft={() => { setDraftBoard(createInitialDraftBoard()); setDraftRerollCount(0); setDraftEnded(false); setHasSeededFromDraft(false); suggestedOccupancyRef.current = null; }} onRerollSuggestions={() => {
+                        if (!isDraftMode || draftEnded) return;
+                        const draftSequence: Array<'V' | 'C' | '*'> = ['V','C','C','V','C','C','V','C','C','V','C','C','V','*'];
+                        const currentIndex = Math.min(draftRerollCount, draftSequence.length - 1);
+                        const type = draftSequence[currentIndex];
+                        setDraftBoard(prevBoard => {
+                            const newBoard = prevBoard.map(row => [...row]);
+                            if (type === '*') {
+                                return newBoard;
+                            } else if (type === 'V') {
+                                const vowels = generateUniqueTiles(2, 'vowel');
+                                newBoard[4][2] = { ...newBoard[4][2], tile: vowels[0], canPlace: false, canTake: true };
+                                newBoard[4][5] = { ...newBoard[4][5], tile: null, canPlace: false, canTake: true };
+                                newBoard[4][8] = { ...newBoard[4][8], tile: vowels[1], canPlace: false, canTake: true };
+                                suggestedOccupancyRef.current = [true, false, true];
+                            } else {
+                                const consonants = generateUniqueTiles(3, 'consonant');
+                                newBoard[4][2] = { ...newBoard[4][2], tile: consonants[0], canPlace: false, canTake: true };
+                                newBoard[4][5] = { ...newBoard[4][5], tile: consonants[1], canPlace: false, canTake: true };
+                                newBoard[4][8] = { ...newBoard[4][8], tile: consonants[2], canPlace: false, canTake: true };
+                                suggestedOccupancyRef.current = [true, true, true];
+                            }
+                            return newBoard;
+                        });
+                    }} />
                     <div id="game-area" className="grow bg-zinc-500 flex flex-col items-center justify-center gap-4" />
                 </>
             )}

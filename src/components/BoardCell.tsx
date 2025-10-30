@@ -17,14 +17,14 @@ const shakeKeyframes = `
 }
 `;
 
-export default function BoardCell({ tile, locked, row, col, overRackIndex, rackRef, gameAreaRef, onRightClick, sticker, tileOpacity, showCoordinates, isSelected, selectorDirection }: BoardCellProps) {
+export default function BoardCell({ tile, canPlace, canTake, row, col, overRackIndex, rackRef, gameAreaRef, onRightClick, sticker, tileOpacity, showCoordinates, isSelected, selectorDirection }: BoardCellProps) {
     const cellRef = useRef<HTMLDivElement>(null);
     const cellSize = useCellSize(cellRef as React.RefObject<HTMLDivElement | null>);
     const [isShaking, setIsShaking] = useState(false);
     
     const { attributes, listeners, setNodeRef: setDraggableRef, transform } = useDraggable({
         id: tile ? tile.id : `empty-${row}-${col}`,
-        disabled: !tile || locked, // Only unlocked tiles can be dragged, not empty slots
+        disabled: !tile || !canTake, // Only tiles that can be taken are draggable
     });
 
     const { setNodeRef: setDroppableRef } = useDroppable({
@@ -39,7 +39,7 @@ export default function BoardCell({ tile, locked, row, col, overRackIndex, rackR
 
     const handleRightClick = (e: React.MouseEvent) => {
         e.preventDefault(); // Prevent default context menu
-        if (tile && !locked && onRightClick) {
+        if (tile && canTake && onRightClick) {
             const success = onRightClick(tile, { row, col });
             if (!success) {
                 // Trigger shake animation if rack is full
@@ -67,7 +67,7 @@ export default function BoardCell({ tile, locked, row, col, overRackIndex, rackR
             <div
                 id="board-cell"
                 ref={setNodeRef}
-                className={`aspect-square border border-zinc-100/70 rounded-sm flex items-center justify-center relative ${tile && !locked
+                className={`aspect-square border border-zinc-100/70 rounded-sm flex items-center justify-center relative ${tile && canTake
                         ? 'cursor-grab active:cursor-grabbing select-none'
                         : ''
                     }`}
@@ -78,8 +78,8 @@ export default function BoardCell({ tile, locked, row, col, overRackIndex, rackR
                     animation: isShaking ? 'shake 0.5s ease-in-out' : undefined
                 }}
                 onContextMenu={handleRightClick}
-                {...(tile && !locked ? listeners : {})}
-                {...(tile && !locked ? attributes : {})}
+                {...(tile && canTake ? listeners : {})}
+                {...(tile && canTake ? attributes : {})}
             >
                 {/* Sticker layer - positioned absolutely to not interfere with drag/drop */}
                 <StickerOverlay sticker={sticker || null} />
@@ -127,7 +127,7 @@ export default function BoardCell({ tile, locked, row, col, overRackIndex, rackR
                             transition: transform ? 'none' : 'all 0.1s linear'
                         }}
                     >
-                        <Tile value={tile.value} score={tile.score} locked={locked} originalValue={tile.originalValue} displayValue={tile.displayValue} />
+                        <Tile value={tile.value} score={tile.score} locked={!canTake} originalValue={tile.originalValue} displayValue={tile.displayValue} />
                     </div>
                 )}
 
