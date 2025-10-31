@@ -325,7 +325,7 @@ export default function Tile({ tile, size, opacity }) {
 Transformed blanks participate in words using their assigned letters:
 
 ```typescript
-// In boardUtils.findAllWords
+// In Board.findAllWords
 word += board[row][currentCol].tile!.value; // Uses assigned letter
 ```
 

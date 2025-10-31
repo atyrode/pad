@@ -1,7 +1,7 @@
 import { StickerState, Sticker } from '../types/sticker';
 import { BOARD_SIZE } from '../constants/board';
 import { Position } from '../types/board';
-import { WordInfo } from './boardUtils';
+import type { WordInfo } from '../domain/board/Board';
 
 /**
  * Create initial sticker layout with 4-way rotational symmetry

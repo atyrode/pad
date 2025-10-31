@@ -10,8 +10,9 @@ import {
 import { BoardState, Position } from '../types/board';
 import { RackState } from '../types/rack';
 import { DRAG_ACTIVATION_DISTANCE } from '../constants/board';
-import { parseEmptySlotId } from '../utils/boardUtils';
-import { parseRackSlotId, isRackSlotId, findTileInRack, swapRackTiles } from '../utils/rackUtils';
+import * as BoardDomain from '../domain/board/Board';
+import { parseRackSlotId, isRackSlotId } from '../utils/utils';
+import * as Rack from '../domain/rack/Rack';
 import * as TileOperations from '../engine/TileOperations';
 
 interface UseDragAndDropProps {
@@ -55,7 +56,7 @@ export function useDragAndDrop({ board, setBoard, rack, setRack, gameAreaRef, on
         
         // Check if we're over a rack cell or rack tile
         const rackIndex = parseRackSlotId(overId);
-        const rackTileIndex = findTileInRack(rack, overId);
+        const rackTileIndex = Rack.findById(rack, overId);
         
         if (rackIndex !== null || rackTileIndex !== null) {
             // We're over a rack cell
@@ -66,7 +67,7 @@ export function useDragAndDrop({ board, setBoard, rack, setRack, gameAreaRef, on
         
         // Check if we're over a board cell or empty board slot
         const boardPos = TileOperations.findTilePosition(board, overId);
-        const emptyPos = parseEmptySlotId(overId);
+        const emptyPos = BoardDomain.parseEmptySlotId(overId);
         
         if (boardPos || emptyPos) {
             setOverBoardPos(boardPos || emptyPos);
@@ -92,16 +93,16 @@ export function useDragAndDrop({ board, setBoard, rack, setRack, gameAreaRef, on
 
         // Determine if active tile is from board or rack
         const activeBoardPos = TileOperations.findTilePosition(board, activeId);
-        const activeRackIndex = findTileInRack(rack, activeId);
+        const activeRackIndex = Rack.findById(rack, activeId);
 
         // Determine if over target is board or rack
         const overBoardPos = TileOperations.findTilePosition(board, overId);
         const overRackIndex = parseRackSlotId(overId);
-        const overRackTileIndex = findTileInRack(rack, overId);
+        const overRackTileIndex = Rack.findById(rack, overId);
 
         // Case 1: Board → Board (existing functionality)
-        if (activeBoardPos && (overBoardPos || parseEmptySlotId(overId))) {
-            const targetPos = overBoardPos || parseEmptySlotId(overId);
+        if (activeBoardPos && (overBoardPos || BoardDomain.parseEmptySlotId(overId))) {
+            const targetPos = overBoardPos || BoardDomain.parseEmptySlotId(overId);
             if (targetPos) {
                 const result = TileOperations.moveTileBetweenBoardPositions(
                     board,
@@ -127,8 +128,8 @@ export function useDragAndDrop({ board, setBoard, rack, setRack, gameAreaRef, on
             }
         }
         // Case 3: Rack → Board
-        else if (activeRackIndex !== null && (overBoardPos || parseEmptySlotId(overId))) {
-            const targetPos = overBoardPos || parseEmptySlotId(overId);
+        else if (activeRackIndex !== null && (overBoardPos || BoardDomain.parseEmptySlotId(overId))) {
+            const targetPos = overBoardPos || BoardDomain.parseEmptySlotId(overId);
             if (targetPos) {
                 const result = TileOperations.placeTileOnBoardFromRack(
                     rack,
@@ -156,7 +157,7 @@ export function useDragAndDrop({ board, setBoard, rack, setRack, gameAreaRef, on
         else if (activeRackIndex !== null && (overRackIndex !== null || overRackTileIndex !== null)) {
             const targetIndex = overRackIndex !== null ? overRackIndex : overRackTileIndex;
             if (targetIndex !== null && targetIndex !== activeRackIndex) {
-                const newRack = swapRackTiles(rack, activeRackIndex, targetIndex);
+                const newRack = Rack.swap(rack, activeRackIndex, targetIndex);
                 setRack(newRack);
             }
         }

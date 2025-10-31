@@ -235,56 +235,30 @@ if (rackIndex !== null || rackTileIndex !== null) {
 
 ## Rack Operations in Engine
 
-### Rack Utilities (`rackUtils.ts`)
+### Rack Domain Module (`src/domain/rack/Rack.ts`)
 
-All rack utility functions are now consolidated in `src/utils/rackUtils.ts`:
+All rack operations are encapsulated in the Rack domain module:
 
 #### Core Rack Operations
 ```typescript
-export function moveTileToRack(rack: RackState, tile: TileData, index: number): RackState {
-    const newRack = [...rack];
-    if (index >= 0 && index < rack.length) {
-        newRack[index] = tile;
-    }
-    return newRack;
-}
+// Create an empty rack
+const rack = Rack.createEmpty();
 
-export function removeTileFromRack(rack: RackState, index: number): RackState {
-    const newRack = [...rack];
-    if (index >= 0 && index < rack.length) {
-        newRack[index] = null;
-    }
-    return newRack;
-}
+// Add/remove tiles
+const withTile = Rack.addAt(rack, 2, tile);
+const withoutTile = Rack.removeAt(rack, 2);
 
-export function swapRackTiles(rack: RackState, index1: number, index2: number): RackState {
-    const newRack = [...rack];
-    if (index1 >= 0 && index1 < rack.length && index2 >= 0 && index2 < rack.length) {
-        const tile1 = newRack[index1];
-        const tile2 = newRack[index2];
-        newRack[index1] = tile2;
-        newRack[index2] = tile1;
-    }
-    return newRack;
-}
+// Swap tiles
+const swapped = Rack.swap(rack, 1, 4);
 
-export function findFirstEmptySlot(rack: RackState): number | null {
-    for (let i = 0; i < rack.length; i++) {
-        if (rack[i] === null) {
-            return i;
-        }
-    }
-    return null;
-}
+// Query operations
+const emptyIndex = Rack.firstEmpty(rack);
+const tileIndex = Rack.findById(rack, tileId);
+const tileCount = Rack.count(rack);
+const isFull = Rack.isFull(rack);
 
-export function findTileInRack(rack: RackState, tileId: string): number | null {
-    for (let i = 0; i < rack.length; i++) {
-        if (rack[i]?.id === tileId) {
-            return i;
-        }
-    }
-    return null;
-}
+// Shuffle
+const shuffled = Rack.shuffle(rack);
 ```
 
 ### TileOperations Integration

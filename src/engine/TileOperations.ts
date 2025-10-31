@@ -2,7 +2,7 @@ import { BoardState, Position, PlacementHistoryEntry } from '../types/board';
 import { RackState } from '../types/rack';
 import { TileData } from '../types/tile';
 import { BOARD_SIZE } from '../constants/board';
-import { findFirstEmptySlot, moveTileToRack, removeTileFromRack, findTileInRack } from '../utils/rackUtils';
+import * as Rack from '../domain/rack/Rack';
 
 /**
  * Result of placing a tile on the board from a rack
@@ -147,9 +147,9 @@ export function placeTileOnBoardFromRack(
     const wasBlank = tile.originalValue === '*';
 
     // Update rack: remove tile from source, add swapped tile if any
-    let newRack = removeTileFromRack(rack, rackIndex);
+    let newRack = Rack.removeAt(rack, rackIndex);
     if (swappedTile) {
-        newRack = moveTileToRack(newRack, swappedTile, rackIndex);
+        newRack = Rack.addAt(newRack, rackIndex, swappedTile);
     }
 
     // Update board: place tile
@@ -195,7 +195,7 @@ export function removeTileFromBoardToRack(
     // Determine target rack index
     let rackIndex = targetRackIndex;
     if (rackIndex === null) {
-        rackIndex = findFirstEmptySlot(rack);
+        rackIndex = Rack.firstEmpty(rack);
         if (rackIndex === null) {
             return null;
         }
@@ -218,7 +218,7 @@ export function removeTileFromBoardToRack(
     const newBoard = removeTileFromBoard(board, boardPosition);
 
     // Update rack: add tile
-    const newRack = moveTileToRack(rack, tileToAdd, rackIndex);
+    const newRack = Rack.addAt(rack, rackIndex, tileToAdd);
 
     return {
         board: newBoard,

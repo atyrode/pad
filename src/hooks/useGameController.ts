@@ -14,12 +14,12 @@ import { useKeyboardTileActions } from "./useKeyboardTileActions";
 import { BoardState, PlacementHistoryEntry, Position } from "../types/board";
 import { RackState } from "../types/rack";
 import { TileData } from "../types/tile";
-import { shuffleRack, findFirstEmptySlot } from "../utils/rackUtils";
+import * as Rack from "../domain/rack/Rack";
 import * as TileOperations from "../engine/TileOperations";
 import * as TileSupply from "../engine/TileSupply";
 import * as PlayResolution from "../engine/PlayResolution";
 import { createInitialDraftBoard } from "../utils/draftBoardUtils";
-import { createInitialBoard } from "../utils/boardUtils";
+import * as Board from "../domain/board/Board";
 import { createInitialStickers, consumeSticker } from "../utils/stickerUtils";
 import { getAllAvailableLetters } from "../utils/tileDefinitions";
 import { canPlaySelector, canShuffleSelector } from "../state/selectors";
@@ -128,7 +128,7 @@ export function useGameController() {
   const { selectedCell, selectorDirection, advanceSelector } = useKeyboardSelector({
     onLetterInput: rawHandleKeyboardTilePlacement,
     onBackspace: handleKeyboardTileRemoval,
-    onShuffle: () => setRack((prev: RackState) => shuffleRack(prev)),
+    onShuffle: () => setRack((prev: RackState) => Rack.shuffle(prev)),
     onPlay: () => {
       if (canPlaySelector({ board: state.board, stickers: state.stickers, isDictionaryLoaded: state.isDictionaryLoaded })) {
         handlePlay();
@@ -140,7 +140,7 @@ export function useGameController() {
   // Right-click handlers
   const handleRightClick = (tile: TileData, position: Position): boolean => {
     if (state.isDraftMode) return false;
-    const emptySlotIndex = findFirstEmptySlot(state.rack);
+    const emptySlotIndex = Rack.firstEmpty(state.rack);
     if (emptySlotIndex === null) return false;
     
     // Use TileOperations which handles blank tile reversion automatically
@@ -223,7 +223,7 @@ export function useGameController() {
   };
 
   // Actions
-  const handleShuffle = () => setRack((prevRack: RackState) => shuffleRack(prevRack));
+  const handleShuffle = () => setRack((prevRack: RackState) => Rack.shuffle(prevRack));
   
   const handlePlay = () => {
     const result = PlayResolution.resolvePlay({
@@ -327,7 +327,7 @@ export function useGameController() {
       setRack(emptyRack);
     },
     onResetBoard: () => {
-      setBoard(createInitialBoard());
+      setBoard(Board.createEmpty());
     },
     onResetScore: () => {
       setTotalScore(0);
@@ -356,7 +356,7 @@ export function useGameController() {
     onResetGame: () => {
       // Capture current board before resetting for sticker calculation
       const currentBoard = state.board;
-      setBoard(createInitialBoard());
+      setBoard(Board.createEmpty());
       const emptyRack: RackState = Array(state.rack.length).fill(null);
       setRack(emptyRack);
       setTotalScore(0);

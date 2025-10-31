@@ -3,11 +3,11 @@ import { Bag } from '../types/bag';
 import { RackState } from '../types/rack';
 import { BoardState } from '../types/board';
 import { StickerState } from '../types/sticker';
-import { findAllWords } from '../utils/boardUtils';
+import * as BoardDomain from '../domain/board/Board';
 import { createInitialDraftBoard, generateRandomTiles } from '../utils/draftBoardUtils';
 import { isValidWordSync } from '../utils/dictionaryUtils';
 import { countStickers } from '../utils/stickerUtils';
-import { findFirstEmptySlot } from '../utils/rackUtils';
+import * as Rack from '../domain/rack/Rack';
 import { TileData } from '../types/tile';
 import { useGame } from '../state/GameContext';
 import * as PlayResolution from '../engine/PlayResolution';
@@ -99,8 +99,8 @@ export default function DebugMenu({ bag, rack, board, setRack, setBag, setBoard,
   // All mutating handlers are injected via props; this component remains presentational.
 
   // Check if buttons should be disabled
-  const isDrawDisabled = bag.length === 0 || findFirstEmptySlot(rack) === null;
-  const isDrawAllDisabled = bag.length === 0 || findFirstEmptySlot(rack) === null;
+  const isDrawDisabled = bag.length === 0 || Rack.firstEmpty(rack) === null;
+  const isDrawAllDisabled = bag.length === 0 || Rack.firstEmpty(rack) === null;
   const isRedrawDisabled = bag.length === 0 || rack.every(tile => tile === null);
 
   // Helper function to get validation icon
@@ -120,7 +120,7 @@ export default function DebugMenu({ bag, rack, board, setRack, setBag, setBoard,
   };
 
   // Find all words on the board
-  const words = findAllWords(board);
+  const words = BoardDomain.findAllWords(board);
   const currentWords = words.filter(w => !w.isLocked);
   const playedWords = words.filter(w => w.isLocked);
 

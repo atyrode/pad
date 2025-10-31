@@ -28,10 +28,10 @@ Cells have different states that control gameplay:
 
 ### Board Initialization
 
-`src/utils/boardUtils.ts` creates the initial board:
+`src/domain/board/Board.ts` creates the initial board:
 
 ```typescript
-export function createInitialBoard(): BoardState {
+export function createEmpty(): BoardState {
     const initialBoard: BoardState = Array(BOARD_SIZE).fill(null).map(() =>
         Array(BOARD_SIZE).fill(null).map(() => ({
             tile: null,
@@ -47,7 +47,7 @@ export function createInitialBoard(): BoardState {
 
 ### findAllWords() Function
 
-The core word finding algorithm in `src/utils/boardUtils.ts`:
+The core word finding algorithm in `src/domain/board/Board.ts`:
 
 ```typescript
 export function findAllWords(board: BoardState): WordInfo[] {

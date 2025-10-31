@@ -239,13 +239,13 @@ Engine functions power state selectors for UI decisions:
 export function canPlaySelector(args: { board, stickers, isDictionaryLoaded }): boolean {
     if (!args.isDictionaryLoaded) return false;
 
-    const words = boardUtils.findAllWords(args.board);
+    const words = Board.findAllWords(args.board);
     const currentWords = words.filter(w => !w.isLocked);
 
     if (currentWords.length === 0) return false;
 
-    // Use boardUtils for validation
-    if (!boardUtils.areUnlockedTilesInSingleLine(args.board)) return false;
+    // Use Board for validation
+    if (!Board.areUnlockedTilesInSingleLine(args.board)) return false;
 
     // Dictionary validation
     const allWordsValid = currentWords.every(wordInfo =>
@@ -259,7 +259,7 @@ export function canPlaySelector(args: { board, stickers, isDictionaryLoaded }): 
 
 ## Utility Functions
 
-### Board Utils (`src/utils/boardUtils.ts`)
+### Board Domain (`src/domain/board/Board.ts`)
 
 **Purpose**: Board analysis, word finding, and placement validation.
 

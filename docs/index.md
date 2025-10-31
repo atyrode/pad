@@ -116,7 +116,8 @@ When making changes to the codebase:
 | `src/engine/TileOperations.ts` | [Placement](mechanics/placement.md), [Blank Tiles](mechanics/blank-tiles.md) |
 | `src/engine/TileSupply.ts` | [Bag](mechanics/bag.md), [Drawing](mechanics/drawing.md) |
 | `src/engine/PlayResolution.ts` | [Play Resolution](mechanics/play-resolution.md), [Scoring](mechanics/scoring.md) |
-| `src/utils/rackUtils.ts` | [Rack](mechanics/rack.md) |
+| `src/domain/rack/Rack.ts` | [Rack](mechanics/rack.md), [Rack Module](architecture/modules/rack.md) |
+| `src/domain/board/Board.ts` | [Board](mechanics/board.md), [Board Module](architecture/modules/board.md) |
 | `src/components/Board.tsx` | [Board](mechanics/board.md), [Components](architecture/components.md) |
 | `src/components/DraftBoard.tsx` | [Draft Mode](mechanics/draft.md), [Components](architecture/components.md) |
 

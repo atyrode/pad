@@ -3,7 +3,8 @@ import { RackState } from '../types/rack';
 import { Bag } from '../types/bag';
 import { StickerState } from '../types/sticker';
 import { TileData } from '../types/tile';
-import { findAllWords, WordInfo } from '../utils/boardUtils';
+import * as BoardDomain from '../domain/board/Board';
+import type { WordInfo } from '../domain/board/Board';
 import { consumeSticker, isStickerActive } from '../utils/stickerUtils';
 import * as TileSupply from './TileSupply';
 
@@ -117,7 +118,7 @@ export function calculateWordScore(word: WordInfo, board: BoardState, stickers?:
  * Calculate score breakdown for current (unlocked) words
  */
 export function calculateCurrentPlayScore(board: BoardState, stickers?: StickerState): PlayScore {
-    const words = findAllWords(board);
+    const words = BoardDomain.findAllWords(board);
     const currentWords = words.filter(w => !w.isLocked);
     
     let totalPoints = 0;
@@ -206,7 +207,7 @@ export function calculateCurrentPlayScore(board: BoardState, stickers?: StickerS
  * Calculate cumulative score from all played (locked) words
  */
 export function calculateTotalScore(board: BoardState, stickers?: StickerState): number {
-    const words = findAllWords(board);
+    const words = BoardDomain.findAllWords(board);
     const playedWords = words.filter(w => w.isLocked);
     
     let totalScore = 0;

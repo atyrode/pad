@@ -373,7 +373,7 @@ const score = PlayResolution.calculateCurrentPlayScore(state.board, state.sticke
 console.log('Current play score:', score);
 
 // Calculate individual word scores
-const words = boardUtils.findAllWords(state.board);
+const words = Board.findAllWords(state.board);
 words.forEach(word => {
     const wordScore = PlayResolution.calculateWordScore(word, state.board, state.stickers);
     console.log(`${word.word}: ${wordScore} points`);

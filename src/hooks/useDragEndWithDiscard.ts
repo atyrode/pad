@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { BoardState, Position, PlacementHistoryEntry } from '../types/board';
 import { RackState } from '../types/rack';
 import { TileData } from '../types/tile';
-import { parseEmptySlotId } from '../utils/boardUtils';
-import { findTileInRack } from '../utils/rackUtils';
+import * as BoardDomain from '../domain/board/Board';
+import * as Rack from '../domain/rack/Rack';
 import * as TileOperations from '../engine/TileOperations';
 import * as DiscardOperations from '../engine/DiscardOperations';
 import * as TileSupply from '../engine/TileSupply';
@@ -86,7 +86,7 @@ export function useDragEndWithDiscard(params: UseDragEndWithDiscardParams) {
             setDiscardAnim({ tile: removeResult.removedTile });
 
             // Determine source rack index before removal for TileSupply
-            const sourceRackIndex = findTileInRack(rack, activeId);
+            const sourceRackIndex = Rack.findById(rack, activeId);
 
             window.setTimeout(() => {
                 // Perform discard+draw operation using TileSupply with already-removed state
@@ -124,9 +124,9 @@ export function useDragEndWithDiscard(params: UseDragEndWithDiscardParams) {
         }
 
         // Blank tile interception when moving from rack to board
-        const activeRackIndex = findTileInRack(rack, activeId);
+        const activeRackIndex = Rack.findById(rack, activeId);
         const overBoardPos = TileOperations.findTilePosition(board, overId);
-        const overEmptyPos = parseEmptySlotId(overId);
+        const overEmptyPos = BoardDomain.parseEmptySlotId(overId);
 
         if (activeRackIndex !== null && (overBoardPos || overEmptyPos)) {
             const tile = rack[activeRackIndex];

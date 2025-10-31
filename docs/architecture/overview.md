@@ -88,8 +88,8 @@ TypeScript type definitions:
 ### `/src/utils/`
 Utility functions for specific domains:
 
-- `boardUtils.ts` - Board analysis, word finding, placement validation
-- `rackUtils.ts` - Rack operations like shuffling
+- `domain/board/Board.ts` - Board analysis, word finding, placement validation
+- `domain/rack/Rack.ts` - Rack operations like shuffling
 - `draftBoardUtils.ts` - Draft board initialization and tile placement
 - `stickerUtils.ts` - Sticker management and consumption
 - `tileDefinitions.ts` - Tile letter definitions and scoring

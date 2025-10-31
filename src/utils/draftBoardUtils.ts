@@ -1,7 +1,7 @@
 import { BoardState } from '../types/board';
 import { TileData } from '../types/tile';
 import { getTileDefinition, ALL_TILE_DEFINITIONS } from './tileDefinitions';
-import { createInitialBoard } from './boardUtils';
+import * as Board from '../domain/board/Board';
 import { BOARD_SIZE } from '../constants/board';
 
 /**
@@ -70,7 +70,7 @@ export function createBlankTile(idSuffix: string = ''): TileData {
  * and random suggested tiles at positions (4,2), (4,5), (4,8)
  */
 export function createInitialDraftBoard(): BoardState {
-    const board = createInitialBoard();
+    const board = Board.createEmpty();
     
     // By default in draft mode: disallow placement everywhere
     for (let r = 0; r < board.length; r++) {

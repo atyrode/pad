@@ -3,8 +3,8 @@
 import { createContext, useContext, useMemo, useReducer, ReactNode, useEffect } from "react";
 import { GameState, GameAction } from "./gameTypes";
 import { gameReducer } from "./gameReducer";
-import { createInitialBoard } from "../utils/boardUtils";
-import { createInitialRack } from "../utils/rackUtils";
+import * as Board from "../domain/board/Board";
+import * as Rack from "../domain/rack/Rack";
 import { createInitialDraftBoard } from "../utils/draftBoardUtils";
 import { createInitialStickers } from "../utils/stickerUtils";
 import { preloadDictionary } from "../utils/dictionaryUtils";
@@ -14,8 +14,8 @@ const GameDispatchContext = createContext<React.Dispatch<GameAction> | undefined
 
 function getInitialState(): GameState {
     return {
-        board: createInitialBoard(),
-        rack: createInitialRack(),
+        board: Board.createEmpty(),
+        rack: Rack.createEmpty(),
         bag: [],
         discard: [],
 

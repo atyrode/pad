@@ -2,7 +2,7 @@ import { RackState } from '../types/rack';
 import { Bag } from '../types/bag';
 import { TileData } from '../types/tile';
 import { getTileDefinitionById } from '../utils/tileDefinitions';
-import { findFirstEmptySlot } from '../utils/rackUtils';
+import * as Rack from '../domain/rack/Rack';
 
 /**
  * State for tile supply operations
@@ -184,7 +184,7 @@ function drawTile(bag: Bag, discard: TileData[]): {
  * Returns null if no empty slot is available or bag/discard are empty.
  */
 export function drawOne(currentState: TileSupplyState): DrawResult | null {
-    const slotIndex = findFirstEmptySlot(currentState.rack);
+    const slotIndex = Rack.firstEmpty(currentState.rack);
     if (slotIndex === null) {
         return null;
     }
@@ -214,7 +214,7 @@ export function drawToFill(currentState: TileSupplyState): DrawResult {
     let currentDiscard = currentState.discard;
 
     while (true) {
-        const slot = findFirstEmptySlot(rackWork);
+        const slot = Rack.firstEmpty(rackWork);
         if (slot === null) break;
 
         const { tile, newBag, newDiscard } = drawTile(currentBag, currentDiscard);
@@ -283,7 +283,7 @@ export function discardAndDraw(
     // Determine target slot for drawing
     const slotIndex = sourceRackIndex !== null 
         ? sourceRackIndex 
-        : findFirstEmptySlot(updatedRack);
+        : Rack.firstEmpty(updatedRack);
 
     if (slotIndex === null) {
         return {
