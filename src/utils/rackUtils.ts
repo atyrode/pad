@@ -1,16 +1,24 @@
 import { RackState } from '../types/rack';
-import { TileData } from '../types/tile';
 
 export const RACK_SIZE = 7;
 
+/**
+ * Create an empty rack with the standard size
+ */
 export function createInitialRack(): RackState {
     return Array(RACK_SIZE).fill(null);
 }
 
+/**
+ * Check if a string ID represents a rack slot
+ */
 export function isRackSlotId(id: string): boolean {
     return id.startsWith('rack-');
 }
 
+/**
+ * Parse a rack slot ID string to extract the index
+ */
 export function parseRackSlotId(id: string): number | null {
     if (!isRackSlotId(id)) return null;
     
@@ -19,42 +27,9 @@ export function parseRackSlotId(id: string): number | null {
     return isNaN(index) ? null : index;
 }
 
-export function moveTileToRack(rack: RackState, tile: TileData, index: number): RackState {
-    const newRack = [...rack];
-    if (index >= 0 && index < RACK_SIZE) {
-        newRack[index] = tile;
-    }
-    return newRack;
-}
-
-export function removeTileFromRack(rack: RackState, index: number): RackState {
-    const newRack = [...rack];
-    if (index >= 0 && index < RACK_SIZE) {
-        newRack[index] = null;
-    }
-    return newRack;
-}
-
-export function swapRackTiles(rack: RackState, index1: number, index2: number): RackState {
-    const newRack = [...rack];
-    if (index1 >= 0 && index1 < RACK_SIZE && index2 >= 0 && index2 < RACK_SIZE) {
-        const tile1 = newRack[index1];
-        const tile2 = newRack[index2];
-        newRack[index1] = tile2;
-        newRack[index2] = tile1;
-    }
-    return newRack;
-}
-
-export function findFirstEmptySlot(rack: RackState): number | null {
-    for (let i = 0; i < rack.length; i++) {
-        if (rack[i] === null) {
-            return i;
-        }
-    }
-    return null;
-}
-
+/**
+ * Shuffle tiles in the rack using Fisher-Yates algorithm
+ */
 export function shuffleRack(rack: RackState): RackState {
     // Extract all non-null tiles
     const tiles = rack.filter(tile => tile !== null);
@@ -73,4 +48,3 @@ export function shuffleRack(rack: RackState): RackState {
     
     return newRack;
 }
-

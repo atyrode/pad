@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { BoardState, Position, PlacementHistoryEntry } from '../types/board';
 import { RackState } from '../types/rack';
 import { TileData } from '../types/tile';
-import { TileMovementService } from '../services/TileMovementService';
+import * as TileOperations from '../engine/TileOperations';
 
 type SetBoard = React.Dispatch<React.SetStateAction<BoardState>>;
 type SetRack = React.Dispatch<React.SetStateAction<RackState>>;
@@ -58,8 +58,8 @@ export function useBlankTilePlacement({ board, setBoard, rack, setRack, setPlace
         const tempRack = [...rack];
         tempRack[sourceRackIndex] = transformedTile;
         
-        // Use TileMovementService to place the transformed blank tile
-        const result = TileMovementService.placeTileOnBoard(
+        // Use TileOperations to place the transformed blank tile
+        const result = TileOperations.placeTileOnBoardFromRack(
             tempRack,
             sourceRackIndex,
             board,

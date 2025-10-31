@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import { BoardState, Position } from "../types/board";
 import { TileData } from "../types/tile";
 import { Bag } from "../types/bag";
-import { shuffleBag } from "../utils/bagUtils";
+import * as TileSupply from "../engine/TileSupply";
 
 export function useSeedBagFromDraft(args: {
     isDraftMode: boolean;
@@ -34,7 +34,7 @@ export function useSeedBagFromDraft(args: {
 
         if (drafted.length !== 14) return;
 
-        const newBag = shuffleBag([...drafted]);
+        const newBag = TileSupply.shuffleBag([...drafted]);
         setBag(newBag);
         setHasSeededFromDraft(true);
     }, [isDraftMode, draftBoard, draftEnded, hasSeededFromDraft]);

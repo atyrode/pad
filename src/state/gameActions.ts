@@ -4,14 +4,12 @@ import { Bag } from "../types/bag";
 import { StickerState } from "../types/sticker";
 import { TileData } from "../types/tile";
 import { GameAction } from "./gameTypes";
-import { findFirstEmptySlot, shuffleRack } from "../utils/rackUtils";
-import { shuffleBag } from "../utils/bagUtils";
+import { shuffleRack } from "../utils/rackUtils";
 import { createInitialBoard } from "../utils/boardUtils";
-import { calculateCurrentPlayScore } from "../utils/scoreUtils";
 import { consumeSticker, createInitialStickers } from "../utils/stickerUtils";
-import { TileSupplyService } from "../services/TileSupplyService";
-import { TileMovementService } from "../services/TileMovementService";
-import { resolvePlay } from "../services/PlayService";
+import * as TileSupply from "../engine/TileSupply";
+import * as TileOperations from "../engine/TileOperations";
+import * as PlayResolution from "../engine/PlayResolution";
 
 export type GameDispatch = React.Dispatch<GameAction>;
 
@@ -46,7 +44,7 @@ export function handlePlayAction(
     },
     dispatch: GameDispatch
 ) {
-    const result = resolvePlay(args);
+    const result = PlayResolution.resolvePlay(args);
 
     dispatch({
         type: 'batchUpdate',
@@ -112,8 +110,8 @@ export function handleKeyboardTilePlacementAction(
         const tempRack = [...args.rack];
         tempRack[rackIndex] = transformedTile;
         
-        // Use TileMovementService to place the transformed tile
-        const result = TileMovementService.placeTileOnBoard(
+        // Use TileOperations to place the transformed tile
+        const result = TileOperations.placeTileOnBoardFromRack(
             tempRack,
             rackIndex,
             args.board,
@@ -133,8 +131,8 @@ export function handleKeyboardTilePlacementAction(
         return false;
     }
 
-    // Place regular tile using TileMovementService
-    const result = TileMovementService.placeTileOnBoard(
+    // Place regular tile using TileOperations
+    const result = TileOperations.placeTileOnBoardFromRack(
         args.rack,
         rackIndex,
         args.board,
@@ -165,7 +163,7 @@ export function handleKeyboardTileRemovalAction(
 ): { success: boolean; position?: Position } {
     if (args.placementHistory.length === 0) return { success: false };
 
-    const emptySlotIndex = findFirstEmptySlot(args.rack);
+    const emptySlotIndex = TileOperations.findFirstEmptySlot(args.rack);
     if (emptySlotIndex === null) return { success: false };
 
     let newHistory = [...args.placementHistory];
@@ -180,8 +178,8 @@ export function handleKeyboardTileRemovalAction(
             continue;
         }
 
-        // Use TileMovementService which handles blank tile reversion automatically
-        const result = TileMovementService.removeTileFromBoard(
+        // Use TileOperations which handles blank tile reversion automatically
+        const result = TileOperations.removeTileFromBoardToRack(
             args.board,
             position,
             args.rack,
@@ -213,7 +211,7 @@ export function drawOneAction(
     args: { rack: RackState; bag: Bag; discard: TileData[] },
     dispatch: GameDispatch
 ) {
-    const result = TileSupplyService.drawOne({
+    const result = TileSupply.drawOne({
         rack: args.rack,
         bag: args.bag,
         discard: args.discard,
@@ -228,7 +226,7 @@ export function drawAllAction(
     args: { rack: RackState; bag: Bag; discard: TileData[] },
     dispatch: GameDispatch
 ) {
-    const result = TileSupplyService.drawToFill({
+    const result = TileSupply.drawToFill({
         rack: args.rack,
         bag: args.bag,
         discard: args.discard,
@@ -241,7 +239,7 @@ export function redrawAction(
     args: { rack: RackState; bag: Bag; discard: TileData[] },
     dispatch: GameDispatch
 ) {
-    const result = TileSupplyService.redraw({
+    const result = TileSupply.redraw({
         rack: args.rack,
         bag: args.bag,
         discard: args.discard,
@@ -251,7 +249,7 @@ export function redrawAction(
 }
 
 export function shuffleBagAction(args: { bag: Bag }, dispatch: GameDispatch) {
-    dispatch({ type: 'setBag', payload: { bag: shuffleBag(args.bag) } });
+    dispatch({ type: 'setBag', payload: { bag: TileSupply.shuffleBag(args.bag) } });
 }
 
 export function resetBoardAction(dispatch: GameDispatch) {
@@ -290,7 +288,7 @@ export function resetBagFromDraftAction(
     const draftedTiles = positions
         .map(p => args.draftBoard[p.row][p.col].tile)
         .filter(Boolean) as TileData[];
-    dispatch({ type: 'setBag', payload: { bag: shuffleBag([...draftedTiles]) } });
+    dispatch({ type: 'setBag', payload: { bag: TileSupply.shuffleBag([...draftedTiles]) } });
 }
 
 

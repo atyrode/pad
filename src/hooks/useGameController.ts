@@ -13,8 +13,8 @@ import { useKeyboardSelector } from "./useKeyboardSelector";
 import { BoardState, PlacementHistoryEntry, Position } from "../types/board";
 import { RackState } from "../types/rack";
 import { TileData } from "../types/tile";
-import { findFirstEmptySlot, shuffleRack } from "../utils/rackUtils";
-import { TileMovementService } from "../services/TileMovementService";
+import { shuffleRack } from "../utils/rackUtils";
+import * as TileOperations from "../engine/TileOperations";
 import { createInitialDraftBoard } from "../utils/draftBoardUtils";
 import { getAllAvailableLetters } from "../utils/tileDefinitions";
 import {
@@ -156,11 +156,11 @@ export function useGameController() {
   // Right-click handlers
   const handleRightClick = (tile: TileData, position: Position): boolean => {
     if (state.isDraftMode) return false;
-    const emptySlotIndex = findFirstEmptySlot(state.rack);
+    const emptySlotIndex = TileOperations.findFirstEmptySlot(state.rack);
     if (emptySlotIndex === null) return false;
     
-    // Use TileMovementService which handles blank tile reversion automatically
-    const result = TileMovementService.removeTileFromBoard(
+    // Use TileOperations which handles blank tile reversion automatically
+    const result = TileOperations.removeTileFromBoardToRack(
       state.board,
       position,
       state.rack,
@@ -216,8 +216,8 @@ export function useGameController() {
     const targetCell = state.board[selectedCell.row][selectedCell.col];
     if (!targetCell.canPlace) return false;
     
-    // Use TileMovementService to place tile
-    const result = TileMovementService.placeTileOnBoard(
+    // Use TileOperations to place tile
+    const result = TileOperations.placeTileOnBoardFromRack(
       state.rack,
       rackIndex,
       state.board,

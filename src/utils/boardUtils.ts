@@ -1,7 +1,9 @@
 import { BoardState, Position } from '../types/board';
-import { TileData } from '../types/tile';
 import { BOARD_SIZE } from '../constants/board';
 
+/**
+ * Parse an empty board slot ID string to extract the position
+ */
 export function parseEmptySlotId(slotId: string): Position | null {
     if (!slotId.startsWith('empty-')) return null;
     
@@ -9,26 +11,9 @@ export function parseEmptySlotId(slotId: string): Position | null {
     return { row: parseInt(rowStr), col: parseInt(colStr) };
 }
 
-export function swapBoardTiles(board: BoardState, pos1: Position, pos2: Position): BoardState {
-    const newBoard = board.map(row => [...row]);
-
-    // Swap ONLY the tiles, preserve canPlace/canTake flags per cell
-    const tile1 = newBoard[pos1.row][pos1.col].tile;
-    const tile2 = newBoard[pos2.row][pos2.col].tile;
-
-    newBoard[pos1.row][pos1.col] = {
-        ...newBoard[pos1.row][pos1.col],
-        tile: tile2,
-    };
-
-    newBoard[pos2.row][pos2.col] = {
-        ...newBoard[pos2.row][pos2.col],
-        tile: tile1,
-    };
-
-    return newBoard;
-}
-
+/**
+ * Create an empty board with the standard size
+ */
 export function createInitialBoard(): BoardState {
     const initialBoard: BoardState = Array(BOARD_SIZE).fill(null).map(() => 
         Array(BOARD_SIZE).fill(null).map(() => ({ tile: null, canPlace: true, canTake: true }))
@@ -36,22 +21,9 @@ export function createInitialBoard(): BoardState {
     return initialBoard;
 }
 
-export function removeTileFromBoard(board: BoardState, pos: Position): BoardState {
-    const newBoard = board.map(row => [...row]);
-    // Preserve existing canPlace/canTake flags for this cell
-    const existing = newBoard[pos.row][pos.col];
-    newBoard[pos.row][pos.col] = { ...existing, tile: null };
-    return newBoard;
-}
-
-export function placeTileOnBoard(board: BoardState, tile: TileData, pos: Position): BoardState {
-    const newBoard = board.map(row => [...row]);
-    // Preserve existing canPlace/canTake flags for this cell
-    const existing = newBoard[pos.row][pos.col];
-    newBoard[pos.row][pos.col] = { ...existing, tile };
-    return newBoard;
-}
-
+/**
+ * Word information for board analysis
+ */
 export interface WordInfo {
     word: string;
     position: Position;
@@ -59,6 +31,9 @@ export interface WordInfo {
     isLocked: boolean;
 }
 
+/**
+ * Find all words on the board (both horizontal and vertical)
+ */
 export function findAllWords(board: BoardState): WordInfo[] {
     const words: WordInfo[] = [];
 

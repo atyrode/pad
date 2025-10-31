@@ -3,16 +3,15 @@ import { Bag } from '../types/bag';
 import { RackState } from '../types/rack';
 import { BoardState } from '../types/board';
 import { StickerState } from '../types/sticker';
-import { shuffleBag } from '../utils/bagUtils';
-import { findFirstEmptySlot } from '../utils/rackUtils';
 import { findAllWords } from '../utils/boardUtils';
 import { createInitialDraftBoard, generateRandomTiles } from '../utils/draftBoardUtils';
 import { isValidWordSync } from '../utils/dictionaryUtils';
-import { calculateCurrentPlayScore } from '../utils/scoreUtils';
 import { countStickers } from '../utils/stickerUtils';
 import { TileData } from '../types/tile';
 import { useGame } from '../state/GameContext';
-import { TileSupplyService } from '../services/TileSupplyService';
+import * as PlayResolution from '../engine/PlayResolution';
+import * as TileSupply from '../engine/TileSupply';
+import * as TileOperations from '../engine/TileOperations';
 
 interface DebugMenuProps {
   bag: Bag;
@@ -53,7 +52,7 @@ export default function DebugMenu({ bag, rack, board, setRack, setBag, setBoard,
   const { isDictionaryLoaded } = useGame();
 
   const handleDraw = () => {
-    const result = TileSupplyService.drawOne({
+    const result = TileSupply.drawOne({
       rack,
       bag,
       discard: discard || [],
@@ -69,7 +68,7 @@ export default function DebugMenu({ bag, rack, board, setRack, setBag, setBoard,
   };
 
   const handleDrawAll = () => {
-    const result = TileSupplyService.drawToFill({
+    const result = TileSupply.drawToFill({
       rack,
       bag,
       discard: discard || [],
@@ -83,7 +82,7 @@ export default function DebugMenu({ bag, rack, board, setRack, setBag, setBoard,
   };
 
   const handleRedraw = () => {
-    const result = TileSupplyService.redraw({
+    const result = TileSupply.redraw({
       rack,
       bag,
       discard: discard || [],
@@ -99,8 +98,8 @@ export default function DebugMenu({ bag, rack, board, setRack, setBag, setBoard,
   // All mutating handlers are injected via props; this component remains presentational.
 
   // Check if buttons should be disabled
-  const isDrawDisabled = bag.length === 0 || findFirstEmptySlot(rack) === null;
-  const isDrawAllDisabled = bag.length === 0 || findFirstEmptySlot(rack) === null;
+  const isDrawDisabled = bag.length === 0 || TileOperations.findFirstEmptySlot(rack) === null;
+  const isDrawAllDisabled = bag.length === 0 || TileOperations.findFirstEmptySlot(rack) === null;
   const isRedrawDisabled = bag.length === 0 || rack.every(tile => tile === null);
 
   // Helper function to get validation icon
@@ -125,7 +124,7 @@ export default function DebugMenu({ bag, rack, board, setRack, setBag, setBoard,
   const playedWords = words.filter(w => w.isLocked);
 
   // Calculate current play score
-  const currentPlayScore = calculateCurrentPlayScore(board, stickers);
+  const currentPlayScore = PlayResolution.calculateCurrentPlayScore(board, stickers);
 
   // Count stickers
   const stickerCounts = countStickers(stickers);

@@ -3,9 +3,9 @@ import { BoardState, Position, PlacementHistoryEntry } from '../types/board';
 import { RackState } from '../types/rack';
 import { TileData } from '../types/tile';
 import { parseEmptySlotId } from '../utils/boardUtils';
-import { TileMovementService } from '../services/TileMovementService';
-import { DiscardService } from '../services/DiscardService';
-import { TileSupplyService } from '../services/TileSupplyService';
+import * as TileOperations from '../engine/TileOperations';
+import * as DiscardOperations from '../engine/DiscardOperations';
+import * as TileSupply from '../engine/TileSupply';
 
 type SetState<T> = (updater: (prev: T) => T) => void;
 
@@ -60,8 +60,8 @@ export function useDragEndWithDiscard(params: UseDragEndWithDiscardParams) {
                 return;
             }
 
-            // Use DiscardService to remove tile from source immediately
-            const removeResult = DiscardService.removeForDiscard(
+            // Use DiscardOperations to remove tile from source immediately
+            const removeResult = DiscardOperations.removeForDiscard(
                 rack,
                 board,
                 placementHistory,
@@ -84,12 +84,12 @@ export function useDragEndWithDiscard(params: UseDragEndWithDiscardParams) {
             setIsDiscarding(true);
             setDiscardAnim({ tile: removeResult.removedTile });
 
-            // Determine source rack index before removal for TileSupplyService
-            const sourceRackIndex = TileMovementService.findTileInRack(rack, activeId);
+            // Determine source rack index before removal for TileSupply
+            const sourceRackIndex = TileOperations.findTileInRack(rack, activeId);
 
             window.setTimeout(() => {
-                // Perform discard+draw operation using TileSupplyService with already-removed state
-                const result = TileSupplyService.discardAndDraw(
+                // Perform discard+draw operation using TileSupply with already-removed state
+                const result = TileSupply.discardAndDraw(
                     removeResult.removedTile,
                     sourceRackIndex,
                     {
@@ -123,8 +123,8 @@ export function useDragEndWithDiscard(params: UseDragEndWithDiscardParams) {
         }
 
         // Blank tile interception when moving from rack to board
-        const activeRackIndex = TileMovementService.findTileInRack(rack, activeId);
-        const overBoardPos = TileMovementService.findTilePosition(board, overId);
+        const activeRackIndex = TileOperations.findTileInRack(rack, activeId);
+        const overBoardPos = TileOperations.findTilePosition(board, overId);
         const overEmptyPos = parseEmptySlotId(overId);
 
         if (activeRackIndex !== null && (overBoardPos || overEmptyPos)) {

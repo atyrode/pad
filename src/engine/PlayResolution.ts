@@ -1,25 +1,65 @@
-import { BoardState } from '../types/board';
-import { WordInfo } from './boardUtils';
+import { BoardState, Position } from '../types/board';
+import { RackState } from '../types/rack';
+import { Bag } from '../types/bag';
 import { StickerState } from '../types/sticker';
-import { isStickerActive } from './stickerUtils';
+import { TileData } from '../types/tile';
+import { findAllWords, WordInfo } from '../utils/boardUtils';
+import { consumeSticker, isStickerActive } from '../utils/stickerUtils';
+import * as TileSupply from './TileSupply';
 
+/**
+ * Score breakdown for a play
+ */
 export interface ScoreBreakdown {
-    baseTilePoints: number;  // Points from tiles only
-    stickerPoints: number;   // Bonus points from point stickers
-    baseTileMulti: number;   // Multiplier from tile count only
-    stickerMulti: number;    // Bonus multiplier from multi stickers
-    points: number;          // Total points (baseTilePoints + stickerPoints)
-    multi: number;           // Total multi (baseTileMulti + stickerMulti)
-    total: number;           // points × multi
+    baseTilePoints: number;
+    stickerPoints: number;
+    baseTileMulti: number;
+    stickerMulti: number;
+    points: number;
+    multi: number;
+    total: number;
 }
 
+/**
+ * Play score result
+ */
 export interface PlayScore {
     totalScore: number;
     breakdown: ScoreBreakdown;
 }
 
 /**
- * Calculate score for a single word using the formula: (sum of letter scores + sticker bonuses) × (word length + multi sticker bonuses)
+ * Arguments for resolving a play
+ */
+export interface ResolvePlayArgs {
+    board: BoardState;
+    stickers: StickerState;
+    rack: RackState;
+    bag: Bag;
+    discard: TileData[];
+    currentTotalScore: number;
+}
+
+/**
+ * Result of resolving a play
+ */
+export interface ResolvePlayResult {
+    board: BoardState;
+    stickers: StickerState;
+    rack: RackState;
+    bag: Bag;
+    discard: TileData[];
+    totalScore: number;
+    placementHistory: [];
+}
+
+// ============================================================================
+// SCORE CALCULATION
+// ============================================================================
+
+/**
+ * Calculate score for a single word using the formula:
+ * (sum of letter scores + sticker bonuses) × (word length + multi sticker bonuses)
  */
 export function calculateWordScore(word: WordInfo, board: BoardState, stickers?: StickerState): number {
     let points = 0;
@@ -28,42 +68,38 @@ export function calculateWordScore(word: WordInfo, board: BoardState, stickers?:
     let stickerMulti = 0;
 
     if (word.direction === 'horizontal') {
-        // Calculate for horizontal word
         for (let col = word.position.col; col < word.position.col + word.word.length; col++) {
             const cell = board[word.position.row][col];
             if (cell.tile) {
                 points += cell.tile.score;
                 letterCount++;
                 
-                // Check for active stickers under this tile
                 if (stickers && isStickerActive(stickers, { row: word.position.row, col })) {
                     const sticker = stickers[word.position.row][col];
                     if (sticker) {
                         if (sticker.type === 'multi') {
-                            stickerMulti += sticker.value; // x2
+                            stickerMulti += sticker.value;
                         } else if (sticker.type === 'points') {
-                            stickerPoints += sticker.value; // +10
+                            stickerPoints += sticker.value;
                         }
                     }
                 }
             }
         }
     } else {
-        // Calculate for vertical word
         for (let row = word.position.row; row < word.position.row + word.word.length; row++) {
             const cell = board[row][word.position.col];
             if (cell.tile) {
                 points += cell.tile.score;
                 letterCount++;
                 
-                // Check for active stickers under this tile
                 if (stickers && isStickerActive(stickers, { row, col: word.position.col })) {
                     const sticker = stickers[row][word.position.col];
                     if (sticker) {
                         if (sticker.type === 'multi') {
-                            stickerMulti += sticker.value; // x2
+                            stickerMulti += sticker.value;
                         } else if (sticker.type === 'points') {
-                            stickerPoints += sticker.value; // +10
+                            stickerPoints += sticker.value;
                         }
                     }
                 }
@@ -88,13 +124,11 @@ export function calculateCurrentPlayScore(board: BoardState, stickers?: StickerS
     let totalLetters = 0;
     let stickerPoints = 0;
     let stickerMulti = 0;
-    let bingoAchieved = false; // true if any current word uses exactly 7 placed tiles
+    let bingoAchieved = false;
 
     for (const word of currentWords) {
-        // Count placed (unlocked) tiles in this word; ignore locked tiles for bingo
         let placedCount = 0;
 
-        // Add to breakdown totals
         if (word.direction === 'horizontal') {
             for (let col = word.position.col; col < word.position.col + word.word.length; col++) {
                 const cell = board[word.position.row][col];
@@ -105,14 +139,13 @@ export function calculateCurrentPlayScore(board: BoardState, stickers?: StickerS
                         placedCount++;
                     }
                     
-                    // Check for active stickers under this tile
                     if (stickers && isStickerActive(stickers, { row: word.position.row, col })) {
                         const sticker = stickers[word.position.row][col];
                         if (sticker) {
                             if (sticker.type === 'multi') {
-                                stickerMulti += sticker.value; // x2
+                                stickerMulti += sticker.value;
                             } else if (sticker.type === 'points') {
-                                stickerPoints += sticker.value; // +10
+                                stickerPoints += sticker.value;
                             }
                         }
                     }
@@ -128,14 +161,13 @@ export function calculateCurrentPlayScore(board: BoardState, stickers?: StickerS
                         placedCount++;
                     }
                     
-                    // Check for active stickers under this tile
                     if (stickers && isStickerActive(stickers, { row, col: word.position.col })) {
                         const sticker = stickers[row][word.position.col];
                         if (sticker) {
                             if (sticker.type === 'multi') {
-                                stickerMulti += sticker.value; // x2
+                                stickerMulti += sticker.value;
                             } else if (sticker.type === 'points') {
-                                stickerPoints += sticker.value; // +10
+                                stickerPoints += sticker.value;
                             }
                         }
                     }
@@ -185,5 +217,54 @@ export function calculateTotalScore(board: BoardState, stickers?: StickerState):
     return totalScore;
 }
 
-// Import the findAllWords function from boardUtils
-import { findAllWords } from './boardUtils';
+// ============================================================================
+// PLAY RESOLUTION
+// ============================================================================
+
+/**
+ * Centralized play resolution:
+ * - Compute score for current play
+ * - Lock just-placed tiles (canTake → false, canPlace → false)
+ * - Consume stickers under locked tiles
+ * - Refill rack from bag/discard
+ * 
+ * Pure function: returns all updated states without side effects.
+ */
+export function resolvePlay(args: ResolvePlayArgs): ResolvePlayResult {
+    const { totalScore } = calculateCurrentPlayScore(args.board, args.stickers);
+    const newTotal = args.currentTotalScore + totalScore;
+
+    // Lock tiles: any currently placed (canTake === true) tiles become locked and unplaceable
+    const lockedBoard: BoardState = args.board.map(row =>
+        row.map(cell => (cell.tile && cell.canTake ? { ...cell, canPlace: false, canTake: false } : cell))
+    );
+
+    // Consume stickers where tiles were just locked
+    let newStickers = args.stickers;
+    for (let row = 0; row < args.board.length; row++) {
+        for (let col = 0; col < args.board[row].length; col++) {
+            const cell = args.board[row][col];
+            if (cell.tile && cell.canTake) {
+                newStickers = consumeSticker(newStickers, { row, col });
+            }
+        }
+    }
+
+    // Fill rack
+    const tileSupplyResult = TileSupply.drawToFill({
+        rack: args.rack,
+        bag: args.bag,
+        discard: args.discard,
+    });
+
+    return {
+        totalScore: newTotal,
+        board: lockedBoard,
+        stickers: newStickers,
+        placementHistory: [],
+        rack: tileSupplyResult.rack,
+        bag: tileSupplyResult.bag,
+        discard: tileSupplyResult.discard,
+    };
+}
+
