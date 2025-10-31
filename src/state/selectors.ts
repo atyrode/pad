@@ -3,7 +3,7 @@ import { RackState } from "../types/rack";
 import { StickerState } from "../types/sticker";
 import * as Board from "../domain/board/Board";
 import * as Stickers from "../domain/stickers/Stickers";
-import { isValidWordSync } from "../utils/dictionaryUtils";
+import * as Dictionary from "../domain/dictionary/Dictionary";
 import * as Rack from "../domain/rack/Rack";
 
 export function areAllCurrentWordsValidSelector(
@@ -19,7 +19,7 @@ export function areAllCurrentWordsValidSelector(
 
     if (!Board.areUnlockedTilesInSingleLine(board)) return false;
 
-    const allWordsValid = currentWords.every(wordInfo => isValidWordSync(wordInfo.word) === true);
+    const allWordsValid = currentWords.every(wordInfo => Dictionary.isValidWordSync(wordInfo.word) === true);
     if (!allWordsValid) return false;
 
     const startStickerConsumed = Stickers.isStartStickerConsumed(stickers);

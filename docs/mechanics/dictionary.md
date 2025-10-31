@@ -10,7 +10,7 @@ The game validates words against a French dictionary to ensure only valid words 
 
 ### Asynchronous Loading
 
-`src/utils/dictionaryUtils.ts` manages dictionary lifecycle:
+`src/domain/dictionary/Dictionary.ts` manages dictionary lifecycle:
 
 ```typescript
 let dictionarySet: Set<string> | null = null;
@@ -74,7 +74,7 @@ Dictionary is preloaded at app startup:
 // In GameContext.tsx
 useEffect(() => {
     let isMounted = true;
-    preloadDictionary()
+    Dictionary.preload()
         .then(() => {
             if (isMounted) {
                 dispatch({ type: "initDictionaryLoaded", payload: { loaded: true } });
@@ -107,7 +107,7 @@ interface GameState {
 
 ### Asynchronous Validation
 
-`isValidWord()` performs async validation:
+`Dictionary.isValidWord()` performs async validation:
 
 ```typescript
 export async function isValidWord(word: string): Promise<boolean> {
@@ -122,16 +122,16 @@ export async function isValidWord(word: string): Promise<boolean> {
 
 ### Synchronous Validation
 
-`isValidWordSync()` validates if dictionary is already loaded:
+`Dictionary.isValidWordSync()` validates if dictionary is already loaded:
 
 ```typescript
-export function isValidWordSync(word: string): boolean | null {
+export function isValidWordSync(word: string): boolean {
     if (!word || word.length < 2) {
         return false;
     }
 
     if (!dictionarySet) {
-        return null; // Dictionary not loaded yet
+        return false; // Dictionary not loaded yet
     }
 
     return dictionarySet.has(word.toUpperCase());
@@ -167,7 +167,7 @@ export function canPlaySelector(args: {
 
     // Dictionary validation
     const allWordsValid = currentWords.every(wordInfo =>
-        isValidWordSync(wordInfo.word) === true
+        Dictionary.isValidWordSync(wordInfo.word) === true
     );
     if (!allWordsValid) return false;
 
@@ -276,7 +276,7 @@ To update the dictionary:
 
 1. **Replace File**: Update `/dictionnary/french.txt`
 2. **Clear Cache**: Reset `dictionarySet = null`
-3. **Reload**: Call `preloadDictionary()` again
+3. **Reload**: Call `Dictionary.preload()` again
 4. **Test**: Validate with known words
 
 ### Dictionary Statistics
@@ -298,7 +298,7 @@ Debug menu provides dictionary inspection:
 // Test word validation
 const testWords = ['BONJOUR', 'INVALIDWORD', 'CHAT'];
 testWords.forEach(word => {
-    const isValid = isValidWordSync(word);
+    const isValid = Dictionary.isValidWordSync(word);
     console.log(`${word}: ${isValid}`);
 });
 
@@ -314,7 +314,7 @@ console.log('Word count:', dictionarySet?.size || 0);
 dictionarySet = null;
 isLoading = false;
 loadPromise = null;
-preloadDictionary();
+Dictionary.preload();
 ```
 
 ## Alternative Validation

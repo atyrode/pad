@@ -93,7 +93,7 @@ Utility functions for specific domains:
 - `draftBoardUtils.ts` - Draft board initialization and tile placement
 - `domain/stickers/Stickers.ts` - Sticker management and consumption
 - `tileDefinitions.ts` - Tile letter definitions and scoring
-- `dictionaryUtils.ts` - Word validation using French dictionary
+- `domain/dictionary/Dictionary.ts` - Word validation using French dictionary
 - `transformUtils.ts` - Coordinate transformations and board utilities
 
 ### `/src/constants/`

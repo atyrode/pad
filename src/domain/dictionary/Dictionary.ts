@@ -1,5 +1,8 @@
 /**
- * Dictionary utilities for word validation
+ * Dictionary domain module - Word validation and loading
+ *
+ * This module provides all dictionary-related functionality in a centralized,
+ * self-contained way. It handles loading the French dictionary and validating words.
  */
 
 let dictionarySet: Set<string> | null = null;
@@ -26,13 +29,13 @@ async function loadDictionary(): Promise<Set<string>> {
       if (!response.ok) {
         throw new Error(`Failed to load dictionary: ${response.status}`);
       }
-      
+
       const text = await response.text();
       const words = text
         .split('\n')
         .map(word => word.trim().toUpperCase())
         .filter(word => word.length > 0);
-      
+
       dictionarySet = new Set(words);
       return dictionarySet;
     } catch (error) {
@@ -46,6 +49,14 @@ async function loadDictionary(): Promise<Set<string>> {
   })();
 
   return loadPromise;
+}
+
+/**
+ * Preloads the dictionary for better performance
+ * @returns Promise<void>
+ */
+export async function preload(): Promise<void> {
+  await loadDictionary();
 }
 
 /**
@@ -65,24 +76,17 @@ export async function isValidWord(word: string): Promise<boolean> {
 /**
  * Synchronously validates a word if dictionary is already loaded
  * @param word - The word to validate (case insensitive)
- * @returns boolean | null - True if valid, false if invalid, null if dictionary not loaded
+ * @returns boolean - True if valid, false if invalid or dictionary not loaded
  */
-export function isValidWordSync(word: string): boolean | null {
+export function isValidWordSync(word: string): boolean {
   if (!word || word.length < 2) {
     return false;
   }
 
   if (!dictionarySet) {
-    return null;
+    // Dictionary not loaded yet, consider invalid for sync calls
+    return false;
   }
 
   return dictionarySet.has(word.toUpperCase());
-}
-
-/**
- * Preloads the dictionary for better performance
- * @returns Promise<void>
- */
-export async function preloadDictionary(): Promise<void> {
-  await loadDictionary();
 }

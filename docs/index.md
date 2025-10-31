@@ -120,6 +120,7 @@ When making changes to the codebase:
 | `src/domain/board/Board.ts` | [Board](mechanics/board.md), [Board Module](architecture/modules/board.md) |
 | `src/domain/bag/Bag.ts` | [Bag](mechanics/bag.md), [Bag Module](architecture/modules/bag.md) |
 | `src/domain/stickers/Stickers.ts` | [Stickers](mechanics/stickers.md), [Stickers Module](architecture/modules/stickers.md) |
+| `src/domain/dictionary/Dictionary.ts` | [Dictionary](mechanics/dictionary.md), [Dictionary Module](architecture/modules/dictionary.md) |
 | `src/components/Board.tsx` | [Board](mechanics/board.md), [Components](architecture/components.md) |
 | `src/components/DraftBoard.tsx` | [Draft Mode](mechanics/draft.md), [Components](architecture/components.md) |
 

@@ -5,7 +5,7 @@ import { BoardState } from '../types/board';
 import { StickerState } from '../types/sticker';
 import * as BoardDomain from '../domain/board/Board';
 import { createInitialDraftBoard, generateRandomTiles } from '../utils/draftBoardUtils';
-import { isValidWordSync } from '../utils/dictionaryUtils';
+import * as Dictionary from '../domain/dictionary/Dictionary';
 import * as Stickers from '../domain/stickers/Stickers';
 import * as Rack from '../domain/rack/Rack';
 import { TileData } from '../types/tile';
@@ -109,7 +109,7 @@ export default function DebugMenu({ bag, rack, board, setRack, setBag, setBoard,
       return <span className="text-zinc-500 text-xs">⏳</span>;
     }
 
-    const isValid = isValidWordSync(word);
+    const isValid = Dictionary.isValidWordSync(word);
     if (isValid === true) {
       return <span className="text-green-500 text-xs">✓</span>;
     } else if (isValid === false) {

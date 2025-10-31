@@ -7,7 +7,7 @@ import * as Board from "../domain/board/Board";
 import * as Rack from "../domain/rack/Rack";
 import { createInitialDraftBoard } from "../utils/draftBoardUtils";
 import * as Stickers from "../domain/stickers/Stickers";
-import { preloadDictionary } from "../utils/dictionaryUtils";
+import * as Dictionary from "../domain/dictionary/Dictionary";
 
 const GameStateContext = createContext<GameState | undefined>(undefined);
 const GameDispatchContext = createContext<React.Dispatch<GameAction> | undefined>(undefined);
@@ -46,7 +46,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     // Preload dictionary once at provider level and expose loaded flag
     useEffect(() => {
         let isMounted = true;
-        preloadDictionary()
+        Dictionary.preload()
             .then(() => {
                 if (isMounted) {
                     dispatch({ type: "initDictionaryLoaded", payload: { loaded: true } });
