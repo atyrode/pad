@@ -1,8 +1,16 @@
-import { BoardState } from '../types/board';
-import { TileData } from '../types/tile';
-import { getTileDefinition, ALL_TILE_DEFINITIONS } from './tileDefinitions';
-import * as Board from '../domain/board/Board';
-import { BOARD_SIZE } from '../constants/board';
+import { BoardState } from '../../types/board';
+import { TileData } from '../../types/tile';
+import { getTileDefinition, ALL_TILE_DEFINITIONS } from '../../utils/tileDefinitions';
+import * as Board from '../board/Board';
+import { BOARD_SIZE } from '../../constants/board';
+
+/**
+ * Draft domain module - Draft mode initialization and tile management
+ *
+ * This module provides all draft-related functionality in a centralized,
+ * self-contained way. It handles draft board creation, suggestion tile generation,
+ * and draft tile application.
+ */
 
 /**
  * Create a tile from a letter using the tile definitions
@@ -12,7 +20,7 @@ function createTileFromLetter(letter: string, id: string): TileData {
     if (!definition) {
         throw new Error(`No tile definition found for letter: ${letter}`);
     }
-    
+
     return {
         id,
         value: letter,
@@ -25,22 +33,22 @@ function createTileFromLetter(letter: string, id: string): TileData {
  */
 export function generateRandomTiles(count: number): TileData[] {
     const tiles: TileData[] = [];
-    
+
     for (let i = 0; i < count; i++) {
         // Pick a random tile definition
         const randomIndex = Math.floor(Math.random() * ALL_TILE_DEFINITIONS.length);
         const tileDef = ALL_TILE_DEFINITIONS[randomIndex];
-        
+
         // Create a unique tile with timestamp-based ID
         const tile: TileData = {
             id: `random-${tileDef.letter}-${Date.now()}-${i}`,
             value: tileDef.letter,
             score: tileDef.score
         };
-        
+
         tiles.push(tile);
     }
-    
+
     return tiles;
 }
 
@@ -71,7 +79,7 @@ export function createBlankTile(idSuffix: string = ''): TileData {
  */
 export function createInitialDraftBoard(): BoardState {
     const board = Board.createEmpty();
-    
+
     // By default in draft mode: disallow placement everywhere
     for (let r = 0; r < board.length; r++) {
         for (let c = 0; c < board[r].length; c++) {
@@ -88,25 +96,25 @@ export function createInitialDraftBoard(): BoardState {
             board[rowIdx][c] = { ...board[rowIdx][c], canPlace: true };
         }
     });
-    
+
     // "DRAFT" should be centered on row 1 (second row)
     // For 11 columns, "DRAFT" (5 letters) should start at column 3
     // Positions: row 1, columns 3, 4, 5, 6, 7
     const draftLetters = ['D', 'R', 'A', 'F', 'T'];
     const startCol = 3; // Center of 11-column grid for 5-letter word
     const row = 1; // Second row (0-indexed)
-    
+
     draftLetters.forEach((letter, index) => {
         const col = startCol + index;
         const tile = createTileFromLetter(letter, `draft-${letter}-${row}-${col}`);
-        
+
         board[row][col] = {
             tile,
             canPlace: false,
             canTake: false
         };
     });
-    
+
     // Add random suggested tiles at positions (4,2), (4,5), (4,8)
     const suggestedPositions = [
         { row: 4, col: 2 },
@@ -119,7 +127,7 @@ export function createInitialDraftBoard(): BoardState {
     board[4][2] = { ...board[4][2], tile: initialVowels[0], canPlace: false, canTake: true };
     board[4][5] = { ...board[4][5], tile: null, canPlace: false, canTake: true };
     board[4][8] = { ...board[4][8], tile: initialVowels[1], canPlace: false, canTake: true };
-    
+
     return board;
 }
 

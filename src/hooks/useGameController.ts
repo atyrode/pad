@@ -18,7 +18,7 @@ import * as Rack from "../domain/rack/Rack";
 import * as TileOperations from "../engine/TileOperations";
 import * as TileSupply from "../engine/TileSupply";
 import * as PlayResolution from "../engine/PlayResolution";
-import { createInitialDraftBoard } from "../utils/draftBoardUtils";
+import * as Draft from "../domain/draft/Draft";
 import * as Board from "../domain/board/Board";
 import * as Bag from "../domain/bag/Bag";
 import * as Stickers from "../domain/stickers/Stickers";
@@ -383,7 +383,7 @@ export function useGameController() {
       setBag(Bag.shuffle(state.bag));
     },
     onResetDraft: () => {
-      setDraftBoard(createInitialDraftBoard());
+      setDraftBoard(Draft.createInitialDraftBoard());
       setDraftRerollCount(0);
       setDraftEnded(false);
       setHasSeededFromDraft(false);

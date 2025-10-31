@@ -45,11 +45,11 @@ The draft board uses the same 11x11 grid as the main game but with restricted pl
 
 ### createInitialDraftBoard()
 
-`src/utils/draftBoardUtils.ts` creates the draft board:
+`src/domain/draft/Draft.ts` creates the draft board:
 
 ```typescript
 export function createInitialDraftBoard(): BoardState {
-    const board = createInitialBoard();
+    const board = Board.createEmpty();
 
     // Disable placement everywhere by default
     for (let r = 0; r < board.length; r++) {
@@ -80,7 +80,7 @@ export function createInitialDraftBoard(): BoardState {
     });
 
     // Add initial vowel suggestions
-    const initialVowels = generateUniqueTiles(2, 'vowel');
+    const initialVowels = Draft.generateUniqueTiles(2, 'vowel');
     board[4][2] = { tile: initialVowels[0], canPlace: false, canTake: true };
     board[4][8] = { tile: initialVowels[1], canPlace: false, canTake: true };
     board[4][5] = { tile: null, canPlace: false, canTake: true }; // Empty center

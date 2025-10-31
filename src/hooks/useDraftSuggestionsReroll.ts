@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { BoardState, Position } from "../types/board";
-import { createBlankTile, generateUniqueTiles, applyDraftTiles } from "../utils/draftBoardUtils";
+import * as Draft from "../domain/draft/Draft";
 
 type Occupancy = [boolean, boolean, boolean];
 
@@ -51,21 +51,21 @@ export function useDraftSuggestionsReroll(args: {
 
             setDraftBoard(prevBoard => {
                 if (nextType === '*') {
-                    const tiles = [null, createBlankTile('final'), null];
-                    const board = applyDraftTiles(prevBoard, tiles, [false, true, false]);
+                    const tiles = [null, Draft.createBlankTile('final'), null];
+                    const board = Draft.applyDraftTiles(prevBoard, tiles, [false, true, false]);
                     setDraftEnded(true);
                     suggestedOccupancyRef.current = [false, true, false];
                     return board;
                 } else if (nextType === 'V') {
-                    const vowels = generateUniqueTiles(2, 'vowel');
+                    const vowels = Draft.generateUniqueTiles(2, 'vowel');
                     const tiles = [vowels[0], null, vowels[1]] as any;
-                    const board = applyDraftTiles(prevBoard, tiles, [true, false, true]);
+                    const board = Draft.applyDraftTiles(prevBoard, tiles, [true, false, true]);
                     suggestedOccupancyRef.current = [true, false, true];
                     return board;
                 } else {
-                    const consonants = generateUniqueTiles(3, 'consonant');
+                    const consonants = Draft.generateUniqueTiles(3, 'consonant');
                     const tiles = [consonants[0], consonants[1], consonants[2]];
-                    const board = applyDraftTiles(prevBoard, tiles, [true, true, true]);
+                    const board = Draft.applyDraftTiles(prevBoard, tiles, [true, true, true]);
                     suggestedOccupancyRef.current = [true, true, true];
                     return board;
                 }
@@ -85,15 +85,15 @@ export function useDraftSuggestionsReroll(args: {
             if (type === '*') {
                 return prevBoard;
             } else if (type === 'V') {
-                const vowels = generateUniqueTiles(2, 'vowel');
+                const vowels = Draft.generateUniqueTiles(2, 'vowel');
                 const tiles = [vowels[0], null, vowels[1]] as any;
-                const board = applyDraftTiles(prevBoard, tiles, [true, false, true]);
+                const board = Draft.applyDraftTiles(prevBoard, tiles, [true, false, true]);
                 suggestedOccupancyRef.current = [true, false, true];
                 return board;
             } else {
-                const consonants = generateUniqueTiles(3, 'consonant');
+                const consonants = Draft.generateUniqueTiles(3, 'consonant');
                 const tiles = [consonants[0], consonants[1], consonants[2]];
-                const board = applyDraftTiles(prevBoard, tiles, [true, true, true]);
+                const board = Draft.applyDraftTiles(prevBoard, tiles, [true, true, true]);
                 suggestedOccupancyRef.current = [true, true, true];
                 return board;
             }

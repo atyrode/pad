@@ -5,7 +5,7 @@ import { GameState, GameAction } from "./gameTypes";
 import { gameReducer } from "./gameReducer";
 import * as Board from "../domain/board/Board";
 import * as Rack from "../domain/rack/Rack";
-import { createInitialDraftBoard } from "../utils/draftBoardUtils";
+import * as Draft from "../domain/draft/Draft";
 import * as Stickers from "../domain/stickers/Stickers";
 import * as Dictionary from "../domain/dictionary/Dictionary";
 
@@ -23,7 +23,7 @@ function getInitialState(): GameState {
         totalScore: 0,
 
         isDraftMode: false,
-        draftBoard: createInitialDraftBoard(),
+        draftBoard: Draft.createInitialDraftBoard(),
         draftRerollCount: 0,
         draftEnded: false,
         hasSeededFromDraft: false,

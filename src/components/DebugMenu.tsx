@@ -4,7 +4,7 @@ import { RackState } from '../types/rack';
 import { BoardState } from '../types/board';
 import { StickerState } from '../types/sticker';
 import * as BoardDomain from '../domain/board/Board';
-import { createInitialDraftBoard, generateRandomTiles } from '../utils/draftBoardUtils';
+import * as Draft from '../domain/draft/Draft';
 import * as Dictionary from '../domain/dictionary/Dictionary';
 import * as Stickers from '../domain/stickers/Stickers';
 import * as Rack from '../domain/rack/Rack';
@@ -499,7 +499,7 @@ export default function DebugMenu({ bag, rack, board, setRack, setBag, setBoard,
                   if (onResetDraft) {
                     onResetDraft();
                   } else {
-                    const newDraftBoard = createInitialDraftBoard();
+                    const newDraftBoard = Draft.createInitialDraftBoard();
                     setDraftBoard(newDraftBoard);
                   }
                 }}

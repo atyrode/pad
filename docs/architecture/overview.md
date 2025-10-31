@@ -90,7 +90,7 @@ Utility functions for specific domains:
 
 - `domain/board/Board.ts` - Board analysis, word finding, placement validation
 - `domain/rack/Rack.ts` - Rack operations like shuffling
-- `draftBoardUtils.ts` - Draft board initialization and tile placement
+- `domain/draft/Draft.ts` - Draft board initialization and tile placement
 - `domain/stickers/Stickers.ts` - Sticker management and consumption
 - `tileDefinitions.ts` - Tile letter definitions and scoring
 - `domain/dictionary/Dictionary.ts` - Word validation using French dictionary
