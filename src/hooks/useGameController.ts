@@ -159,7 +159,7 @@ export function useGameController() {
   };
 
   const handleDraftSuggestionRightClick = (tile: TileData, position: Position): boolean => {
-    if (!state.isDraftMode) return false;
+    if (!state.isDraftMode || !state.draftBoard || !Array.isArray(state.draftBoard)) return false;
     const suggestedPositions = [
       { row: 4, col: 2 },
       { row: 4, col: 5 },
@@ -174,7 +174,9 @@ export function useGameController() {
     [7, 8].forEach((r) => {
       for (let c = centerStart; c <= centerEnd; c++) placementCells.push({ row: r, col: c });
     });
-    const target = placementCells.find((pos) => !state.draftBoard[pos.row][pos.col].tile);
+    const target = placementCells.find((pos) =>
+      pos.row < state.draftBoard.length && pos.col < state.draftBoard[pos.row].length && !state.draftBoard[pos.row][pos.col].tile
+    );
     if (!target) return false;
     setDraftBoard((prevBoard: BoardState) => {
       const newBoard = prevBoard.map((row) => row.map((cell) => ({ ...cell })));
@@ -360,10 +362,12 @@ export function useGameController() {
       setStickers(stickers);
     },
     onResetBag: () => {
+      if (!state.draftBoard || !Array.isArray(state.draftBoard) || state.draftBoard.length < 9) return;
       const centerCount = 7;
       const centerStart = Math.floor((11 - centerCount) / 2);
       const positions = [7, 8].flatMap(r => Array.from({ length: centerCount }, (_, i) => ({ row: r, col: centerStart + i })));
       const draftedTiles = positions
+        .filter(p => p.row < state.draftBoard.length && p.col < state.draftBoard[p.row].length)
         .map(p => state.draftBoard[p.row][p.col].tile)
         .filter(Boolean) as TileData[];
       setBag(Bag.shuffle([...draftedTiles]));
@@ -389,6 +393,7 @@ export function useGameController() {
       const centerStart = Math.floor((11 - centerCount) / 2);
       const positions = [7, 8].flatMap(r => Array.from({ length: centerCount }, (_, i) => ({ row: r, col: centerStart + i })));
       const draftedTiles = positions
+        .filter(p => p.row < state.draftBoard.length && p.col < state.draftBoard[p.row].length)
         .map(p => state.draftBoard[p.row][p.col].tile)
         .filter(Boolean) as TileData[];
       setBag(Bag.shuffle([...draftedTiles]));

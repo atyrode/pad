@@ -28,12 +28,12 @@ export function useDraftSuggestionsReroll(args: {
     } = args;
 
     useEffect(() => {
-        if (!isDraftMode || draftEnded) return;
+        if (!isDraftMode || draftEnded || !draftBoard || !Array.isArray(draftBoard) || draftBoard.length < 5) return;
 
         const occupancy: Occupancy = [
-            !!draftBoard[4][2].tile,
-            !!draftBoard[4][5].tile,
-            !!draftBoard[4][8].tile,
+            draftBoard[4] && draftBoard[4][2] ? !!draftBoard[4][2].tile : false,
+            draftBoard[4] && draftBoard[4][5] ? !!draftBoard[4][5].tile : false,
+            draftBoard[4] && draftBoard[4][8] ? !!draftBoard[4][8].tile : false,
         ];
 
         if (suggestedOccupancyRef.current === null) {

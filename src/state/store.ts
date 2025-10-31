@@ -10,6 +10,13 @@ import * as Rack from '../domain/rack/Rack';
 import * as Draft from '../domain/draft/Draft';
 import * as Stickers from '../domain/stickers/Stickers';
 
+/**
+ * Helper to resolve next value, supporting both direct values and functional updaters
+ */
+function resolveNext<T>(next: T | ((prev: T) => T), prev: T): T {
+  return typeof next === 'function' ? (next as (p: T) => T)(prev) : next;
+}
+
 // UI slice
 interface UiSlice {
   tileOpacity: number;
@@ -30,34 +37,34 @@ interface DictionarySlice {
 interface BoardSlice {
   board: BoardState;
   placementHistory: PlacementHistoryEntry[];
-  setBoard: (board: BoardState) => void;
-  setPlacementHistory: (history: PlacementHistoryEntry[]) => void;
+  setBoard: (board: BoardState | ((prev: BoardState) => BoardState)) => void;
+  setPlacementHistory: (history: PlacementHistoryEntry[] | ((prev: PlacementHistoryEntry[]) => PlacementHistoryEntry[])) => void;
   addPlacement: (entry: PlacementHistoryEntry) => void;
 }
 
 interface RackSlice {
   rack: RackState;
-  setRack: (rack: RackState) => void;
+  setRack: (rack: RackState | ((prev: RackState) => RackState)) => void;
 }
 
 interface BagSlice {
   bag: Bag;
-  setBag: (bag: Bag) => void;
+  setBag: (bag: Bag | ((prev: Bag) => Bag)) => void;
 }
 
 interface DiscardSlice {
   discard: TileData[];
-  setDiscard: (discard: TileData[]) => void;
+  setDiscard: (discard: TileData[] | ((prev: TileData[]) => TileData[])) => void;
 }
 
 interface StickersSlice {
   stickers: StickerState;
-  setStickers: (stickers: StickerState) => void;
+  setStickers: (stickers: StickerState | ((prev: StickerState) => StickerState)) => void;
 }
 
 interface ScoreSlice {
   totalScore: number;
-  setTotalScore: (score: number) => void;
+  setTotalScore: (score: number | ((prev: number) => number)) => void;
 }
 
 interface DraftSlice {
@@ -66,9 +73,9 @@ interface DraftSlice {
   draftRerollCount: number;
   draftEnded: boolean;
   hasSeededFromDraft: boolean;
-  setIsDraftMode: (mode: boolean) => void;
-  setDraftBoard: (board: BoardState) => void;
-  setDraftRerollCount: (count: number) => void;
+  setIsDraftMode: (mode: boolean | ((prev: boolean) => boolean)) => void;
+  setDraftBoard: (board: BoardState | ((prev: BoardState) => BoardState)) => void;
+  setDraftRerollCount: (count: number | ((prev: number) => number)) => void;
   incrementDraftReroll: () => void;
   setDraftEnded: (ended: boolean) => void;
   setHasSeededFromDraft: (seeded: boolean) => void;
@@ -112,31 +119,31 @@ export const useGameStore = create<GameStore>()(
       // Board slice
       board: initialBoard,
       placementHistory: [],
-      setBoard: (board) => set({ board }),
-      setPlacementHistory: (placementHistory) => set({ placementHistory }),
+      setBoard: (next) => set((state) => ({ board: resolveNext(next, state.board) })),
+      setPlacementHistory: (next) => set((state) => ({ placementHistory: resolveNext(next, state.placementHistory) })),
       addPlacement: (entry) => set((state) => ({
         placementHistory: [...state.placementHistory, entry]
       })),
 
       // Rack slice
       rack: initialRack,
-      setRack: (rack) => set({ rack }),
+      setRack: (next) => set((state) => ({ rack: resolveNext(next, state.rack) })),
 
       // Bag slice
       bag: [],
-      setBag: (bag) => set({ bag }),
+      setBag: (next) => set((state) => ({ bag: resolveNext(next, state.bag) })),
 
       // Discard slice
       discard: [],
-      setDiscard: (discard) => set({ discard }),
+      setDiscard: (next) => set((state) => ({ discard: resolveNext(next, state.discard) })),
 
       // Stickers slice
       stickers: initialStickers,
-      setStickers: (stickers) => set({ stickers }),
+      setStickers: (next) => set((state) => ({ stickers: resolveNext(next, state.stickers) })),
 
       // Score slice
       totalScore: 0,
-      setTotalScore: (totalScore) => set({ totalScore }),
+      setTotalScore: (next) => set((state) => ({ totalScore: resolveNext(next, state.totalScore) })),
 
       // Draft slice
       isDraftMode: false,
@@ -144,9 +151,9 @@ export const useGameStore = create<GameStore>()(
       draftRerollCount: 0,
       draftEnded: false,
       hasSeededFromDraft: false,
-      setIsDraftMode: (isDraftMode) => set({ isDraftMode }),
-      setDraftBoard: (draftBoard) => set({ draftBoard }),
-      setDraftRerollCount: (draftRerollCount) => set({ draftRerollCount }),
+      setIsDraftMode: (next) => set((state) => ({ isDraftMode: resolveNext(next, state.isDraftMode) })),
+      setDraftBoard: (next) => set((state) => ({ draftBoard: resolveNext(next, state.draftBoard) })),
+      setDraftRerollCount: (next) => set((state) => ({ draftRerollCount: resolveNext(next, state.draftRerollCount) })),
       incrementDraftReroll: () => set((state) => ({
         draftRerollCount: state.draftRerollCount + 1
       })),

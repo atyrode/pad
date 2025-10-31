@@ -17,7 +17,7 @@ export function useSeedBagFromDraft(args: {
     const { isDraftMode, draftBoard, draftEnded, hasSeededFromDraft, setBag, setHasSeededFromDraft } = args;
 
     useEffect(() => {
-        if (!isDraftMode || !draftEnded || hasSeededFromDraft) return;
+        if (!isDraftMode || !draftEnded || hasSeededFromDraft || !draftBoard || !Array.isArray(draftBoard) || draftBoard.length < 9) return;
 
         const centerCount = 7;
         const centerStart = Math.floor((11 - centerCount) / 2);
@@ -29,6 +29,7 @@ export function useSeedBagFromDraft(args: {
         });
 
         const drafted = positions
+            .filter(p => p.row < draftBoard.length && p.col < draftBoard[p.row].length)
             .map(p => draftBoard[p.row][p.col].tile)
             .filter(Boolean) as TileData[];
 

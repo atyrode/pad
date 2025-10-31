@@ -54,7 +54,7 @@ export default function DraftBoard({ board, boardCellSize, overBoardPos, onCellS
                 gridTemplateColumns: `repeat(${BOARD_SIZE}, minmax(0, 1fr))`
             }}
         >
-            {board.map((row: BoardCellState[], rowIndex: number) =>
+            {Array.isArray(board) ? board.map((row: BoardCellState[], rowIndex: number) =>
                 row.map((cell: BoardCellState, colIndex: number) => {
                     const isSuggestedDraftCell = rowIndex === 4 && (colIndex === 2 || colIndex === 5 || colIndex === 8);
 
@@ -90,6 +90,10 @@ export default function DraftBoard({ board, boardCellSize, overBoardPos, onCellS
                     />
                 );
                 })
+            ) : (
+                <div className="flex items-center justify-center text-white col-span-full">
+                    Invalid draft board data: {typeof board} {Array.isArray(board) ? '(array)' : '(not array)'}
+                </div>
             )}
         </div>
     );

@@ -224,14 +224,19 @@ export default function DebugMenu({ onResetDraft, onRerollSuggestions }: Pick<De
   // Draft-based bag: consider draft unavailable if no drafted tiles present
   const centerCount = 7;
   const centerStart = Math.floor((11 - centerCount) / 2);
-  const draftedCount = [7, 8].flatMap(r => Array.from({ length: centerCount }, (_, i) => ({ row: r, col: centerStart + i })))
-    .filter(pos => state.draftBoard[pos.row][pos.col].tile)
-    .length;
+  const draftedCount = state.draftBoard && state.draftBoard.length >= 9 ?
+    [7, 8].flatMap(r => Array.from({ length: centerCount }, (_, i) => ({ row: r, col: centerStart + i })))
+      .filter(pos => pos.row < state.draftBoard.length && pos.col < state.draftBoard[pos.row].length && state.draftBoard[pos.row][pos.col].tile)
+      .length : 0;
 
   // Helper: collect all drafted tiles (14 center slots)
   const collectDraftedTiles = () => {
+    if (!state.draftBoard || state.draftBoard.length < 9) return [];
     const positions = [7, 8].flatMap(r => Array.from({ length: centerCount }, (_, i) => ({ row: r, col: centerStart + i })));
-    return positions.map(p => state.draftBoard[p.row][p.col].tile).filter(Boolean) as any[];
+    return positions
+      .filter(p => p.row < state.draftBoard.length && p.col < state.draftBoard[p.row].length)
+      .map(p => state.draftBoard[p.row][p.col].tile)
+      .filter(Boolean) as any[];
   };
 
   // Compare current bag to drafted tiles (order-agnostic, by tile.id)
