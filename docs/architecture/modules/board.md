@@ -211,3 +211,28 @@ The `areUnlockedTilesInSingleLine` function enforces that all unlocked tiles:
 
 ### Touch Validation
 The `doesCurrentPlayTouchLocked` function ensures new plays connect to existing words by checking if any unlocked tile is orthogonally adjacent to a locked tile.
+
+## BoardDrag Submodule
+
+The BoardDrag module (`src/domain/board/BoardDrag.ts`) provides pure mathematical functions for board coordinate transformations used in drag-and-drop interactions.
+
+### Grid Snapping
+
+#### `computeGridSnap(transform, row, col, cellSize, boardSize?): { x, y } | null`
+Calculates grid-constrained coordinates for board cell dragging.
+
+```typescript
+// Inside board boundaries: returns snapped coordinates
+const snapped = BoardDrag.computeGridSnap(transform, 5, 5, 50);
+if (snapped) {
+    // Apply grid snapping: { x: snapped.x, y: snapped.y }
+}
+
+// Outside board boundaries: returns null for free-floating mode
+const free = BoardDrag.computeGridSnap(transform, 5, 5, 50);
+if (!free) {
+    // Use original transform with boundary clamping
+}
+```
+
+This function is used by UI components to determine whether dragged tiles should snap to grid positions (inside board) or move freely with boundary constraints (outside board).

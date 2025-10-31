@@ -2,7 +2,7 @@ import React, { useRef } from 'react';
 import { useDraggable, useDroppable } from '@dnd-kit/core';
 import Tile from './Tile';
 import { RackCellProps } from '../types/rack';
-import { getRackTileTransformOverBoard, getTileTransformOverRack } from '../utils/transformUtils';
+import { getRackTileTransformOverBoard, getTileTransformOverRack } from '../ui/drag/Transforms';
 import { CELL_GAP } from '../constants/board';
 
 export default function RackCell({ tile, index, boardCellSize, overBoardPos, overRackIndex, boardRef, rackRef, gameAreaRef, selectedCell, onRackRightClick }: RackCellProps) {

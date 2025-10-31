@@ -94,7 +94,8 @@ Utility functions for specific domains:
 - `domain/stickers/Stickers.ts` - Sticker management and consumption
 - `tileDefinitions.ts` - Tile letter definitions and scoring
 - `domain/dictionary/Dictionary.ts` - Word validation using French dictionary
-- `transformUtils.ts` - Coordinate transformations and board utilities
+- `domain/board/BoardDrag.ts` - Pure board coordinate math for drag-and-drop
+- `ui/drag/Transforms.ts` - UI drag-and-drop transform helpers
 
 ### `/src/constants/`
 Configuration constants:

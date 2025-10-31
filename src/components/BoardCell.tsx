@@ -5,7 +5,7 @@ import Tile from './Tile';
 import StickerOverlay from './Sticker';
 import { BoardCellProps, Direction } from '../types/board';
 import { useCellSize } from '../hooks/useCellSize';
-import { getGridConstrainedTransform, getTileTransformOverRack } from '../utils/transformUtils';
+import { getGridConstrainedTransform, getTileTransformOverRack } from '../ui/drag/Transforms';
 import { MIN_CELL_SIZE } from '../constants/board';
 
 // Add shake animation keyframes
