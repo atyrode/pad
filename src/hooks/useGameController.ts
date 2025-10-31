@@ -10,6 +10,7 @@ import { useSeedBagFromDraft } from "./useSeedBagFromDraft";
 import { useDragAndDrop } from "./useDragAndDrop";
 import { useDragEndWithDiscard } from "./useDragEndWithDiscard";
 import { useKeyboardSelector } from "./useKeyboardSelector";
+import { useKeyboardTileActions } from "./useKeyboardTileActions";
 import { BoardState, PlacementHistoryEntry, Position } from "../types/board";
 import { RackState } from "../types/rack";
 import { TileData } from "../types/tile";
@@ -110,133 +111,22 @@ export function useGameController() {
     originalHandleDragEnd,
   });
 
-  // Keyboard placement/removal
-  const handleKeyboardTilePlacement = (letter: string): boolean => {
-    if (!selectedCell) return false;
-
-    let rackIndex = state.rack.findIndex(
-      t => t && t.value.toUpperCase() === letter.toUpperCase()
-    );
-
-    let tile = state.rack[rackIndex];
-    let wasBlank = false;
-    if (rackIndex === -1) {
-      rackIndex = state.rack.findIndex(t => t && t.value === '*');
-      if (rackIndex !== -1) {
-        const blankTile = state.rack[rackIndex]!;
-        tile = {
-          ...blankTile,
-          value: letter.toUpperCase(),
-          originalValue: '*',
-          displayValue: letter.toUpperCase(),
-        } as TileData;
-        wasBlank = true;
-      }
-    }
-    if (rackIndex === -1 || !tile) return false;
-
-    const targetCell = state.board[selectedCell.row][selectedCell.col];
-    if (!targetCell.canPlace) return false;
-
-    // Handle blank tile transformation before placement
-    if (wasBlank) {
-      // Transform blank tile for placement
-      const transformedTile: TileData = {
-        ...tile,
-        value: letter.toUpperCase(),
-        originalValue: '*',
-        displayValue: letter.toUpperCase(),
-      } as TileData;
-      
-      // Update rack with transformed tile temporarily
-      const tempRack = [...state.rack];
-      tempRack[rackIndex] = transformedTile;
-      
-      // Use TileOperations to place the transformed tile
-      const result = TileOperations.placeTileOnBoardFromRack(
-        tempRack,
-        rackIndex,
-        state.board,
-        selectedCell,
-        true // track history
-      );
-      
-      if (result && result.placementHistoryEntry) {
-        setRack(result.rack);
-        setBoard(result.board);
-        setPlacementHistory((prev) => [...prev, result.placementHistoryEntry!]);
-        return true;
-      }
-      return false;
-    }
-
-    // Place regular tile using TileOperations
-    const result = TileOperations.placeTileOnBoardFromRack(
-      state.rack,
-      rackIndex,
-      state.board,
-      selectedCell,
-      true // track history
-    );
-    
-    if (result && result.placementHistoryEntry) {
-      setRack(result.rack);
-      setBoard(result.board);
-      setPlacementHistory((prev) => [...prev, result.placementHistoryEntry!]);
-      return true;
-    }
-    
-    return false;
-  };
-
-  const handleKeyboardTileRemoval = (): { success: boolean; position?: Position } => {
-    if (state.placementHistory.length === 0) return { success: false };
-
-    const emptySlotIndex = TileOperations.findFirstEmptySlot(state.rack);
-    if (emptySlotIndex === null) return { success: false };
-
-    let newHistory = [...state.placementHistory];
-    let removedPosition: Position | null = null;
-
-    while (newHistory.length > 0) {
-      const lastPlacement = newHistory[newHistory.length - 1];
-      const { tileId, position, wasBlank } = lastPlacement;
-      const cell = state.board[position.row][position.col];
-      if (!cell.tile || cell.tile.id !== tileId || !cell.canTake) {
-        newHistory = newHistory.slice(0, -1);
-        continue;
-      }
-
-      // Use TileOperations which handles blank tile reversion automatically
-      const result = TileOperations.removeTileFromBoardToRack(
-        state.board,
-        position,
-        state.rack,
-        emptySlotIndex
-      );
-      
-      if (result) {
-        setBoard(result.board);
-        setRack(result.rack);
-        
-        newHistory = newHistory.slice(0, -1);
-        removedPosition = position;
-        break;
-      } else {
-        // If removal failed, skip this history entry
-        newHistory = newHistory.slice(0, -1);
-        continue;
-      }
-    }
-
-    setPlacementHistory(newHistory);
-    if (removedPosition) return { success: true, position: removedPosition };
-    return { success: false };
-  };
+  // Keyboard tile placement/removal actions
+  const {
+    handleKeyboardTilePlacement: rawHandleKeyboardTilePlacement,
+    handleKeyboardTileRemoval,
+  } = useKeyboardTileActions({
+    board: state.board,
+    rack: state.rack,
+    placementHistory: state.placementHistory,
+    setBoard,
+    setRack,
+    setPlacementHistory,
+  });
 
   // Selector
   const { selectedCell, selectorDirection, advanceSelector } = useKeyboardSelector({
-    onLetterInput: handleKeyboardTilePlacement,
+    onLetterInput: rawHandleKeyboardTilePlacement,
     onBackspace: handleKeyboardTileRemoval,
     onShuffle: () => setRack((prev: RackState) => shuffleRack(prev)),
     onPlay: () => {

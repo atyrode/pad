@@ -11,7 +11,7 @@ export interface SelectorState {
 }
 
 interface UseKeyboardSelectorProps {
-  onLetterInput?: (letter: string) => boolean;
+  onLetterInput?: (letter: string, selectedCell: { row: number; col: number } | null) => boolean;
   onBackspace?: () => { success: boolean; position?: { row: number; col: number } };
   onShuffle?: () => void;
   onPlay?: () => void;
@@ -143,13 +143,13 @@ export const useKeyboardSelector = (props?: UseKeyboardSelectorProps) => {
       return false;
     }
 
-    const success = props.onLetterInput(letter);
+    const success = props.onLetterInput(letter, selectorState.visible ? selectorState.position : null);
     if (success && selectorState.direction) {
       // Move selector forward in current direction after successful placement, skipping non-placeable tiles
       setSelectorState(prevState => {
         const { row, col } = prevState.position;
         const nextPosition = findNextNonLockedCell(row, col, prevState.direction);
-        
+
         if (nextPosition) {
           return {
             ...prevState,
@@ -162,7 +162,7 @@ export const useKeyboardSelector = (props?: UseKeyboardSelectorProps) => {
       });
     }
     return success;
-  }, [props?.onLetterInput, selectorState.visible, selectorState.direction, findNextNonLockedCell]);
+  }, [props?.onLetterInput, selectorState.visible, selectorState.direction, selectorState.position, findNextNonLockedCell]);
 
   const handleBackspace = useCallback(() => {
     if (!props?.onBackspace) {
