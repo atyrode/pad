@@ -68,49 +68,27 @@ export function calculateWordScore(word: WordInfo, board: BoardState, stickers?:
     let stickerPoints = 0;
     let stickerMulti = 0;
 
-    if (word.direction === 'horizontal') {
-        for (let col = word.position.col; col < word.position.col + word.word.length; col++) {
-            const cell = board[word.position.row][col];
-            if (cell.tile) {
-                points += cell.tile.score;
-                letterCount++;
-                
-                if (stickers && Stickers.isStickerActive(stickers, { row: word.position.row, col })) {
-                    const sticker = stickers[word.position.row][col];
-                    if (sticker) {
-                        if (sticker.type === 'multi') {
-                            stickerMulti += sticker.value;
-                        } else if (sticker.type === 'points') {
-                            stickerPoints += sticker.value;
-                        }
+    BoardDomain.forEachWordCellOnBoard(word, board, (position, cell) => {
+        if (cell.tile) {
+            points += cell.tile.score;
+            letterCount++;
+
+            if (stickers && Stickers.isStickerActive(stickers, position)) {
+                const sticker = stickers[position.row][position.col];
+                if (sticker) {
+                    if (sticker.type === 'multi') {
+                        stickerMulti += sticker.value;
+                    } else if (sticker.type === 'points') {
+                        stickerPoints += sticker.value;
                     }
                 }
             }
         }
-    } else {
-        for (let row = word.position.row; row < word.position.row + word.word.length; row++) {
-            const cell = board[row][word.position.col];
-            if (cell.tile) {
-                points += cell.tile.score;
-                letterCount++;
-                
-                if (stickers && Stickers.isStickerActive(stickers, { row, col: word.position.col })) {
-                    const sticker = stickers[row][word.position.col];
-                    if (sticker) {
-                        if (sticker.type === 'multi') {
-                            stickerMulti += sticker.value;
-                        } else if (sticker.type === 'points') {
-                            stickerPoints += sticker.value;
-                        }
-                    }
-                }
-            }
-        }
-    }
+    });
 
     const totalPoints = points + stickerPoints;
     const totalMulti = letterCount + stickerMulti;
-    
+
     return totalPoints * totalMulti;
 }
 
@@ -130,51 +108,26 @@ export function calculateCurrentPlayScore(board: BoardState, stickers?: StickerS
     for (const word of currentWords) {
         let placedCount = 0;
 
-        if (word.direction === 'horizontal') {
-            for (let col = word.position.col; col < word.position.col + word.word.length; col++) {
-                const cell = board[word.position.row][col];
-                if (cell.tile) {
-                    totalPoints += cell.tile.score;
-                    totalLetters++;
-                    if (cell.canTake) {
-                        placedCount++;
-                    }
-                    
-                    if (stickers && Stickers.isStickerActive(stickers, { row: word.position.row, col })) {
-                        const sticker = stickers[word.position.row][col];
-                        if (sticker) {
-                            if (sticker.type === 'multi') {
-                                stickerMulti += sticker.value;
-                            } else if (sticker.type === 'points') {
-                                stickerPoints += sticker.value;
-                            }
+        BoardDomain.forEachWordCellOnBoard(word, board, (position, cell) => {
+            if (cell.tile) {
+                totalPoints += cell.tile.score;
+                totalLetters++;
+                if (cell.canTake) {
+                    placedCount++;
+                }
+
+                if (stickers && Stickers.isStickerActive(stickers, position)) {
+                    const sticker = stickers[position.row][position.col];
+                    if (sticker) {
+                        if (sticker.type === 'multi') {
+                            stickerMulti += sticker.value;
+                        } else if (sticker.type === 'points') {
+                            stickerPoints += sticker.value;
                         }
                     }
                 }
             }
-        } else {
-            for (let row = word.position.row; row < word.position.row + word.word.length; row++) {
-                const cell = board[row][word.position.col];
-                if (cell.tile) {
-                    totalPoints += cell.tile.score;
-                    totalLetters++;
-                    if (cell.canTake) {
-                        placedCount++;
-                    }
-                    
-                    if (stickers && Stickers.isStickerActive(stickers, { row, col: word.position.col })) {
-                        const sticker = stickers[row][word.position.col];
-                        if (sticker) {
-                            if (sticker.type === 'multi') {
-                                stickerMulti += sticker.value;
-                            } else if (sticker.type === 'points') {
-                                stickerPoints += sticker.value;
-                            }
-                        }
-                    }
-                }
-            }
-        }
+        });
 
         if (placedCount === 7) {
             bingoAchieved = true;

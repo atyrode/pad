@@ -2,7 +2,6 @@
 
 import { DndContext } from '@dnd-kit/core';
 import DebugMenu from "../src/components/DebugMenu";
-import { GameProvider } from "../src/state/GameContext";
 import GameArea from "../src/components/GameArea";
 import LetterSelectionPopup from '../src/components/LetterSelectionPopup';
 import { useGameController } from "../src/hooks/useGameController";
@@ -11,33 +10,6 @@ function HomeContent() {
     const {
         // render flags and state
         mounted,
-        state: {
-            board,
-            rack,
-            bag,
-            discard,
-            stickers,
-            isDictionaryLoaded,
-            totalScore,
-            tileOpacity,
-            showCoordinates,
-            isDraftMode,
-            draftBoard,
-        },
-        // setters
-        setBoard,
-        setRack,
-        setBag,
-        setDiscard,
-        setStickers,
-        setTotalScore,
-        setTileOpacity,
-        setShowCoordinates,
-        setIsDraftMode,
-        setDraftBoard,
-        setDraftRerollCount,
-        setDraftEnded,
-        setHasSeededFromDraft,
         // ui state
         boardCellSize,
         setBoardCellSize,
@@ -45,8 +17,6 @@ function HomeContent() {
         rackRef,
         gameAreaRef,
         discardRef,
-        exitingDraft,
-        setExitingDraft,
         // dnd
         sensors,
         handleDragStart,
@@ -59,15 +29,12 @@ function HomeContent() {
         // keyboard
         selectedCell,
         selectorDirection,
-        advanceSelector,
         // actions
         handleRightClick,
         handleDraftSuggestionRightClick,
         handleRackRightClick,
         handleShuffle,
         handlePlay,
-        canPlay,
-        canShuffle,
         // popup
         blankTilePopup,
         handleLetterSelection,
@@ -89,33 +56,11 @@ function HomeContent() {
                     onDragOver={handleDragOver}
                     onDragEnd={handleDragEnd}
                 >
-                    <DebugMenu bag={bag} rack={rack} board={board} setRack={setRack} setBag={setBag} setBoard={setBoard} draftBoard={draftBoard} setDraftBoard={setDraftBoard} totalScore={totalScore} setTotalScore={setTotalScore} stickers={stickers} setStickers={setStickers} tileOpacity={tileOpacity} setTileOpacity={setTileOpacity} showCoordinates={showCoordinates} setShowCoordinates={setShowCoordinates} isDraftMode={isDraftMode} setIsDraftMode={setIsDraftMode} discard={discard} setDiscard={setDiscard}
-                        onDraw={debugActions.onDraw}
-                        onDrawAll={debugActions.onDrawAll}
-                        onRedraw={debugActions.onRedraw}
-                        onClearRack={debugActions.onClearRack}
-                        onResetBoard={debugActions.onResetBoard}
-                        onResetScore={debugActions.onResetScore}
-                        onResetStickers={debugActions.onResetStickers}
-                        onResetBag={debugActions.onResetBag}
-                        onResetGame={debugActions.onResetGame}
-                        onShuffleBag={debugActions.onShuffleBag}
-                        onResetDraft={debugActions.onResetDraft}
-                        onRerollSuggestions={debugActions.onRerollSuggestions} />
+                    <DebugMenu />
                     <GameArea
-                        board={board}
-                        rack={rack}
-                        draftBoard={draftBoard}
-                        stickers={stickers}
-                        isDraftMode={isDraftMode}
-                        isDictionaryLoaded={isDictionaryLoaded}
-                        exitingDraft={exitingDraft}
                         boardCellSize={boardCellSize}
-                        tileOpacity={tileOpacity}
-                        showCoordinates={showCoordinates}
                         selectedCell={selectedCell}
                         selectorDirection={selectorDirection}
-                        setRack={setRack}
                         setBoardCellSize={setBoardCellSize}
                         boardRef={boardRef}
                         rackRef={rackRef}
@@ -129,8 +74,6 @@ function HomeContent() {
                         handleRackRightClick={handleRackRightClick}
                         handleShuffle={handleShuffle}
                         handlePlay={handlePlay}
-                        canPlay={canPlay}
-                        canShuffle={canShuffle}
                         discardAnim={discardAnim}
                     />
                 </DndContext>
@@ -151,9 +94,5 @@ function HomeContent() {
 }
 
 export default function Home() {
-    return (
-        <GameProvider>
-            <HomeContent />
-        </GameProvider>
-    );
+    return <HomeContent />;
 }

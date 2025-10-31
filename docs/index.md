@@ -8,10 +8,11 @@ Manifold is a Scrabble-like word game built with React, TypeScript, and a custom
 
 - **Components** - React components for UI rendering
 - **Hooks** - Custom React hooks for game logic and interactions
-- **Engine** - Pure functions for game mechanics (tile operations, scoring, etc.)
-- **State** - Global state management using React Context and useReducer
+- **Engine** - High-level game operations and business rules
+- **Domain** - Pure functional modules for core game mechanics
+- **State** - Global state management using Zustand
 - **Types** - TypeScript type definitions
-- **Utils** - Utility functions for board logic, stickers, etc.
+- **Utils** - Utility functions and constants
 
 ## Documentation Structure
 
@@ -20,10 +21,11 @@ Manifold is a Scrabble-like word game built with React, TypeScript, and a custom
 These documents explain the high-level system design and patterns:
 
 - **[System Overview](architecture/overview.md)** - High-level architecture and component hierarchy
-- **[State Management](architecture/state-management.md)** - How game state is managed and updated
+- **[State Management](architecture/state-management.md)** - Zustand store and state management
 - **[Components](architecture/components.md)** - Component structure and responsibilities
 - **[Custom Hooks](architecture/hooks.md)** - Hook architecture and composition patterns
-- **[Engine Layer](architecture/engine.md)** - Pure function design and engine responsibilities
+- **[Engine Layer](architecture/engine.md)** - GameService and Rules engine design
+- **[Domain Layer](architecture/domain.md)** - Pure functional modules and core mechanics
 - **[Data Flow](architecture/data-flow.md)** - How data flows through the system
 - **[Interactions](architecture/interactions.md)** - User interaction systems (drag-drop, keyboard, etc.)
 
@@ -53,16 +55,25 @@ These documents explain specific game features and how they work:
 - `src/components/GameArea.tsx` - Main game UI component
 
 #### State Management
-- `src/state/GameContext.tsx` - Global state context
-- `src/state/gameReducer.ts` - State reducer
-- `src/state/gameTypes.ts` - State types and actions
+- `src/state/store.ts` - Zustand store with typed slices
+- `src/state/selectors.ts` - Zustand-derived selectors and hooks
 - `src/hooks/useGameController.ts` - Main game logic orchestrator
 
 #### Core Engine
+- `src/engine/GameService.ts` - High-level game operations orchestrator
+- `src/engine/Rules.ts` - Game rules and validation engine
 - `src/engine/TileOperations.ts` - Tile movement operations
 - `src/engine/TileSupply.ts` - Bag and drawing logic
 - `src/engine/PlayResolution.ts` - Play validation and scoring
 - `src/engine/DiscardOperations.ts` - Discard operations
+
+#### Domain Layer
+- `src/domain/board/Board.ts` - Board state management and word finding
+- `src/domain/rack/Rack.ts` - Rack operations and management
+- `src/domain/bag/Bag.ts` - Tile bag creation and shuffling
+- `src/domain/stickers/Stickers.ts` - Bonus system management
+- `src/domain/dictionary/Dictionary.ts` - Word validation
+- `src/domain/draft/Draft.ts` - Draft mode logic
 
 #### UI Components
 - `src/components/Board.tsx` / `BoardCell.tsx` - Board display
@@ -77,20 +88,28 @@ These documents explain specific game features and how they work:
 
 ### Common Patterns
 
-#### State Updates
-- All state updates go through the reducer via `dispatch()`
-- Setter hooks like `useGameSetters` provide convenient update functions
-- Engine functions are pure and return new state objects
+#### State Management
+- Global state managed through Zustand store in `src/state/store.ts`
+- Components use store hooks directly: `useGameStore()`, `useCanPlay()`, etc.
+- Complex operations use `batchUpdate()` for atomic state changes
 
 #### Component Props Flow
-- Components receive state slices and setter functions
+- Components read from store hooks instead of receiving props
 - Event handlers are passed down from `useGameController`
 - Refs are used for DOM manipulation (drag-drop, sizing)
 
-#### Engine Function Signatures
-- Pure functions that take current state and return new state
-- Often return objects with multiple updated state slices
-- Handle both success and failure cases (return `null` for failures)
+#### Engine Layer
+- `GameService` provides high-level operations (place, remove, resolve play)
+- `Rules` engine handles validation and business logic
+- Domain modules provide pure functional operations
+- All functions return immutable state updates
+
+#### Data Flow
+1. User interaction → `useGameController` hook
+2. Controller calls `GameService` methods
+3. GameService orchestrates domain/engine operations
+4. Results batched back to Zustand store
+5. Components re-render from store subscriptions
 
 ## Getting Started
 
@@ -111,17 +130,21 @@ When making changes to the codebase:
 
 | File Path | Document |
 |-----------|----------|
-| `src/state/GameContext.tsx` | [State Management](architecture/state-management.md) |
+| `src/state/store.ts` | [State Management](architecture/state-management.md) |
+| `src/state/selectors.ts` | [State Management](architecture/state-management.md) |
 | `src/hooks/useGameController.ts` | [Custom Hooks](architecture/hooks.md), [Data Flow](architecture/data-flow.md) |
+| `src/engine/GameService.ts` | [Engine Layer](architecture/engine.md) |
+| `src/engine/Rules.ts` | [Engine Layer](architecture/engine.md) |
 | `src/engine/TileOperations.ts` | [Placement](mechanics/placement.md), [Blank Tiles](mechanics/blank-tiles.md) |
 | `src/engine/TileSupply.ts` | [Bag](mechanics/bag.md), [Drawing](mechanics/drawing.md) |
 | `src/engine/PlayResolution.ts` | [Play Resolution](mechanics/play-resolution.md), [Scoring](mechanics/scoring.md) |
-| `src/domain/rack/Rack.ts` | [Rack](mechanics/rack.md), [Rack Module](architecture/modules/rack.md) |
-| `src/domain/board/Board.ts` | [Board](mechanics/board.md), [Board Module](architecture/modules/board.md) |
-| `src/domain/bag/Bag.ts` | [Bag](mechanics/bag.md), [Bag Module](architecture/modules/bag.md) |
-| `src/domain/stickers/Stickers.ts` | [Stickers](mechanics/stickers.md), [Stickers Module](architecture/modules/stickers.md) |
-| `src/domain/dictionary/Dictionary.ts` | [Dictionary](mechanics/dictionary.md), [Dictionary Module](architecture/modules/dictionary.md) |
-| `src/domain/draft/Draft.ts` | [Draft Mode](mechanics/draft.md), [Draft Module](architecture/modules/draft.md) |
+| `src/domain/board/Board.ts` | [Board](mechanics/board.md), [Domain Layer](architecture/domain.md) |
+| `src/domain/rack/Rack.ts` | [Rack](mechanics/rack.md), [Domain Layer](architecture/domain.md) |
+| `src/domain/bag/Bag.ts` | [Bag](mechanics/bag.md), [Domain Layer](architecture/domain.md) |
+| `src/domain/stickers/Stickers.ts` | [Stickers](mechanics/stickers.md), [Domain Layer](architecture/domain.md) |
+| `src/domain/dictionary/Dictionary.ts` | [Dictionary](mechanics/dictionary.md), [Domain Layer](architecture/domain.md) |
+| `src/domain/draft/Draft.ts` | [Draft Mode](mechanics/draft.md), [Domain Layer](architecture/domain.md) |
+| `src/components/GameArea.tsx` | [Components](architecture/components.md) |
 | `src/components/Board.tsx` | [Board](mechanics/board.md), [Components](architecture/components.md) |
 | `src/components/DraftBoard.tsx` | [Draft Mode](mechanics/draft.md), [Components](architecture/components.md) |
 

@@ -1,79 +1,129 @@
 # Engine Layer Architecture
 
-This document explains the pure function design of the engine layer, which contains all core game mechanics and business logic.
+This document explains the engine layer design, which provides high-level game operations and business rules orchestration.
 
 ## Engine Overview
 
-The engine layer consists of pure functions that implement game mechanics without any React or UI dependencies. These functions:
+The engine layer consists of two main components:
 
-- Are stateless and deterministic
-- Take input state and return new state
-- Handle all game rules and validations
-- Can be unit tested independently
-- Are framework-agnostic
+1. **GameService** - High-level orchestration for complex game operations
+2. **Rules Engine** - Centralized validation and business logic
+3. **Specialized Modules** - Pure functions for specific game mechanics
 
-## Core Principles
+The engine layer bridges the pure domain functions with high-level game operations while remaining framework-agnostic.
 
-### Purity and Immutability
-All engine functions are pure and never mutate input data:
+## GameService (`src/engine/GameService.ts`)
+
+The GameService provides high-level orchestration for complex game operations, composing multiple domain functions into complete game actions.
+
+### Design Philosophy
+
+GameService methods:
+- Accept complete game state snapshots
+- Orchestrate multiple domain operations
+- Return complete new state objects
+- Handle cross-cutting concerns (placement history, validation)
+
+### Key Operations
 
 ```typescript
-// ✅ Pure function - returns new state
-export function placeTileOnBoardFromRack(
-    rack: RackState,
-    rackIndex: number,
-    board: BoardState,
-    position: Position
-): PlaceTileOnBoardResult | null {
-    // Creates new board and rack objects
-    const newBoard = board.map(row => [...row]);
-    const newRack = [...rack];
-    // ... modify copies
-    return { board: newBoard, rack: newRack, ... };
-}
+export class GameService {
+    // Tile placement and movement
+    static placeFromRack(rack, rackIndex, board, position, history): PlaceFromRackResult
+    static removeToRack(board, position, rack, history): RemoveToRackResult
+    static moveOnBoard(board, sourcePos, targetPos): MoveOnBoardResult
+    static swapRackBoard(rack, rackIndex, board, position, history): SwapRackBoardResult
 
-// ❌ Impure - modifies input
-function badPlaceTile(board: BoardState, tile: TileData, pos: Position) {
-    board[pos.row][pos.col].tile = tile; // Mutation!
+    // Play resolution
+    static resolvePlay(state): ResolvePlayResult
+
+    // Tile supply operations
+    static discardAndDraw(tileId, state): DiscardAndDrawResult
+    static drawToFill(state): DrawToFillResult
+    static redraw(state): RedrawResult
+
+    // Game initialization
+    static createNewBag(): Bag
+    static createInitialState(): GameStateSnapshot
 }
 ```
 
-### Input/Output Contracts
-Engine functions use structured interfaces for inputs and outputs:
+### Example Usage
 
 ```typescript
-// Input state
-interface TileSupplyState {
-    rack: RackState;
-    bag: Bag;
-    discard: TileData[];
+// Complete tile placement operation
+const result = GameService.placeFromRack(
+    rack, 2, board, { row: 7, col: 7 }, placementHistory
+);
+
+// Returns updated board, rack, and placement history
+batchUpdate({
+    board: result.board,
+    rack: result.rack,
+    placementHistory: result.placementHistory,
+});
+```
+
+## Rules Engine (`src/engine/Rules.ts`)
+
+The Rules engine centralizes all game validation and business logic.
+
+### Validation Results
+
+```typescript
+interface ValidationResult {
+    isValid: boolean;
+    reason?: string;
 }
 
-// Output result
-interface DrawResult {
-    rack: RackState;
-    bag: Bag;
-    discard: TileData[];
+interface PlayValidationResult {
+    canPlay: boolean;
+    hasWords: boolean;
+    wordsInSingleLine: boolean;
+    wordsValid: boolean;
+    coversStartSticker: boolean;
+    touchesExistingWords: boolean;
+    invalidWords: string[];
 }
 ```
 
-### Error Handling
-Functions return `null` or structured error results instead of throwing:
+### Key Functions
 
 ```typescript
-export function placeTileOnBoardFromRack(...): PlaceTileOnBoardResult | null {
-    if (!tile) return null;           // Invalid input
-    if (!targetCell.canPlace) return null; // Invalid placement
-    // ... success case
-    return { board: newBoard, rack: newRack, ... };
+export class Rules {
+    // Complete play validation
+    static areAllCurrentWordsValid(board, stickers, dictLoaded): ValidationResult
+    static validateCurrentPlay(board, stickers, dictLoaded): PlayValidationResult
+
+    // Individual rule checks
+    static canPlaceAt(board, position): ValidationResult
+    static canTakeFrom(board, position): ValidationResult
+    static canShuffleRack(rack): ValidationResult
 }
 ```
 
-## Engine Modules
+### Integration with Selectors
+
+Rules power Zustand selectors for reactive UI state:
+
+```typescript
+// In selectors.ts
+export function useCanPlay(): boolean {
+    const board = useGameStore((state) => state.board);
+    const stickers = useGameStore((state) => state.stickers);
+    const dictLoaded = useGameStore((state) => state.isDictionaryLoaded);
+
+    return Rules.areAllCurrentWordsValid(board, stickers, dictLoaded).isValid;
+}
+```
+
+## Specialized Engine Modules
+
+The engine layer includes specialized modules that handle specific game mechanics:
 
 ### TileOperations (`src/engine/TileOperations.ts`)
 
-**Purpose**: Handles all tile movement operations between rack, board, and positions.
+**Purpose**: Low-level tile movement primitives, now using domain Board helpers.
 
 #### Key Functions
 - `placeTileOnBoardFromRack()` - Rack → Board placement
@@ -81,41 +131,21 @@ export function placeTileOnBoardFromRack(...): PlaceTileOnBoardResult | null {
 - `moveTileBetweenBoardPositions()` - Board → Board movement
 - `swapRackAndBoardTile()` - Bidirectional rack/board swapping
 
-#### Notes
-Rack utility functions (`findFirstEmptySlot`, `moveTileToRack`, `removeTileFromRack`, `swapRackTiles`, `findTileInRack`) have been moved to `src/utils/rackUtils.ts` for better organization.
-
-#### Design Patterns
+#### Refactored Implementation
 ```typescript
-// Composite operations combine primitives
-export function placeTileOnBoardFromRack(
-    rack: RackState, rackIndex: number,
-    board: BoardState, targetPosition: Position,
-    trackHistory: boolean = true
-): PlaceTileOnBoardResult | null {
-    const tile = rack[rackIndex];
-    if (!tile) return null;
+// Now uses domain helpers instead of direct array manipulation
+function placeTileOnBoard(board: BoardState, tile: TileData, pos: Position): BoardState {
+    return Board.setTile(board, pos, tile); // Domain function
+}
 
-    // Use primitive operations
-    let newRack = removeTileFromRack(rack, rackIndex);
-    const newBoard = placeTileOnBoard(board, tile, targetPosition);
-
-    // Add history tracking
-    const placementHistoryEntry = trackHistory
-        ? { tileId: tile.id, position: targetPosition, wasBlank: tile.originalValue === '*' }
-        : null;
-
-    return {
-        board: newBoard,
-        rack: newRack,
-        placementHistoryEntry,
-        swappedTile: null, // No swap in this case
-    };
+function removeTileFromBoard(board: BoardState, pos: Position): BoardState {
+    return Board.clearTile(board, pos); // Domain function
 }
 ```
 
 ### TileSupply (`src/engine/TileSupply.ts`)
 
-**Purpose**: Manages the tile bag, drawing, discarding, and supply mechanics.
+**Purpose**: Tile bag management and drawing operations.
 
 #### Key Functions
 - `drawOne()` - Draw single tile to rack
@@ -123,263 +153,263 @@ export function placeTileOnBoardFromRack(
 - `redraw()` - Replace all rack tiles
 - `discardAndDraw()` - Discard one tile, draw replacement
 
-#### Bag Management
-```typescript
-// Bag automatically refills from discard when empty
-function refillBagFromDiscard(bag: Bag, discard: TileData[]): {
-    newBag: Bag;
-    newDiscard: TileData[];
-    didRefill: boolean;
-} {
-    if (bag.length === 0 && discard.length > 0) {
-        return {
-            newBag: shuffleBag([...discard]),
-            newDiscard: [],
-            didRefill: true,
-        };
-    }
-    return { newBag: bag, newDiscard: discard, didRefill: false };
-}
-```
-
 ### PlayResolution (`src/engine/PlayResolution.ts`)
 
-**Purpose**: Handles play validation, scoring, and resolution of complete turns.
+**Purpose**: Play validation, scoring, and turn resolution.
 
-#### Key Functions
-- `resolvePlay()` - Complete play resolution
-- `calculateCurrentPlayScore()` - Score current unlocked tiles
-- `calculateWordScore()` - Score individual words
-
-#### Play Resolution Flow
+#### Refactored Scoring
 ```typescript
-export function resolvePlay(args: ResolvePlayArgs): ResolvePlayResult {
-    // 1. Calculate score for current play
-    const score = calculateCurrentPlayScore(args.board, args.stickers);
+// Now uses forEachWordCell helper to eliminate duplication
+export function calculateWordScore(word: WordInfo, board: BoardState, stickers?: StickerState): number {
+    let points = 0;
+    let letterCount = 0;
+    let stickerPoints = 0;
+    let stickerMulti = 0;
 
-    // 2. Lock placed tiles (canTake → false)
-    const lockedBoard = args.board.map(row =>
-        row.map(cell => (cell.tile && cell.canTake
-            ? { ...cell, canPlace: false, canTake: false }
-            : cell))
-    );
+    BoardDomain.forEachWordCellOnBoard(word, board, (position, cell) => {
+        if (cell.tile) {
+            points += cell.tile.score;
+            letterCount++;
 
-    // 3. Consume stickers under locked tiles
-    let newStickers = args.stickers;
-    // ... consume stickers logic
-
-    // 4. Fill rack from bag/discard
-    const tileSupplyResult = TileSupply.drawToFill({
-        rack: args.rack,
-        bag: args.bag,
-        discard: args.discard,
+            if (stickers && Stickers.isStickerActive(stickers, position)) {
+                const sticker = stickers[position.row][position.col];
+                if (sticker) {
+                    if (sticker.type === 'multi') {
+                        stickerMulti += sticker.value;
+                    } else if (sticker.type === 'points') {
+                        stickerPoints += sticker.value;
+                    }
+                }
+            }
+        }
     });
 
-    return {
-        totalScore: args.currentTotalScore + score.totalScore,
-        board: lockedBoard,
-        stickers: newStickers,
-        rack: tileSupplyResult.rack,
-        bag: tileSupplyResult.bag,
-        discard: tileSupplyResult.discard,
-        placementHistory: [], // Clear placement history
-    };
+    const totalPoints = points + stickerPoints;
+    const totalMulti = letterCount + stickerMulti;
+    return totalPoints * totalMulti;
 }
 ```
 
 ### DiscardOperations (`src/engine/DiscardOperations.ts`)
 
-**Purpose**: Handles discarding tiles and cleanup operations.
+**Purpose**: Discard operations and placement history cleanup.
 
-#### Key Functions
-- `removeForDiscard()` - Remove tile from source for discarding
-- `discardAndDraw()` - Complete discard and replacement operation
-
-#### Placement History Cleanup
+#### Updated Implementation
 ```typescript
-// When discarding from board, clean up placement history
+// Now uses domain Board.clearTile
+const newBoard = Board.clearTile(board, boardPos);
+
+// Clean up placement history
 const updatedHistory = placementHistory.filter(
-    e => !(e.tileId === tileId && e.position.row === boardPos.row && e.position.col === boardPos.col)
+    e => !(e.tileId === tileId &&
+           e.position.row === boardPos.row &&
+           e.position.col === boardPos.col)
 );
 ```
 
 ## Engine Integration Patterns
 
-### State Updates in Hooks
-Engine functions are called from hooks, with results dispatched to state:
+### GameService in Controllers
+
+GameService methods are called from React hooks for complex operations:
 
 ```typescript
 // In useGameController
 const handlePlay = () => {
-    const result = PlayResolution.resolvePlay({
+    const gameState: GameService.GameStateSnapshot = {
         board: state.board,
-        stickers: state.stickers,
         rack: state.rack,
         bag: state.bag,
         discard: state.discard,
-        currentTotalScore: state.totalScore,
-    });
+        stickers: state.stickers,
+        totalScore: state.totalScore,
+        placementHistory: state.placementHistory,
+    };
 
-    // Dispatch multiple state updates
-    setters.setTotalScore(result.totalScore);
-    setters.setBoard(result.board);
-    setters.setStickers(result.stickers);
-    setters.setRack(result.rack);
-    setters.setBag(result.bag);
-    setters.setDiscard(result.discard);
-    setters.setPlacementHistory(result.placementHistory);
+    const result = GameService.resolvePlay(gameState);
+
+    // Atomic state update
+    batchUpdate({
+        totalScore: result.totalScore,
+        board: result.board,
+        stickers: result.stickers,
+        placementHistory: result.placementHistory,
+        rack: result.rack,
+        bag: result.bag,
+        discard: result.discard,
+    });
 };
 ```
 
-### Validation in Selectors
-Engine functions power state selectors for UI decisions:
+### Rules Engine in Selectors
+
+Rules power reactive Zustand selectors:
 
 ```typescript
 // In selectors.ts
-export function canPlaySelector(args: { board, stickers, isDictionaryLoaded }): boolean {
-    if (!args.isDictionaryLoaded) return false;
+export function useCanPlay(): boolean {
+    const board = useGameStore((state) => state.board);
+    const stickers = useGameStore((state) => state.stickers);
+    const dictLoaded = useGameStore((state) => state.isDictionaryLoaded);
 
-    const words = Board.findAllWords(args.board);
-    const currentWords = words.filter(w => !w.isLocked);
+    return Rules.areAllCurrentWordsValid(board, stickers, dictLoaded).isValid;
+}
 
-    if (currentWords.length === 0) return false;
-
-    // Use Board for validation
-    if (!Board.areUnlockedTilesInSingleLine(args.board)) return false;
-
-    // Dictionary validation
-    const allWordsValid = currentWords.every(wordInfo =>
-        dictionaryUtils.isValidWordSync(wordInfo.word) === true
-    );
-    if (!allWordsValid) return false;
-
-    // ... more validation logic
+export function useCanShuffle(): boolean {
+    const rack = useGameStore((state) => state.rack);
+    return Rules.canShuffleRack(rack).isValid;
 }
 ```
 
-## Utility Functions
+## Domain Layer Integration
+
+The engine layer heavily uses the domain layer for pure functional operations:
 
 ### Board Domain (`src/domain/board/Board.ts`)
 
-**Purpose**: Board analysis, word finding, and placement validation.
+**Purpose**: Immutable board state management and word analysis.
 
 #### Key Functions
-- `findAllWords()` - Find all horizontal and vertical words
-- `areUnlockedTilesInSingleLine()` - Validate single line placement
-- `doesCurrentPlayTouchLocked()` - Validate connection to existing words
-- `createInitialBoard()` - Board initialization
+- `createEmpty()` - Create initial board state
+- `setTile()` / `clearTile()` - Tile placement/removal
+- `findAllWords()` - Word discovery with board reference
+- `forEachWordCell()` - Iterate over word cells (eliminates duplication)
+- `areUnlockedTilesInSingleLine()` - Single line validation
+- `doesCurrentPlayTouchLocked()` - Connection validation
 
-### Rack Utils (`src/utils/rackUtils.ts`)
+### Rack Domain (`src/domain/rack/Rack.ts`)
 
-**Purpose**: Rack-specific operations.
-
-#### Key Functions
-- `shuffleRack()` - Randomize rack tile order
-- `createInitialRack()` - Empty rack initialization
-
-### Sticker Utils (`src/utils/stickerUtils.ts`)
-
-**Purpose**: Sticker management and bonus calculations.
+**Purpose**: Pure rack operations.
 
 #### Key Functions
-- `createInitialStickers()` - Sticker placement
-- `consumeSticker()` - Mark sticker as used
-- `isStickerActive()` - Check if sticker provides bonus
+- `createEmpty()` - Initialize rack
+- `addAt()` / `removeAt()` - Tile insertion/removal
+- `shuffle()` - Randomize tile order
+- `count()` / `isFull()` - Rack queries
 
-### Tile Definitions (`src/utils/tileDefinitions.ts`)
+### Other Domain Modules
 
-**Purpose**: Tile letter definitions and scoring.
-
-#### Key Functions
-- `getTileDefinitionById()` - Get tile data by ID
-- `getAllAvailableLetters()` - Available letters for blank tile selection
-
-### Dictionary Utils (`src/utils/dictionaryUtils.ts`)
-
-**Purpose**: Word validation using French dictionary.
-
-#### Key Functions
-- `isValidWord()` - Async word validation
-- `isValidWordSync()` - Sync validation (if dictionary loaded)
-- `preloadDictionary()` - Dictionary loading
+- **Bag Domain**: Tile bag creation, shuffling, drawing
+- **Stickers Domain**: Bonus system logic and consumption
+- **Dictionary Domain**: Word validation and loading
+- **Draft Domain**: Draft mode board management
 
 ## Testing Strategy
 
-### Unit Testing
-Engine functions can be tested independently:
+### GameService Testing
+High-level operations are tested end-to-end:
 
 ```typescript
-describe('TileOperations.placeTileOnBoardFromRack', () => {
-    it('should place tile and update rack', () => {
-        const result = placeTileOnBoardFromRack(
-            mockRack, 0, mockBoard, { row: 7, col: 7 }
-        );
+describe('GameService.placeFromRack', () => {
+    it('should orchestrate complete placement operation', () => {
+        const board = Board.createEmpty();
+        const rack: RackState = [tileA, null, tileB, null];
+        const history: PlacementHistoryEntry[] = [];
+
+        const result = GameService.placeFromRack(rack, 0, board, { row: 7, col: 7 }, history);
 
         expect(result).not.toBeNull();
-        expect(result!.rack[0]).toBeNull(); // Tile removed from rack
-        expect(result!.board[7][7].tile).toEqual(mockTile); // Tile placed on board
-    });
-
-    it('should return null for invalid placement', () => {
-        const result = placeTileOnBoardFromRack(
-            mockRack, 0, mockBoard, { row: 0, col: 0 } // Invalid position
-        );
-        expect(result).toBeNull();
+        expect(result!.board[7][7].tile).toEqual(tileA);
+        expect(result!.rack[0]).toBeNull();
+        expect(result!.placementHistory).toHaveLength(1);
     });
 });
 ```
 
-### Integration Testing
-Hooks can test engine function integration:
+### Rules Engine Testing
+Validation logic is thoroughly tested:
 
 ```typescript
-describe('useGameController handlePlay', () => {
-    it('should resolve play and update state', () => {
-        const { result } = renderHook(() => useGameController());
+describe('Rules.areAllCurrentWordsValid', () => {
+    it('should validate complete play requirements', () => {
+        const board = createTestBoardWithWords();
+        const stickers = Stickers.createInitialStickers();
 
-        // Trigger play
-        act(() => {
-            result.current.handlePlay();
-        });
+        const result = Rules.areAllCurrentWordsValid(board, stickers, true);
 
-        // Verify state updates through mock dispatch
-        expect(mockDispatch).toHaveBeenCalledWith(
-            expect.objectContaining({ type: 'setTotalScore' })
-        );
+        expect(result.isValid).toBe(true);
+    });
+
+    it('should reject invalid words', () => {
+        const board = createTestBoardWithInvalidWord();
+        const result = Rules.areAllCurrentWordsValid(board, stickers, true);
+
+        expect(result.isValid).toBe(false);
+        expect(result.reason).toContain('Invalid words');
     });
 });
 ```
 
-## Performance Considerations
-
-### Memoization
-Expensive operations are memoized in hooks, not in engine functions:
+### Domain Module Testing
+Pure functions enable focused unit tests:
 
 ```typescript
-// ✅ Memoize in hook
-const canPlay = useMemo(() =>
-    canPlaySelector({ board, stickers, isDictionaryLoaded }),
-    [board, stickers, isDictionaryLoaded]
-);
+describe('Board.forEachWordCell', () => {
+    it('should iterate over horizontal word cells', () => {
+        const word: WordInfo = {
+            word: 'CAT',
+            position: { row: 7, col: 7 },
+            direction: 'horizontal',
+            isLocked: false,
+            board: testBoard
+        };
 
-// ❌ Don't memoize in engine (breaks purity)
-export const getExpensiveCalculation = memoize((input) => { ... });
+        const cells: Position[] = [];
+        Board.forEachWordCell(word, (pos) => cells.push(pos));
+
+        expect(cells).toEqual([
+            { row: 7, col: 7 },
+            { row: 7, col: 8 },
+            { row: 7, col: 9 }
+        ]);
+    });
+});
 ```
 
-### Efficient Algorithms
-Engine functions use efficient algorithms:
+## Performance Characteristics
 
-- Word finding: O(n²) traversal with early termination
-- Tile operations: O(1) for individual operations
-- Bag operations: O(n) for shuffling
+### Atomic Updates
+`batchUpdate` ensures consistent state transitions:
 
-## Refactoring Opportunities
+```typescript
+// Single state commit for complex operations
+batchUpdate({
+    board: newBoard,
+    rack: newRack,
+    placementHistory: newHistory,
+    // All related state changes
+});
+```
 
-1. **Function Granularity**: Some functions do too much; could be split into smaller functions
-2. **Type Safety**: Better generic types for result objects
-3. **Error Types**: Structured error types instead of `null` returns
-4. **Validation**: Centralized validation functions to reduce duplication
-5. **Composition**: Better composition patterns for complex operations
-6. **Performance**: Some algorithms could be optimized for larger boards
+### Selective Re-rendering
+Zustand's selective subscriptions prevent unnecessary re-renders:
 
-The engine layer provides a solid foundation with clear separation of concerns, but could benefit from more granular function decomposition and better error handling patterns.
+```typescript
+// Only components using board state re-render
+const board = useGameStore((state) => state.board);
+const canPlay = useCanPlay(); // Separate selector
+```
+
+### Algorithm Efficiency
+- Word finding: O(n²) with optimized traversal
+- Tile operations: O(1) using immutable updates
+- State updates: O(1) with selective subscriptions
+
+## Architecture Benefits
+
+1. **Clear Separation**: GameService (orchestration) → Rules (validation) → Domain (pure ops)
+2. **Testability**: Each layer can be tested in isolation
+3. **Maintainability**: Changes to game logic are localized
+4. **Performance**: Immutable updates enable React optimization
+5. **Type Safety**: Full TypeScript coverage with runtime validation
+6. **Framework Independence**: Engine logic works without React/Zustand
+
+## Future Enhancements
+
+1. **Error Types**: Structured error results instead of boolean/null returns
+2. **Async Operations**: Support for async game operations (AI moves, network play)
+3. **State History**: Undo/redo functionality using placement history
+4. **Performance Monitoring**: Metrics for operation timing and re-render frequency
+5. **Rule Extensions**: Plugin system for custom game variants
+
+The refactored engine layer provides a robust, testable, and maintainable foundation for the Scrabble game while remaining adaptable to future requirements.

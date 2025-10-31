@@ -1,78 +1,49 @@
 "use client";
 
-import { Activity } from 'react';
 import Board from "./Board";
 import DraftBoard from "./DraftBoard";
 import Rack from "./Rack";
 import DiscardSlot from "./DiscardSlot";
-import { BoardState } from '../types/board';
-import { RackState } from '../types/rack';
-import { StickerState } from '../types/sticker';
 import { TileData } from '../types/tile';
 import { Position, Direction } from '../types/board';
 import { Shuffle, Play } from 'lucide-react';
 import * as RackDomain from '../domain/rack/Rack';
-import * as TileOperations from '../engine/TileOperations';
+import { useGameStore } from '../state/store';
+import { useCanPlay, useCanShuffle } from '../state/selectors';
 
 interface GameAreaProps {
-    // State
-    board: BoardState;
-    rack: RackState;
-    draftBoard: BoardState;
-    stickers: StickerState;
-    isDraftMode: boolean;
-    isDictionaryLoaded: boolean;
-    exitingDraft: boolean;
-    
-    // UI State
+    // UI State from controller
     boardCellSize: number;
-    tileOpacity: number;
-    showCoordinates: boolean;
     selectedCell: Position | null;
     selectorDirection: Direction | null;
-    
-    // Setters
-    setRack: React.Dispatch<React.SetStateAction<RackState>>;
     setBoardCellSize: (size: number) => void;
-    
+
     // Refs
     boardRef: React.RefObject<HTMLDivElement | null>;
     rackRef: React.RefObject<HTMLDivElement | null>;
     gameAreaRef: React.RefObject<HTMLDivElement | null>;
     discardRef: React.RefObject<HTMLDivElement | null>;
-    
+
     // DnD
     overBoardPos: Position | null;
     overRackIndex: number | null;
     activeId: string | null;
-    
-    // Handlers
+
+    // Handlers from controller
     handleRightClick: (tile: TileData, position: Position) => boolean;
     handleDraftSuggestionRightClick: (tile: TileData, position: Position) => boolean;
     handleRackRightClick: (tile: TileData, rackIndex: number) => boolean;
     handleShuffle: () => void;
     handlePlay: () => void;
-    canPlay: boolean;
-    canShuffle: boolean;
-    
+
     // Discard animation
     discardAnim: { tile: TileData } | null;
 }
 
 export default function GameArea({
-    board,
-    rack,
-    draftBoard,
-    stickers,
-    isDraftMode,
-    isDictionaryLoaded,
-    exitingDraft,
     boardCellSize,
-    tileOpacity,
-    showCoordinates,
     selectedCell,
     selectorDirection,
-    setRack,
     setBoardCellSize,
     boardRef,
     rackRef,
@@ -86,10 +57,20 @@ export default function GameArea({
     handleRackRightClick,
     handleShuffle,
     handlePlay,
-    canPlay,
-    canShuffle,
     discardAnim,
 }: GameAreaProps) {
+    // Get state from store
+    const board = useGameStore((state) => state.board);
+    const rack = useGameStore((state) => state.rack);
+    const draftBoard = useGameStore((state) => state.draftBoard);
+    const stickers = useGameStore((state) => state.stickers);
+    const isDraftMode = useGameStore((state) => state.isDraftMode);
+    const isDictionaryLoaded = useGameStore((state) => state.isDictionaryLoaded);
+    const tileOpacity = useGameStore((state) => state.tileOpacity);
+    const showCoordinates = useGameStore((state) => state.showCoordinates);
+    const exitingDraft = useGameStore((state) => state.exitingDraft);
+    const canPlay = useCanPlay();
+    const canShuffle = useCanShuffle();
     return (
         <div 
             ref={gameAreaRef}
@@ -98,9 +79,9 @@ export default function GameArea({
             style={{ animation: 'fadeIn 0.3s ease-in-out' }}
         >
             {/* Game Board (shown when not in draft mode) */}
-            <Activity mode={!isDraftMode && !exitingDraft ? "visible" : "hidden"}>
-                <div className={`transition-opacity duration-300 ${!isDraftMode && !exitingDraft ? 'opacity-100' : 'opacity-0'}`}>
-                    <Board 
+            {(!isDraftMode && !exitingDraft) && (
+                <div className="transition-opacity duration-300 opacity-100">
+                    <Board
                         board={board}
                         boardCellSize={boardCellSize}
                         overBoardPos={overBoardPos}
@@ -117,12 +98,12 @@ export default function GameArea({
                         selectorDirection={selectorDirection}
                     />
                 </div>
-            </Activity>
-            
+            )}
+
             {/* Draft Board (shown when in draft mode) */}
-            <Activity mode={isDraftMode || exitingDraft ? "visible" : "hidden"}>
-                <div className={`transition-opacity duration-300 ${exitingDraft ? 'opacity-0' : (isDraftMode ? 'opacity-100' : 'opacity-0')}`}>
-                    <DraftBoard 
+            {(isDraftMode || exitingDraft) && (
+                <div className={`transition-opacity duration-300 ${exitingDraft ? 'opacity-0' : 'opacity-100'}`}>
+                    <DraftBoard
                         board={draftBoard}
                         boardCellSize={boardCellSize}
                         overBoardPos={overBoardPos}
@@ -138,10 +119,10 @@ export default function GameArea({
                         selectorDirection={selectorDirection}
                     />
                 </div>
-            </Activity>
-            
+            )}
+
             {/* Rack and Controls (only shown in Game mode) */}
-            <Activity mode={isDraftMode ? "hidden" : "visible"}>
+            {!isDraftMode && (
                 <div className="relative">
                     {/* Discard Slot */}
                     <div className="absolute right-full mr-2 top-1/2 -translate-y-1/2">
@@ -169,9 +150,7 @@ export default function GameArea({
                     )}
                     
                     {/* Rack */}
-                    <Rack 
-                        rack={rack} 
-                        setRack={setRack}
+                    <Rack
                         boardCellSize={boardCellSize}
                         overBoardPos={activeId && RackDomain.findById(rack, activeId) !== null ? overBoardPos : null}
                         overRackIndex={overRackIndex}
@@ -216,7 +195,7 @@ export default function GameArea({
                         <Play className="w-5 h-5 text-white" />
                     </button>
                 </div>
-            </Activity>
+            )}
         </div>
     );
 }

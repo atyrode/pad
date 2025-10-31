@@ -1,12 +1,25 @@
-import { BoardState, Position } from '../../types/board';
-import { BOARD_SIZE } from '../../constants/board';
+import { BoardState, Position } from '../types/board';
+import { BOARD_SIZE } from '../constants/board';
 
 /**
- * Board domain module - Pure, immutable board operations
- *
- * This module provides all board-related functionality in a centralized,
- * self-contained way. All operations are pure and return new board states.
+ * Parse an empty board slot ID string to extract the position
  */
+export function parseEmptySlotId(slotId: string): Position | null {
+    if (!slotId.startsWith('empty-')) return null;
+    
+    const [, rowStr, colStr] = slotId.split('-');
+    return { row: parseInt(rowStr), col: parseInt(colStr) };
+}
+
+/**
+ * Create an empty board with the standard size
+ */
+export function createInitialBoard(): BoardState {
+    const initialBoard: BoardState = Array(BOARD_SIZE).fill(null).map(() => 
+        Array(BOARD_SIZE).fill(null).map(() => ({ tile: null, canPlace: true, canTake: true }))
+    );
+    return initialBoard;
+}
 
 /**
  * Word information for board analysis
@@ -16,67 +29,6 @@ export interface WordInfo {
     position: Position;
     direction: 'horizontal' | 'vertical';
     isLocked: boolean;
-    board?: BoardState; // Optional board reference for iteration helpers
-}
-
-/**
- * Create an empty board with the standard size
- */
-export function createEmpty(): BoardState {
-    const initialBoard: BoardState = Array(BOARD_SIZE).fill(null).map(() =>
-        Array(BOARD_SIZE).fill(null).map(() => ({ tile: null, canPlace: true, canTake: true }))
-    );
-    return initialBoard;
-}
-
-/**
- * Parse an empty board slot ID string to extract the position
- */
-export function parseEmptySlotId(slotId: string): Position | null {
-    if (!slotId.startsWith('empty-')) return null;
-
-    const [, rowStr, colStr] = slotId.split('-');
-    return { row: parseInt(rowStr), col: parseInt(colStr) };
-}
-
-/**
- * Check if a position is within board bounds
- */
-export function withinBounds(pos: Position): boolean {
-    return pos.row >= 0 && pos.row < BOARD_SIZE && pos.col >= 0 && pos.col < BOARD_SIZE;
-}
-
-/**
- * Get a cell at a specific position
- */
-export function getCell(board: BoardState, pos: Position) {
-    if (!withinBounds(pos)) return null;
-    return board[pos.row][pos.col];
-}
-
-/**
- * Set a tile at a specific position (immutable)
- */
-export function setTile(board: BoardState, pos: Position, tile: any): BoardState {
-    if (!withinBounds(pos)) return board;
-
-    const newBoard = board.map((row, rowIndex) =>
-        rowIndex === pos.row
-            ? row.map((cell, colIndex) =>
-                colIndex === pos.col
-                    ? { ...cell, tile }
-                    : cell
-            )
-            : row
-    );
-    return newBoard;
-}
-
-/**
- * Clear a tile at a specific position (immutable)
- */
-export function clearTile(board: BoardState, pos: Position): BoardState {
-    return setTile(board, pos, null);
 }
 
 /**
@@ -90,17 +42,17 @@ export function findAllWords(board: BoardState): WordInfo[] {
         for (let col = 0; col < BOARD_SIZE; col++) {
             const cell = board[row][col];
             const tile = cell.tile;
-
+            
             // Check if this tile is the start of a horizontal word
             // It's a start if: it's at column 0, or the cell to the left is empty
             const isLeftmost = col === 0 || board[row][col - 1].tile === null;
-
+            
             if (tile !== null && isLeftmost) {
                 // Collect consecutive tiles to the right
                 let word = '';
                 let currentCol = col;
                 let allTilesLocked = true;
-
+                
                 while (currentCol < BOARD_SIZE && board[row][currentCol].tile !== null) {
                     word += board[row][currentCol].tile!.value;
                     // Check if this tile is locked (non-takeable)
@@ -109,15 +61,14 @@ export function findAllWords(board: BoardState): WordInfo[] {
                     }
                     currentCol++;
                 }
-
+                
                 // Add word only if it has 2+ tiles (single letters are not valid words)
                 if (word.length >= 2) {
                     words.push({
                         word,
                         position: { row, col },
                         direction: 'horizontal',
-                        isLocked: allTilesLocked,
-                        board
+                        isLocked: allTilesLocked
                     });
                 }
             }
@@ -129,17 +80,17 @@ export function findAllWords(board: BoardState): WordInfo[] {
         for (let col = 0; col < BOARD_SIZE; col++) {
             const cell = board[row][col];
             const tile = cell.tile;
-
+            
             // Check if this tile is the start of a vertical word
             // It's a start if: it's at row 0, or the cell above is empty
             const isTopmost = row === 0 || board[row - 1][col].tile === null;
-
+            
             if (tile !== null && isTopmost) {
                 // Collect consecutive tiles below
                 let word = '';
                 let currentRow = row;
                 let allTilesLocked = true;
-
+                
                 while (currentRow < BOARD_SIZE && board[currentRow][col].tile !== null) {
                     word += board[currentRow][col].tile!.value;
                     // Check if this tile is locked (non-takeable)
@@ -148,15 +99,14 @@ export function findAllWords(board: BoardState): WordInfo[] {
                     }
                     currentRow++;
                 }
-
+                
                 // Add word only if it has 2+ tiles (single letters are not valid words)
                 if (word.length >= 2) {
                     words.push({
                         word,
                         position: { row, col },
                         direction: 'vertical',
-                        isLocked: allTilesLocked,
-                        board
+                        isLocked: allTilesLocked
                     });
                 }
             }
@@ -174,7 +124,7 @@ export function findAllWords(board: BoardState): WordInfo[] {
 export function areUnlockedTilesInSingleLine(board: BoardState): boolean {
     // Collect all unlocked tile positions
     const unlockedPositions: Position[] = [];
-
+    
     for (let row = 0; row < BOARD_SIZE; row++) {
         for (let col = 0; col < BOARD_SIZE; col++) {
             const cell = board[row][col];
@@ -183,28 +133,28 @@ export function areUnlockedTilesInSingleLine(board: BoardState): boolean {
             }
         }
     }
-
+    
     // If no unlocked tiles, this is valid (empty board)
     if (unlockedPositions.length === 0) {
         return true;
     }
-
+    
     // If only one tile, it's always valid
     if (unlockedPositions.length === 1) {
         return true;
     }
-
+    
     // Check if all tiles are in the same row
     const allSameRow = unlockedPositions.every(pos => pos.row === unlockedPositions[0].row);
     if (allSameRow) {
         // Sort by column and check for gaps
         const sortedByCol = unlockedPositions.sort((a, b) => a.col - b.col);
         const row = sortedByCol[0].row;
-
+        
         for (let i = 1; i < sortedByCol.length; i++) {
             const currentCol = sortedByCol[i].col;
             const prevCol = sortedByCol[i-1].col;
-
+            
             // Check if there's a gap between consecutive unlocked tiles
             if (currentCol - prevCol > 1) {
                 // Check if the gap is filled by locked tiles
@@ -222,18 +172,18 @@ export function areUnlockedTilesInSingleLine(board: BoardState): boolean {
         }
         return true; // All tiles in same row with gaps filled by locked tiles
     }
-
+    
     // Check if all tiles are in the same column
     const allSameCol = unlockedPositions.every(pos => pos.col === unlockedPositions[0].col);
     if (allSameCol) {
         // Sort by row and check for gaps
         const sortedByRow = unlockedPositions.sort((a, b) => a.row - b.row);
         const col = sortedByRow[0].col;
-
+        
         for (let i = 1; i < sortedByRow.length; i++) {
             const currentRow = sortedByRow[i].row;
             const prevRow = sortedByRow[i-1].row;
-
+            
             // Check if there's a gap between consecutive unlocked tiles
             if (currentRow - prevRow > 1) {
                 // Check if the gap is filled by locked tiles
@@ -251,7 +201,7 @@ export function areUnlockedTilesInSingleLine(board: BoardState): boolean {
         }
         return true; // All tiles in same column with gaps filled by locked tiles
     }
-
+    
     // Tiles are scattered across multiple rows AND columns
     return false;
 }
@@ -307,43 +257,4 @@ export function doesCurrentPlayTouchLocked(board: BoardState): boolean {
     }
 
     return false;
-}
-
-/**
- * Iterate over each cell in a word, calling the callback function for each cell
- * This eliminates duplication between horizontal and vertical word processing
- */
-export function forEachWordCell(
-    word: WordInfo,
-    callback: (position: Position, cell: BoardCellState) => void
-): void {
-    if (word.direction === 'horizontal') {
-        for (let col = word.position.col; col < word.position.col + word.word.length; col++) {
-            const position = { row: word.position.row, col };
-            const cell = getCell(word.board || [], position);
-            if (cell) {
-                callback(position, cell);
-            }
-        }
-    } else {
-        for (let row = word.position.row; row < word.position.row + word.word.length; row++) {
-            const position = { row, col: word.position.col };
-            const cell = getCell(word.board || [], position);
-            if (cell) {
-                callback(position, cell);
-            }
-        }
-    }
-}
-
-/**
- * Iterate over each cell in a word on a specific board
- */
-export function forEachWordCellOnBoard(
-    word: WordInfo,
-    board: BoardState,
-    callback: (position: Position, cell: BoardCellState) => void
-): void {
-    const wordWithBoard = { ...word, board };
-    forEachWordCell(wordWithBoard, callback);
 }

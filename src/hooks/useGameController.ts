@@ -2,8 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { closestCenter, DndContextProps } from "@dnd-kit/core";
-import { useGame, useGameDispatch } from "../state/GameContext";
-import { useGameSetters } from "./useGameSetters";
+import { useGameStore } from "../state/store";
 import { useBlankTilePlacement } from "./useBlankTilePlacement";
 import { useDraftSuggestionsReroll } from "./useDraftSuggestionsReroll";
 import { useSeedBagFromDraft } from "./useSeedBagFromDraft";
@@ -15,41 +14,39 @@ import { BoardState, PlacementHistoryEntry, Position } from "../types/board";
 import { RackState } from "../types/rack";
 import { TileData } from "../types/tile";
 import * as Rack from "../domain/rack/Rack";
-import * as TileOperations from "../engine/TileOperations";
-import * as TileSupply from "../engine/TileSupply";
-import * as PlayResolution from "../engine/PlayResolution";
-import * as Draft from "../domain/draft/Draft";
-import * as Board from "../domain/board/Board";
-import * as Bag from "../domain/bag/Bag";
-import * as Stickers from "../domain/stickers/Stickers";
+import GameService from "../engine/GameService";
 import { getAllAvailableLetters } from "../utils/tileDefinitions";
-import { canPlaySelector, canShuffleSelector } from "../state/selectors";
+import { useCanPlay, useCanShuffle } from "../state/selectors";
 
 export function useGameController() {
   // Mounted flag to avoid hydration mismatch
   const [mounted, setMounted] = useState(false);
 
-  // Global state
-  const state = useGame();
-  const dispatch = useGameDispatch();
+  // Global state from Zustand store
+  const state = useGameStore();
 
-  // Simple setters
-  const {
-    setBoard,
-    setRack,
-    setBag,
-    setDiscard,
-    setStickers,
-    setTotalScore,
-    setTileOpacity,
-    setShowCoordinates,
-    setIsDraftMode,
-    setDraftBoard,
-    setDraftRerollCount,
-    setDraftEnded,
-    setHasSeededFromDraft,
-    setPlacementHistory,
-  } = useGameSetters();
+  // Store actions - using individual selectors to avoid infinite loops
+  const setBoard = useGameStore((state) => state.setBoard);
+  const setRack = useGameStore((state) => state.setRack);
+  const setBag = useGameStore((state) => state.setBag);
+  const setDiscard = useGameStore((state) => state.setDiscard);
+  const setStickers = useGameStore((state) => state.setStickers);
+  const setTotalScore = useGameStore((state) => state.setTotalScore);
+  const setTileOpacity = useGameStore((state) => state.setTileOpacity);
+  const setShowCoordinates = useGameStore((state) => state.setShowCoordinates);
+  const setExitingDraft = useGameStore((state) => state.setExitingDraft);
+  const setIsDraftMode = useGameStore((state) => state.setIsDraftMode);
+  const setDraftBoard = useGameStore((state) => state.setDraftBoard);
+  const setDraftRerollCount = useGameStore((state) => state.setDraftRerollCount);
+  const setDraftEnded = useGameStore((state) => state.setDraftEnded);
+  const setHasSeededFromDraft = useGameStore((state) => state.setHasSeededFromDraft);
+  const setPlacementHistory = useGameStore((state) => state.setPlacementHistory);
+  const addPlacement = useGameStore((state) => state.addPlacement);
+  const batchUpdate = useGameStore((state) => state.batchUpdate);
+
+  // Derived state
+  const canPlay = useCanPlay();
+  const canShuffle = useCanShuffle();
 
   // Blank tile letter selection popup
   const {
@@ -71,7 +68,6 @@ export function useGameController() {
   const rackRef = useRef<HTMLDivElement>(null);
   const gameAreaRef = useRef<HTMLDivElement>(null);
   const discardRef = useRef<HTMLDivElement>(null);
-  const [exitingDraft, setExitingDraft] = useState(false);
 
   // Placement history appends for DnD path
   const handleDragAndDropPlacement = (tileId: string, position: Position, wasBlank: boolean) => {
@@ -131,7 +127,7 @@ export function useGameController() {
     onBackspace: handleKeyboardTileRemoval,
     onShuffle: () => setRack((prev: RackState) => Rack.shuffle(prev)),
     onPlay: () => {
-      if (canPlaySelector({ board: state.board, stickers: state.stickers, isDictionaryLoaded: state.isDictionaryLoaded })) {
+      if (canPlay) {
         handlePlay();
       }
     },
@@ -143,18 +139,20 @@ export function useGameController() {
     if (state.isDraftMode) return false;
     const emptySlotIndex = Rack.firstEmpty(state.rack);
     if (emptySlotIndex === null) return false;
-    
-    // Use TileOperations which handles blank tile reversion automatically
-    const result = TileOperations.removeTileFromBoardToRack(
+
+    const result = GameService.removeToRack(
       state.board,
       position,
       state.rack,
-      emptySlotIndex
+      state.placementHistory
     );
-    
+
     if (result) {
-      setBoard(result.board);
-      setRack(result.rack);
+      batchUpdate({
+        board: result.board,
+        rack: result.rack,
+        placementHistory: result.placementHistory,
+      });
       return true;
     }
     return false;
@@ -200,23 +198,21 @@ export function useGameController() {
     if (!selectedCell) return false;
     const targetCell = state.board[selectedCell.row][selectedCell.col];
     if (!targetCell.canPlace) return false;
-    
-    // Use TileOperations to place tile
-    const result = TileOperations.placeTileOnBoardFromRack(
+
+    const result = GameService.placeFromRack(
       state.rack,
       rackIndex,
       state.board,
       selectedCell,
-      true // track history
+      state.placementHistory
     );
-    
-    if (result && result.placementHistoryEntry) {
-      setRack(result.rack);
-      setBoard(result.board);
-      setPlacementHistory((prev: PlacementHistoryEntry[]) => [
-        ...prev,
-        result.placementHistoryEntry!,
-      ]);
+
+    if (result) {
+      batchUpdate({
+        rack: result.rack,
+        board: result.board,
+        placementHistory: result.placementHistory,
+      });
       advanceSelector();
       return true;
     }
@@ -227,41 +223,52 @@ export function useGameController() {
   const handleShuffle = () => setRack((prevRack: RackState) => Rack.shuffle(prevRack));
   
   const handlePlay = () => {
-    const result = PlayResolution.resolvePlay({
+    const gameState: GameService.GameStateSnapshot = {
       board: state.board,
-      stickers: state.stickers,
       rack: state.rack,
       bag: state.bag,
       discard: state.discard,
-      currentTotalScore: state.totalScore,
-    });
+      stickers: state.stickers,
+      totalScore: state.totalScore,
+      placementHistory: state.placementHistory,
+    };
 
-    setTotalScore(result.totalScore);
-    setBoard(result.board);
-    setStickers(result.stickers);
-    setPlacementHistory(result.placementHistory);
-    setRack(result.rack);
-    setBag(result.bag);
-    setDiscard(result.discard);
+    const result = GameService.resolvePlay(gameState);
+
+    batchUpdate({
+      totalScore: result.totalScore,
+      board: result.board,
+      stickers: result.stickers,
+      placementHistory: result.placementHistory,
+      rack: result.rack,
+      bag: result.bag,
+      discard: result.discard,
+    });
   };
 
   const fillRackAfterPlay = () => {
     if (state.isDraftMode) return;
 
-    const result = TileSupply.drawToFill({
+    const gameState: GameService.GameStateSnapshot = {
+      board: state.board,
       rack: state.rack,
       bag: state.bag,
       discard: state.discard,
-    });
+      stickers: state.stickers,
+      totalScore: state.totalScore,
+      placementHistory: state.placementHistory,
+    };
 
-    setDiscard(result.discard);
-    setBag(result.bag);
-    setRack(result.rack);
+    const result = GameService.drawToFill(gameState);
+
+    batchUpdate({
+      rack: result.rack,
+      bag: result.bag,
+      discard: result.discard,
+    });
   };
 
-  // Derived flags
-  const canPlay = canPlaySelector({ board: state.board, stickers: state.stickers, isDictionaryLoaded: state.isDictionaryLoaded });
-  const canShuffle = canShuffleSelector(state.rack);
+  // Derived flags are now at the top level
 
   // Draft suggestion reroll and seeding
   const suggestedOccupancyRef = useRef<[boolean, boolean, boolean] | null>(null);
@@ -304,14 +311,21 @@ export function useGameController() {
       setRack(result.rack);
     },
     onDrawAll: () => {
-      const result = TileSupply.drawToFill({
+      const gameState: GameService.GameStateSnapshot = {
+        board: state.board,
         rack: state.rack,
         bag: state.bag,
         discard: state.discard,
+        stickers: state.stickers,
+        totalScore: state.totalScore,
+        placementHistory: state.placementHistory,
+      };
+      const result = GameService.drawToFill(gameState);
+      batchUpdate({
+        rack: result.rack,
+        bag: result.bag,
+        discard: result.discard,
       });
-      setDiscard(result.discard);
-      setBag(result.bag);
-      setRack(result.rack);
     },
     onRedraw: () => {
       const result = TileSupply.redraw({
@@ -396,7 +410,6 @@ export function useGameController() {
     // rendering/context
     mounted,
     state,
-    dispatch,
     // simple setters for DebugMenu props compatibility
     setBoard,
     setRack,
@@ -419,8 +432,6 @@ export function useGameController() {
     rackRef,
     gameAreaRef,
     discardRef,
-    exitingDraft,
-    setExitingDraft,
 
     // DnD
     sensors,

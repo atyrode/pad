@@ -5,10 +5,9 @@ import RackCell from './RackCell';
 import { RackState } from '../types/rack';
 import { Position } from '../types/board';
 import { TileData } from '../types/tile';
+import { useGameStore } from '../state/store';
 
 interface RackProps {
-    rack: RackState;
-    setRack: React.Dispatch<React.SetStateAction<RackState>>;
     boardCellSize: number;
     overBoardPos: Position | null;
     overRackIndex: number | null;
@@ -19,7 +18,9 @@ interface RackProps {
     onRackRightClick?: (tile: TileData, rackIndex: number) => boolean;
 }
 
-export default function Rack({ rack, setRack, boardCellSize, overBoardPos, overRackIndex, boardRef, rackRef, gameAreaRef, selectedCell, onRackRightClick }: RackProps) {
+export default function Rack({ boardCellSize, overBoardPos, overRackIndex, boardRef, rackRef, gameAreaRef, selectedCell, onRackRightClick }: RackProps) {
+    // Get rack from store
+    const rack = useGameStore((state) => state.rack);
     const internalRackRef = React.useRef<HTMLDivElement>(null);
     const actualRackRef = rackRef || internalRackRef;
 

@@ -1,292 +1,226 @@
 # State Management Architecture
 
-This document explains how game state is managed throughout the application using React Context, useReducer, and custom hooks.
+This document explains how game state is managed throughout the application using Zustand for global state management with typed slices and selectors.
 
-## GameState Structure
+## Store Structure
 
-The entire game state is contained in a single `GameState` interface defined in `src/state/gameTypes.ts`:
+The game state is managed through a Zustand store in `src/state/store.ts`, organized into typed slices for better maintainability:
 
 ```typescript
-export interface GameState {
-    board: BoardState;           // Current game board
-    rack: RackState;             // Player's tile rack
-    bag: Bag;                    // Remaining tiles in bag
-    discard: TileData[];         // Discarded tiles
+interface GameStore extends
+  BoardSlice, RackSlice, BagSlice, DiscardSlice,
+  StickersSlice, ScoreSlice, DraftSlice, UiSlice, DictionarySlice {
 
-    stickers: StickerState;      // Bonus stickers on board
-    totalScore: number;          // Cumulative game score
-
-    isDraftMode: boolean;        // Whether in draft mode
-    draftBoard: BoardState;      // Draft mode board
-    draftRerollCount: number;    // Number of draft rerolls used
-    draftEnded: boolean;         // Whether draft phase is complete
-    hasSeededFromDraft: boolean; // Whether bag was seeded from draft
-
-    placementHistory: PlacementHistoryEntry[]; // History of tile placements
-
-    isDictionaryLoaded: boolean; // Whether French dictionary is loaded
-
-    tileOpacity: number;         // UI opacity setting (0-100)
-    showCoordinates: boolean;    // Whether to show board coordinates
+  // Batch update for complex operations
+  batchUpdate: (updates: Partial<GameStore>) => void;
+  resetGame: () => void;
 }
 ```
 
-## Context API Setup
+### State Slices
 
-The state is managed through React Context in `src/state/GameContext.tsx`:
+The store is divided into logical slices:
+
+- **BoardSlice**: Game board state and placement history
+- **RackSlice**: Player's tile rack management
+- **BagSlice**: Tile bag operations
+- **DiscardSlice**: Discarded tiles tracking
+- **StickersSlice**: Bonus system state
+- **ScoreSlice**: Game score management
+- **DraftSlice**: Draft mode state and controls
+- **UiSlice**: UI settings (opacity, coordinates)
+- **DictionarySlice**: Dictionary loading status
+
+## Store Implementation
+
+The store uses Zustand with devtools middleware:
 
 ```typescript
-const GameStateContext = createContext<GameState | undefined>(undefined);
-const GameDispatchContext = createContext<React.Dispatch<GameAction> | undefined>(undefined);
+export const useGameStore = create<GameStore>()(
+  devtools(
+    (set, get) => ({
+      // Board slice
+      board: initialBoard,
+      placementHistory: [],
+      setBoard: (board) => set({ board }),
+      addPlacement: (entry) => set((state) => ({
+        placementHistory: [...state.placementHistory, entry]
+      })),
 
-export function GameProvider({ children }: { children: ReactNode }) {
-    const [state, dispatch] = useReducer(gameReducer, undefined, getInitialState);
-    // ... context providers
+      // ... other slices
+
+      // Batch update for atomic operations
+      batchUpdate: (updates) => set(updates),
+
+      // Reset game
+      resetGame: () => set({
+        board: initialBoard,
+        rack: initialRack,
+        // ... reset all state
+      }),
+    }),
+    {
+      name: 'manifold-game-store',
+      enabled: process.env.NODE_ENV === 'development',
+    }
+  )
+);
+```
+
+## State Access Patterns
+
+### Direct State Access
+
+Components use the main store hook:
+
+```typescript
+function MyComponent() {
+    const board = useGameStore((state) => state.board);
+    const rack = useGameStore((state) => state.rack);
+    const totalScore = useGameStore((state) => state.totalScore);
+
+    // Use state...
 }
 ```
 
-### Initial State
-The initial state is created by `getInitialState()`:
+### Action Access
+
+State updates use slice-specific actions:
 
 ```typescript
-function getInitialState(): GameState {
-    return {
-        board: createInitialBoard(),
-        rack: createInitialRack(),
-        bag: [],  // Empty initially, seeded from draft
-        discard: [],
+function MyComponent() {
+    const { setBoard, setRack, addPlacement, batchUpdate } = useGameStore((state) => ({
+        setBoard: state.setBoard,
+        setRack: state.setRack,
+        addPlacement: state.addPlacement,
+        batchUpdate: state.batchUpdate,
+    }));
 
-        stickers: createInitialStickers(),
-        totalScore: 0,
-
-        isDraftMode: false,  // Start in game mode
-        draftBoard: createInitialDraftBoard(),
-        draftRerollCount: 0,
-        draftEnded: false,
-        hasSeededFromDraft: false,
-
-        placementHistory: [],
-
-        isDictionaryLoaded: false,
-
-        tileOpacity: 100,
-        showCoordinates: false,
+    const handleTilePlacement = () => {
+        // Update multiple state slices atomically
+        batchUpdate({
+            board: newBoard,
+            rack: newRack,
+            placementHistory: [...history, newEntry],
+        });
     };
 }
 ```
 
-## Reducer Pattern
+### Selector Hooks
 
-State updates are handled through a useReducer pattern in `src/state/gameReducer.ts`. All state changes go through dispatched actions:
-
-```typescript
-export type GameAction =
-    | { type: "setBoard"; payload: { board: BoardState } }
-    | { type: "setRack"; payload: { rack: RackState } }
-    | { type: "setBag"; payload: { bag: Bag } }
-    // ... many more action types
-    | { type: "batchUpdate"; payload: Partial<GameState> };
-```
-
-### Reducer Implementation
-The reducer handles each action type:
+Derived state is accessed through selector hooks in `src/state/selectors.ts`:
 
 ```typescript
-export function gameReducer(state: GameState, action: GameAction): GameState {
-    switch (action.type) {
-        case "setBoard": {
-            return { ...state, board: action.payload.board };
-        }
-        case "setRack": {
-            return { ...state, rack: action.payload.rack };
-        }
-        // ... other cases
-        case "batchUpdate": {
-            return { ...state, ...action.payload };
-        }
-        default: {
-            return state;
-        }
-    }
-}
-```
+export function useCanPlay(): boolean {
+    const board = useGameStore((state) => state.board);
+    const stickers = useGameStore((state) => state.stickers);
+    const isDictionaryLoaded = useGameStore((state) => state.isDictionaryLoaded);
 
-## State Access Hooks
-
-Components access state through custom hooks:
-
-```typescript
-export function useGame(): GameState {
-    const ctx = useContext(GameStateContext);
-    if (ctx === undefined) {
-        throw new Error("useGame must be used within a GameProvider");
-    }
-    return ctx;
+    return Rules.areAllCurrentWordsValid(board, stickers, isDictionaryLoaded).isValid;
 }
 
-export function useGameDispatch(): React.Dispatch<GameAction> {
-    const ctx = useContext(GameDispatchContext);
-    if (ctx === undefined) {
-        throw new Error("useGameDispatch must be used within a GameProvider");
-    }
-    return ctx;
-}
-```
-
-## State Setter Hooks
-
-For convenience, `src/hooks/useGameSetters.ts` provides typed setter functions that dispatch actions:
-
-```typescript
-export function useGameSetters() {
-    const dispatch = useGameDispatch();
-
-    const setBoard = useCallback((board: BoardState) => {
-        dispatch({ type: "setBoard", payload: { board } });
-    }, [dispatch]);
-
-    const setRack = useCallback((rack: RackState) => {
-        dispatch({ type: "setRack", payload: { rack } });
-    }, [dispatch]);
-
-    // ... more setters
-
-    return {
-        setBoard,
-        setRack,
-        setBag,
-        // ... all setters
-    };
+export function useCanShuffle(): boolean {
+    const rack = useGameStore((state) => state.rack);
+    return rack.filter(t => !!t).length > 1;
 }
 ```
 
 ## State Update Patterns
 
-### Direct Dispatch
-For simple updates, components can dispatch actions directly:
+### Atomic Updates
+
+Complex operations use `batchUpdate` for consistency:
 
 ```typescript
-const dispatch = useGameDispatch();
+// In GameService or hooks
+const result = GameService.resolvePlay(gameState);
 
-// Update board
-dispatch({ type: "setBoard", payload: { board: newBoard } });
-
-// Batch multiple updates
-dispatch({
-    type: "batchUpdate",
-    payload: {
-        board: newBoard,
-        rack: newRack,
-        totalScore: newScore
-    }
+batchUpdate({
+    totalScore: result.totalScore,
+    board: result.board,
+    stickers: result.stickers,
+    placementHistory: result.placementHistory,
+    rack: result.rack,
+    bag: result.bag,
+    discard: result.discard,
 });
 ```
 
-### Using Setters
-For more convenient usage, use the setter hooks:
+### Engine Integration
+
+Engine functions remain pure and return new state objects:
 
 ```typescript
-const { setBoard, setRack, setTotalScore } = useGameSetters();
+// GameService orchestrates complex operations
+static resolvePlay(state: GameStateSnapshot): ResolvePlayResult {
+    const result = PlayResolution.resolvePlay({
+        board: state.board,
+        stickers: state.stickers,
+        rack: state.rack,
+        bag: state.bag,
+        discard: state.discard,
+        currentTotalScore: state.totalScore,
+    });
 
-// These automatically dispatch the correct actions
-setBoard(newBoard);
-setRack(newRack);
-setTotalScore(newScore);
-```
-
-### Engine Function Integration
-Engine functions return new state objects, which are then dispatched:
-
-```typescript
-// In a hook or component
-const { setBoard, setRack, setPlacementHistory } = useGameSetters();
-
-const result = TileOperations.placeTileOnBoardFromRack(
-    state.rack, rackIndex, state.board, position, true
-);
-
-if (result) {
-    setBoard(result.board);
-    setRack(result.rack);
-    setPlacementHistory(prev => [...prev, result.placementHistoryEntry!]);
+    return {
+        board: result.board,
+        rack: result.rack,
+        bag: result.bag,
+        discard: result.discard,
+        stickers: result.stickers,
+        totalScore: result.totalScore,
+        placementHistory: result.placementHistory,
+    };
 }
-```
-
-## State Slices and Selectors
-
-### Current State Access
-Components access specific state slices:
-
-```typescript
-function MyComponent() {
-    const { board, rack, totalScore, isDraftMode } = useGame();
-    // Use state...
-}
-```
-
-### Derived State
-Some computed values are calculated using selectors in `src/state/selectors.ts`:
-
-```typescript
-export function canPlaySelector(args: {
-    board: BoardState;
-    stickers: StickerState;
-    isDictionaryLoaded: boolean;
-}): boolean {
-    // Complex logic to determine if play is valid
-    return areAllCurrentWordsValidSelector(args.board, args.stickers, args.isDictionaryLoaded);
-}
-```
-
-Selectors are used in components:
-
-```typescript
-const { board, stickers, isDictionaryLoaded } = useGame();
-const canPlay = canPlaySelector({ board, stickers, isDictionaryLoaded });
 ```
 
 ## Dictionary Loading
 
-The dictionary is loaded asynchronously and updates state when ready:
+The dictionary is loaded asynchronously in the store initialization:
 
 ```typescript
-// In GameProvider
+// Dictionary loading happens outside the store
+// Components check isDictionaryLoaded state
 useEffect(() => {
-    preloadDictionary()
+    Dictionary.preload()
         .then(() => {
-            dispatch({ type: "initDictionaryLoaded", payload: { loaded: true } });
+            setDictionaryLoaded(true);
         })
         .catch(() => {
-            // Still mark as loaded to avoid blocking UI
-            dispatch({ type: "initDictionaryLoaded", payload: { loaded: true } });
+            // Mark as loaded to avoid blocking UI
+            setDictionaryLoaded(true);
         });
 }, []);
 ```
-
-## State Persistence
-
-Currently, state is not persisted between sessions. The game starts fresh each time the app loads.
 
 ## State Flow Example
 
 Here's how a typical tile placement flows through the system:
 
 ```
-User drags tile → useDragAndDrop hook → TileOperations.placeTileOnBoardFromRack()
-                                      → Returns new board/rack
-                                      → useGameSetters.setBoard/setRack()
-                                      → Dispatch actions
-                                      → gameReducer updates state
+User drags tile → useGameController.handleDragEnd
+                                      → GameService.placeFromRack()
+                                      → Domain functions (Board.setTile, Rack.removeAt)
+                                      → Returns new state objects
+                                      → batchUpdate() commits all changes atomically
+                                      → Zustand store updates
                                       → Components re-render with new state
 ```
 
+## Benefits of Zustand Approach
+
+1. **Type Safety**: Full TypeScript support with inferred types
+2. **Performance**: Selective subscriptions prevent unnecessary re-renders
+3. **Developer Experience**: Built-in devtools integration
+4. **Simplicity**: No action types, reducers, or context setup
+5. **Testability**: Store methods are easily testable
+6. **Atomic Updates**: `batchUpdate` ensures consistency
+
 ## Refactoring Opportunities
 
-1. **State Normalization**: Some state could be normalized (e.g., placement history could be derived from board state)
-2. **Action Creators**: Could introduce action creator functions to reduce boilerplate
-3. **State Machines**: Complex state transitions could use state machine patterns
-4. **Selective Re-renders**: Large state object causes unnecessary re-renders; could split into smaller contexts
-5. **State Validation**: Add runtime validation for state consistency
-6. **Undo/Redo**: Placement history could enable undo functionality
-
-The current state management is straightforward and works well for this game, but could be optimized for larger applications.
+1. **State Persistence**: Add localStorage/sessionStorage integration
+2. **Optimistic Updates**: Could implement optimistic UI updates
+3. **State History**: Placement history could enable undo/redo functionality
+4. **State Validation**: Add runtime validation for state consistency
+5. **Performance Monitoring**: Track re-render frequencies and optimize subscriptions

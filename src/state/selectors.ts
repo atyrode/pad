@@ -1,68 +1,92 @@
-import { BoardState } from "../types/board";
-import { RackState } from "../types/rack";
-import { StickerState } from "../types/sticker";
-import * as Board from "../domain/board/Board";
-import * as Stickers from "../domain/stickers/Stickers";
-import * as Dictionary from "../domain/dictionary/Dictionary";
+import { useGameStore } from "./store";
+import { Rules } from "../engine/Rules";
 import * as Rack from "../domain/rack/Rack";
 
-export function areAllCurrentWordsValidSelector(
-    board: BoardState,
-    stickers: StickerState,
-    isDictionaryLoaded: boolean
-): boolean {
-    if (!isDictionaryLoaded) return false;
+/**
+ * Zustand-derived selector for checking if all current words are valid
+ */
+export function useAreAllCurrentWordsValid(): boolean {
+    const board = useGameStore((state) => state.board);
+    const stickers = useGameStore((state) => state.stickers);
+    const isDictionaryLoaded = useGameStore((state) => state.isDictionaryLoaded);
 
-    const words = Board.findAllWords(board);
-    const currentWords = words.filter(w => !w.isLocked);
-    if (currentWords.length === 0) return false;
-
-    if (!Board.areUnlockedTilesInSingleLine(board)) return false;
-
-    const allWordsValid = currentWords.every(wordInfo => Dictionary.isValidWordSync(wordInfo.word) === true);
-    if (!allWordsValid) return false;
-
-    const startStickerConsumed = Stickers.isStartStickerConsumed(stickers);
-    if (!startStickerConsumed) {
-        const allWordsCoverStart = currentWords.every(wordInfo => Stickers.doesWordCoverStartSticker(wordInfo, stickers));
-        if (!allWordsCoverStart) return false;
-    } else {
-        const hasLockedTiles = board.some(row => row.some(cell => cell.tile && !cell.canTake));
-        if (hasLockedTiles && !Board.doesCurrentPlayTouchLocked(board)) return false;
-    }
-
-    return true;
+    return Rules.areAllCurrentWordsValid(board, stickers, isDictionaryLoaded).isValid;
 }
 
-export function canPlaySelector(args: {
-    board: BoardState;
-    stickers: StickerState;
-    isDictionaryLoaded: boolean;
-}): boolean {
-    return areAllCurrentWordsValidSelector(args.board, args.stickers, args.isDictionaryLoaded);
+/**
+ * Zustand-derived selector for checking if play is allowed
+ */
+export function useCanPlay(): boolean {
+    return useAreAllCurrentWordsValid();
 }
 
-export function canShuffleSelector(rack: RackState): boolean {
+/**
+ * Zustand-derived selector for checking if shuffle is allowed
+ */
+export function useCanShuffle(): boolean {
+    const rack = useGameStore((state) => state.rack);
     return rack.filter(t => !!t).length > 1;
 }
 
 /**
- * Get the number of tiles currently in the rack
+ * Zustand-derived selector for getting rack tile count
  */
-export function rackTileCountSelector(rack: RackState): number {
+export function useRackTileCount(): number {
+    const rack = useGameStore((state) => state.rack);
     return Rack.count(rack);
 }
 
 /**
- * Check if the rack is full (all slots occupied)
+ * Zustand-derived selector for checking if rack is full
  */
-export function isRackFullSelector(rack: RackState): boolean {
+export function useIsRackFull(): boolean {
+    const rack = useGameStore((state) => state.rack);
     return Rack.isFull(rack);
 }
 
 /**
- * Check if the rack has at least one empty slot
+ * Zustand-derived selector for checking if rack has empty slots
  */
-export function hasEmptySlotSelector(rack: RackState): boolean {
+export function useHasEmptySlot(): boolean {
+    const rack = useGameStore((state) => state.rack);
     return Rack.firstEmpty(rack) !== null;
+}
+
+// Legacy function selectors (deprecated - use hooks above)
+export function areAllCurrentWordsValidSelector(
+    board: any,
+    stickers: any,
+    isDictionaryLoaded: boolean
+): boolean {
+    // This function is deprecated - use useAreAllCurrentWordsValid hook instead
+    throw new Error("Use useAreAllCurrentWordsValid hook instead of areAllCurrentWordsValidSelector function");
+}
+
+export function canPlaySelector(args: {
+    board: any;
+    stickers: any;
+    isDictionaryLoaded: boolean;
+}): boolean {
+    // This function is deprecated - use useCanPlay hook instead
+    throw new Error("Use useCanPlay hook instead of canPlaySelector function");
+}
+
+export function canShuffleSelector(rack: any): boolean {
+    // This function is deprecated - use useCanShuffle hook instead
+    throw new Error("Use useCanShuffle hook instead of canShuffleSelector function");
+}
+
+export function rackTileCountSelector(rack: any): number {
+    // This function is deprecated - use useRackTileCount hook instead
+    throw new Error("Use useRackTileCount hook instead of rackTileCountSelector function");
+}
+
+export function isRackFullSelector(rack: any): boolean {
+    // This function is deprecated - use useIsRackFull hook instead
+    throw new Error("Use useIsRackFull hook instead of isRackFullSelector function");
+}
+
+export function hasEmptySlotSelector(rack: any): boolean {
+    // This function is deprecated - use useHasEmptySlot hook instead
+    throw new Error("Use useHasEmptySlot hook instead of hasEmptySlotSelector function");
 }

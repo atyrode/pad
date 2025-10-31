@@ -3,6 +3,7 @@ import { RackState } from '../types/rack';
 import { TileData } from '../types/tile';
 import { BOARD_SIZE } from '../constants/board';
 import * as Rack from '../domain/rack/Rack';
+import * as Board from '../domain/board/Board';
 
 /**
  * Result of placing a tile on the board from a rack
@@ -54,20 +55,14 @@ export interface SwapTilesResult {
  * Place a tile on the board at a specific position
  */
 function placeTileOnBoard(board: BoardState, tile: TileData, pos: Position): BoardState {
-    const newBoard = board.map(row => [...row]);
-    const existing = newBoard[pos.row][pos.col];
-    newBoard[pos.row][pos.col] = { ...existing, tile };
-    return newBoard;
+    return Board.setTile(board, pos, tile);
 }
 
 /**
  * Remove a tile from the board at a specific position
  */
 function removeTileFromBoard(board: BoardState, pos: Position): BoardState {
-    const newBoard = board.map(row => [...row]);
-    const existing = newBoard[pos.row][pos.col];
-    newBoard[pos.row][pos.col] = { ...existing, tile: null };
-    return newBoard;
+    return Board.clearTile(board, pos);
 }
 
 /**

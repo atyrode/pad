@@ -2,6 +2,7 @@ import { BoardState, PlacementHistoryEntry } from '../types/board';
 import { RackState } from '../types/rack';
 import { TileData } from '../types/tile';
 import * as Rack from '../domain/rack/Rack';
+import * as Board from '../domain/board/Board';
 import * as TileOperations from './TileOperations';
 import * as TileSupply from './TileSupply';
 
@@ -74,11 +75,7 @@ export function removeForDiscard(
         const tile = cell.tile;
 
         // Remove from board (without placing in rack - this is for discard)
-        const newBoard = board.map(row => [...row]);
-        newBoard[boardPos.row][boardPos.col] = {
-            ...newBoard[boardPos.row][boardPos.col],
-            tile: null,
-        };
+        const newBoard = Board.clearTile(board, boardPos);
 
         // Clean up placement history - remove entries for this tile at this position
         const updatedHistory = placementHistory.filter(
