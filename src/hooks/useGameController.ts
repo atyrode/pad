@@ -15,23 +15,12 @@ import { RackState } from "../types/rack";
 import { TileData } from "../types/tile";
 import { shuffleRack } from "../utils/rackUtils";
 import * as TileOperations from "../engine/TileOperations";
+import * as TileSupply from "../engine/TileSupply";
+import * as PlayResolution from "../engine/PlayResolution";
 import { createInitialDraftBoard } from "../utils/draftBoardUtils";
+import { createInitialBoard } from "../utils/boardUtils";
+import { createInitialStickers, consumeSticker } from "../utils/stickerUtils";
 import { getAllAvailableLetters } from "../utils/tileDefinitions";
-import {
-  drawAllAction,
-  drawOneAction,
-  fillRackAfterPlayAction,
-  handleKeyboardTilePlacementAction,
-  handleKeyboardTileRemovalAction,
-  handlePlayAction,
-  redrawAction,
-  resetBagFromDraftAction,
-  resetBoardAction,
-  resetRackAction,
-  resetScoreAction,
-  resetStickersAction,
-  shuffleBagAction,
-} from "../state/gameActions";
 import { canPlaySelector, canShuffleSelector } from "../state/selectors";
 
 export function useGameController() {
@@ -122,23 +111,128 @@ export function useGameController() {
   });
 
   // Keyboard placement/removal
-  const handleKeyboardTilePlacement = (letter: string): boolean =>
-    handleKeyboardTilePlacementAction(
-      {
-        letter,
-        selectedCell,
-        board: state.board,
-        rack: state.rack,
-        placementHistory: state.placementHistory,
-      },
-      dispatch
+  const handleKeyboardTilePlacement = (letter: string): boolean => {
+    if (!selectedCell) return false;
+
+    let rackIndex = state.rack.findIndex(
+      t => t && t.value.toUpperCase() === letter.toUpperCase()
     );
 
-  const handleKeyboardTileRemoval = () =>
-    handleKeyboardTileRemovalAction(
-      { placementHistory: state.placementHistory, board: state.board, rack: state.rack },
-      dispatch
+    let tile = state.rack[rackIndex];
+    let wasBlank = false;
+    if (rackIndex === -1) {
+      rackIndex = state.rack.findIndex(t => t && t.value === '*');
+      if (rackIndex !== -1) {
+        const blankTile = state.rack[rackIndex]!;
+        tile = {
+          ...blankTile,
+          value: letter.toUpperCase(),
+          originalValue: '*',
+          displayValue: letter.toUpperCase(),
+        } as TileData;
+        wasBlank = true;
+      }
+    }
+    if (rackIndex === -1 || !tile) return false;
+
+    const targetCell = state.board[selectedCell.row][selectedCell.col];
+    if (!targetCell.canPlace) return false;
+
+    // Handle blank tile transformation before placement
+    if (wasBlank) {
+      // Transform blank tile for placement
+      const transformedTile: TileData = {
+        ...tile,
+        value: letter.toUpperCase(),
+        originalValue: '*',
+        displayValue: letter.toUpperCase(),
+      } as TileData;
+      
+      // Update rack with transformed tile temporarily
+      const tempRack = [...state.rack];
+      tempRack[rackIndex] = transformedTile;
+      
+      // Use TileOperations to place the transformed tile
+      const result = TileOperations.placeTileOnBoardFromRack(
+        tempRack,
+        rackIndex,
+        state.board,
+        selectedCell,
+        true // track history
+      );
+      
+      if (result && result.placementHistoryEntry) {
+        setRack(result.rack);
+        setBoard(result.board);
+        setPlacementHistory((prev) => [...prev, result.placementHistoryEntry!]);
+        return true;
+      }
+      return false;
+    }
+
+    // Place regular tile using TileOperations
+    const result = TileOperations.placeTileOnBoardFromRack(
+      state.rack,
+      rackIndex,
+      state.board,
+      selectedCell,
+      true // track history
     );
+    
+    if (result && result.placementHistoryEntry) {
+      setRack(result.rack);
+      setBoard(result.board);
+      setPlacementHistory((prev) => [...prev, result.placementHistoryEntry!]);
+      return true;
+    }
+    
+    return false;
+  };
+
+  const handleKeyboardTileRemoval = (): { success: boolean; position?: Position } => {
+    if (state.placementHistory.length === 0) return { success: false };
+
+    const emptySlotIndex = TileOperations.findFirstEmptySlot(state.rack);
+    if (emptySlotIndex === null) return { success: false };
+
+    let newHistory = [...state.placementHistory];
+    let removedPosition: Position | null = null;
+
+    while (newHistory.length > 0) {
+      const lastPlacement = newHistory[newHistory.length - 1];
+      const { tileId, position, wasBlank } = lastPlacement;
+      const cell = state.board[position.row][position.col];
+      if (!cell.tile || cell.tile.id !== tileId || !cell.canTake) {
+        newHistory = newHistory.slice(0, -1);
+        continue;
+      }
+
+      // Use TileOperations which handles blank tile reversion automatically
+      const result = TileOperations.removeTileFromBoardToRack(
+        state.board,
+        position,
+        state.rack,
+        emptySlotIndex
+      );
+      
+      if (result) {
+        setBoard(result.board);
+        setRack(result.rack);
+        
+        newHistory = newHistory.slice(0, -1);
+        removedPosition = position;
+        break;
+      } else {
+        // If removal failed, skip this history entry
+        newHistory = newHistory.slice(0, -1);
+        continue;
+      }
+    }
+
+    setPlacementHistory(newHistory);
+    if (removedPosition) return { success: true, position: removedPosition };
+    return { success: false };
+  };
 
   // Selector
   const { selectedCell, selectorDirection, advanceSelector } = useKeyboardSelector({
@@ -240,23 +334,39 @@ export function useGameController() {
 
   // Actions
   const handleShuffle = () => setRack((prevRack: RackState) => shuffleRack(prevRack));
-  const handlePlay = () =>
-    handlePlayAction(
-      {
-        board: state.board,
-        stickers: state.stickers,
-        rack: state.rack,
-        bag: state.bag,
-        discard: state.discard,
-        currentTotalScore: state.totalScore,
-      },
-      dispatch
-    );
-  const fillRackAfterPlay = () =>
-    fillRackAfterPlayAction(
-      { isDraftMode: state.isDraftMode, rack: state.rack, bag: state.bag, discard: state.discard },
-      dispatch
-    );
+  
+  const handlePlay = () => {
+    const result = PlayResolution.resolvePlay({
+      board: state.board,
+      stickers: state.stickers,
+      rack: state.rack,
+      bag: state.bag,
+      discard: state.discard,
+      currentTotalScore: state.totalScore,
+    });
+
+    setTotalScore(result.totalScore);
+    setBoard(result.board);
+    setStickers(result.stickers);
+    setPlacementHistory(result.placementHistory);
+    setRack(result.rack);
+    setBag(result.bag);
+    setDiscard(result.discard);
+  };
+
+  const fillRackAfterPlay = () => {
+    if (state.isDraftMode) return;
+
+    const result = TileSupply.drawToFill({
+      rack: state.rack,
+      bag: state.bag,
+      discard: state.discard,
+    });
+
+    setDiscard(result.discard);
+    setBag(result.bag);
+    setRack(result.rack);
+  };
 
   // Derived flags
   const canPlay = canPlaySelector({ board: state.board, stickers: state.stickers, isDictionaryLoaded: state.isDictionaryLoaded });
@@ -291,22 +401,96 @@ export function useGameController() {
 
   // Debug menu callbacks consolidated
   const debugActions = useMemo(() => ({
-    onDraw: () => drawOneAction({ rack: state.rack, bag: state.bag, discard: state.discard }, dispatch),
-    onDrawAll: () => drawAllAction({ rack: state.rack, bag: state.bag, discard: state.discard }, dispatch),
-    onRedraw: () => redrawAction({ rack: state.rack, bag: state.bag, discard: state.discard }, dispatch),
-    onClearRack: () => resetRackAction({ rackSize: state.rack.length }, dispatch),
-    onResetBoard: () => resetBoardAction(dispatch),
-    onResetScore: () => resetScoreAction(dispatch),
-    onResetStickers: () => resetStickersAction({ board: state.board }, dispatch),
-    onResetBag: () => resetBagFromDraftAction({ draftBoard: state.draftBoard }, dispatch),
-    onResetGame: () => {
-      resetBoardAction(dispatch);
-      resetRackAction({ rackSize: state.rack.length }, dispatch);
-      resetScoreAction(dispatch);
-      resetStickersAction({ board: state.board }, dispatch);
-      resetBagFromDraftAction({ draftBoard: state.draftBoard }, dispatch);
+    onDraw: () => {
+      const result = TileSupply.drawOne({
+        rack: state.rack,
+        bag: state.bag,
+        discard: state.discard,
+      });
+      if (!result) return;
+      setDiscard(result.discard);
+      setBag(result.bag);
+      setRack(result.rack);
     },
-    onShuffleBag: () => shuffleBagAction({ bag: state.bag }, dispatch),
+    onDrawAll: () => {
+      const result = TileSupply.drawToFill({
+        rack: state.rack,
+        bag: state.bag,
+        discard: state.discard,
+      });
+      setDiscard(result.discard);
+      setBag(result.bag);
+      setRack(result.rack);
+    },
+    onRedraw: () => {
+      const result = TileSupply.redraw({
+        rack: state.rack,
+        bag: state.bag,
+        discard: state.discard,
+      });
+      setDiscard(result.discard);
+      setBag(result.bag);
+      setRack(result.rack);
+    },
+    onClearRack: () => {
+      const emptyRack: RackState = Array(state.rack.length).fill(null);
+      setRack(emptyRack);
+    },
+    onResetBoard: () => {
+      setBoard(createInitialBoard());
+    },
+    onResetScore: () => {
+      setTotalScore(0);
+    },
+    onResetStickers: () => {
+      let stickers = createInitialStickers();
+      for (let row = 0; row < state.board.length; row++) {
+        for (let col = 0; col < state.board[row].length; col++) {
+          const cell = state.board[row][col];
+          if (cell.tile && !cell.canTake) {
+            stickers = consumeSticker(stickers, { row, col });
+          }
+        }
+      }
+      setStickers(stickers);
+    },
+    onResetBag: () => {
+      const centerCount = 7;
+      const centerStart = Math.floor((11 - centerCount) / 2);
+      const positions = [7, 8].flatMap(r => Array.from({ length: centerCount }, (_, i) => ({ row: r, col: centerStart + i })));
+      const draftedTiles = positions
+        .map(p => state.draftBoard[p.row][p.col].tile)
+        .filter(Boolean) as TileData[];
+      setBag(TileSupply.shuffleBag([...draftedTiles]));
+    },
+    onResetGame: () => {
+      // Capture current board before resetting for sticker calculation
+      const currentBoard = state.board;
+      setBoard(createInitialBoard());
+      const emptyRack: RackState = Array(state.rack.length).fill(null);
+      setRack(emptyRack);
+      setTotalScore(0);
+      let stickers = createInitialStickers();
+      for (let row = 0; row < currentBoard.length; row++) {
+        for (let col = 0; col < currentBoard[row].length; col++) {
+          const cell = currentBoard[row][col];
+          if (cell.tile && !cell.canTake) {
+            stickers = consumeSticker(stickers, { row, col });
+          }
+        }
+      }
+      setStickers(stickers);
+      const centerCount = 7;
+      const centerStart = Math.floor((11 - centerCount) / 2);
+      const positions = [7, 8].flatMap(r => Array.from({ length: centerCount }, (_, i) => ({ row: r, col: centerStart + i })));
+      const draftedTiles = positions
+        .map(p => state.draftBoard[p.row][p.col].tile)
+        .filter(Boolean) as TileData[];
+      setBag(TileSupply.shuffleBag([...draftedTiles]));
+    },
+    onShuffleBag: () => {
+      setBag(TileSupply.shuffleBag(state.bag));
+    },
     onResetDraft: () => {
       setDraftBoard(createInitialDraftBoard());
       setDraftRerollCount(0);
@@ -315,7 +499,7 @@ export function useGameController() {
       suggestedOccupancyRef.current = null;
     },
     onRerollSuggestions: () => rerollSuggestions(),
-  }), [dispatch, rerollSuggestions, setDraftBoard, setDraftEnded, setDraftRerollCount, setHasSeededFromDraft, state.bag, state.board, state.draftBoard, state.rack.length, state.discard]);
+  }), [rerollSuggestions, setDraftBoard, setDraftEnded, setDraftRerollCount, setHasSeededFromDraft, setBag, setBoard, setDiscard, setRack, setStickers, setTotalScore, state.bag, state.board, state.draftBoard, state.rack, state.discard]);
 
   return {
     // rendering/context
