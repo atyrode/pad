@@ -1,12 +1,22 @@
 "use client";
 
+import React, { useEffect } from 'react';
 import { DndContext } from '@dnd-kit/core';
 import DebugMenu from "../src/components/DebugMenu";
 import GameArea from "../src/components/GameArea";
 import LetterSelectionPopup from '../src/components/LetterSelectionPopup';
 import { useGameController } from "../src/hooks/useGameController";
+import { useGameStore } from "../src/state/store";
+import * as Dictionary from "../src/domain/dictionary/Dictionary";
 
 function HomeContent() {
+    const setDictionaryLoaded = useGameStore((state) => state.setDictionaryLoaded);
+
+    // Preload dictionary on app startup
+    useEffect(() => {
+        Dictionary.preload().finally(() => setDictionaryLoaded(true));
+    }, [setDictionaryLoaded]);
+
     const {
         // render flags and state
         mounted,

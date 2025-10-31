@@ -192,7 +192,8 @@ export const useGameStore = create<GameStore>()(
         tileOpacity: 100,
         showCoordinates: false,
         exitingDraft: false,
-        isDictionaryLoaded: false,
+        // Note: isDictionaryLoaded is intentionally not reset to false
+        // so word verification continues to work after game reset
       }),
     }),
     {

@@ -25,7 +25,7 @@ async function loadDictionary(): Promise<Set<string>> {
   isLoading = true;
   loadPromise = (async () => {
     try {
-      const response = await fetch('/dictionnary/french.txt');
+      const response = await fetch('/dictionary/french.txt');
       if (!response.ok) {
         throw new Error(`Failed to load dictionary: ${response.status}`);
       }
