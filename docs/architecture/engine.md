@@ -81,6 +81,9 @@ export function placeTileOnBoardFromRack(...): PlaceTileOnBoardResult | null {
 - `moveTileBetweenBoardPositions()` - Board → Board movement
 - `swapRackAndBoardTile()` - Bidirectional rack/board swapping
 
+#### Notes
+Rack utility functions (`findFirstEmptySlot`, `moveTileToRack`, `removeTileFromRack`, `swapRackTiles`, `findTileInRack`) have been moved to `src/utils/rackUtils.ts` for better organization.
+
 #### Design Patterns
 ```typescript
 // Composite operations combine primitives

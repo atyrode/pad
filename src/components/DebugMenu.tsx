@@ -7,6 +7,7 @@ import { findAllWords } from '../utils/boardUtils';
 import { createInitialDraftBoard, generateRandomTiles } from '../utils/draftBoardUtils';
 import { isValidWordSync } from '../utils/dictionaryUtils';
 import { countStickers } from '../utils/stickerUtils';
+import { findFirstEmptySlot } from '../utils/rackUtils';
 import { TileData } from '../types/tile';
 import { useGame } from '../state/GameContext';
 import * as PlayResolution from '../engine/PlayResolution';
@@ -98,8 +99,8 @@ export default function DebugMenu({ bag, rack, board, setRack, setBag, setBoard,
   // All mutating handlers are injected via props; this component remains presentational.
 
   // Check if buttons should be disabled
-  const isDrawDisabled = bag.length === 0 || TileOperations.findFirstEmptySlot(rack) === null;
-  const isDrawAllDisabled = bag.length === 0 || TileOperations.findFirstEmptySlot(rack) === null;
+  const isDrawDisabled = bag.length === 0 || findFirstEmptySlot(rack) === null;
+  const isDrawAllDisabled = bag.length === 0 || findFirstEmptySlot(rack) === null;
   const isRedrawDisabled = bag.length === 0 || rack.every(tile => tile === null);
 
   // Helper function to get validation icon

@@ -4,7 +4,7 @@ import { useCallback } from "react";
 import { BoardState, PlacementHistoryEntry, Position } from "../types/board";
 import { RackState } from "../types/rack";
 import { TileData } from "../types/tile";
-import { shuffleRack } from "../utils/rackUtils";
+import { shuffleRack, findFirstEmptySlot } from "../utils/rackUtils";
 import * as TileOperations from "../engine/TileOperations";
 
 interface UseKeyboardTileActionsProps {
@@ -105,7 +105,7 @@ export function useKeyboardTileActions({
   const handleKeyboardTileRemoval = useCallback((): { success: boolean; position?: Position } => {
     if (placementHistory.length === 0) return { success: false };
 
-    const emptySlotIndex = TileOperations.findFirstEmptySlot(rack);
+    const emptySlotIndex = findFirstEmptySlot(rack);
     if (emptySlotIndex === null) return { success: false };
 
     let newHistory = [...placementHistory];

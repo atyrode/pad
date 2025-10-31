@@ -2,6 +2,7 @@ import { RackState } from '../types/rack';
 import { Bag } from '../types/bag';
 import { TileData } from '../types/tile';
 import { getTileDefinitionById } from '../utils/tileDefinitions';
+import { findFirstEmptySlot } from '../utils/rackUtils';
 
 /**
  * State for tile supply operations
@@ -173,17 +174,6 @@ function drawTile(bag: Bag, discard: TileData[]): {
     };
 }
 
-/**
- * Find first empty slot in rack
- */
-function findFirstEmptySlot(rack: RackState): number | null {
-    for (let i = 0; i < rack.length; i++) {
-        if (rack[i] === null) {
-            return i;
-        }
-    }
-    return null;
-}
 
 // ============================================================================
 // TILE SUPPLY OPERATIONS

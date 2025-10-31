@@ -76,7 +76,7 @@ if (result) {
 #### 4. Rack → Rack (Tile Reordering)
 ```typescript
 // Reorder tiles in rack
-const newRack = TileOperations.swapRackTiles(rack, index1, index2);
+const newRack = swapRackTiles(rack, index1, index2);
 setRack(newRack);
 ```
 
@@ -171,7 +171,7 @@ Right-clicking tiles on the board removes them to the rack:
 const handleRightClick = (tile: TileData, position: Position): boolean => {
     if (state.isDraftMode) return false;
 
-    const emptySlotIndex = TileOperations.findFirstEmptySlot(state.rack);
+    const emptySlotIndex = findFirstEmptySlot(state.rack);
     if (emptySlotIndex === null) return false;
 
     const result = TileOperations.removeTileFromBoardToRack(

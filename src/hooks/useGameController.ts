@@ -14,7 +14,7 @@ import { useKeyboardTileActions } from "./useKeyboardTileActions";
 import { BoardState, PlacementHistoryEntry, Position } from "../types/board";
 import { RackState } from "../types/rack";
 import { TileData } from "../types/tile";
-import { shuffleRack } from "../utils/rackUtils";
+import { shuffleRack, findFirstEmptySlot } from "../utils/rackUtils";
 import * as TileOperations from "../engine/TileOperations";
 import * as TileSupply from "../engine/TileSupply";
 import * as PlayResolution from "../engine/PlayResolution";
@@ -140,7 +140,7 @@ export function useGameController() {
   // Right-click handlers
   const handleRightClick = (tile: TileData, position: Position): boolean => {
     if (state.isDraftMode) return false;
-    const emptySlotIndex = TileOperations.findFirstEmptySlot(state.rack);
+    const emptySlotIndex = findFirstEmptySlot(state.rack);
     if (emptySlotIndex === null) return false;
     
     // Use TileOperations which handles blank tile reversion automatically

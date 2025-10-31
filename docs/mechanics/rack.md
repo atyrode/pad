@@ -89,7 +89,7 @@ Tiles are removed from the rack when:
 `findFirstEmptySlot()` locates available space:
 
 ```typescript
-function findFirstEmptySlot(rack: RackState): number | null {
+export function findFirstEmptySlot(rack: RackState): number | null {
     for (let i = 0; i < rack.length; i++) {
         if (rack[i] === null) {
             return i;
@@ -235,9 +235,61 @@ if (rackIndex !== null || rackTileIndex !== null) {
 
 ## Rack Operations in Engine
 
+### Rack Utilities (`rackUtils.ts`)
+
+All rack utility functions are now consolidated in `src/utils/rackUtils.ts`:
+
+#### Core Rack Operations
+```typescript
+export function moveTileToRack(rack: RackState, tile: TileData, index: number): RackState {
+    const newRack = [...rack];
+    if (index >= 0 && index < rack.length) {
+        newRack[index] = tile;
+    }
+    return newRack;
+}
+
+export function removeTileFromRack(rack: RackState, index: number): RackState {
+    const newRack = [...rack];
+    if (index >= 0 && index < rack.length) {
+        newRack[index] = null;
+    }
+    return newRack;
+}
+
+export function swapRackTiles(rack: RackState, index1: number, index2: number): RackState {
+    const newRack = [...rack];
+    if (index1 >= 0 && index1 < rack.length && index2 >= 0 && index2 < rack.length) {
+        const tile1 = newRack[index1];
+        const tile2 = newRack[index2];
+        newRack[index1] = tile2;
+        newRack[index2] = tile1;
+    }
+    return newRack;
+}
+
+export function findFirstEmptySlot(rack: RackState): number | null {
+    for (let i = 0; i < rack.length; i++) {
+        if (rack[i] === null) {
+            return i;
+        }
+    }
+    return null;
+}
+
+export function findTileInRack(rack: RackState, tileId: string): number | null {
+    for (let i = 0; i < rack.length; i++) {
+        if (rack[i]?.id === tileId) {
+            return i;
+        }
+    }
+    return null;
+}
+```
+
 ### TileOperations Integration
 
-Rack operations are handled through `TileOperations`:
+Rack operations are used by `TileOperations` functions:
 
 #### Place from Rack to Board
 ```typescript
@@ -247,7 +299,7 @@ export function placeTileOnBoardFromRack(
     const tile = rack[rackIndex];
     if (!tile) return null;
 
-    // Remove from rack
+    // Remove from rack using rackUtils
     let newRack = removeTileFromRack(rack, rackIndex);
 
     // Place on board
@@ -267,7 +319,7 @@ export function placeTileOnBoardFromRack(
 export function removeTileFromBoardToRack(
     board: BoardState, position: Position, rack: RackState, targetRackIndex?: number
 ): RemoveTileFromBoardResult {
-    // Find target rack slot
+    // Find target rack slot using rackUtils
     let rackIndex = targetRackIndex;
     if (rackIndex === null) {
         rackIndex = findFirstEmptySlot(rack);
@@ -278,48 +330,10 @@ export function removeTileFromBoardToRack(
     const newBoard = removeTileFromBoard(board, position);
     const tile = board[position.row][position.col].tile!;
 
-    // Add to rack
+    // Add to rack using rackUtils
     const newRack = moveTileToRack(rack, tile, rackIndex);
 
     return { board: newBoard, rack: newRack, removedTile: tile, /* ... */ };
-}
-```
-
-### Rack Utility Functions
-
-#### Move Tile to Rack Index
-```typescript
-export function moveTileToRack(rack: RackState, tile: TileData, index: number): RackState {
-    const newRack = [...rack];
-    if (index >= 0 && index < rack.length) {
-        newRack[index] = tile;
-    }
-    return newRack;
-}
-```
-
-#### Remove Tile from Rack Index
-```typescript
-export function removeTileFromRack(rack: RackState, index: number): RackState {
-    const newRack = [...rack];
-    if (index >= 0 && index < rack.length) {
-        newRack[index] = null;
-    }
-    return newRack;
-}
-```
-
-#### Swap Rack Tiles
-```typescript
-export function swapRackTiles(rack: RackState, index1: number, index2: number): RackState {
-    const newRack = [...rack];
-    if (index1 >= 0 && index1 < rack.length && index2 >= 0 && index2 < rack.length) {
-        const tile1 = newRack[index1];
-        const tile2 = newRack[index2];
-        newRack[index1] = tile2;
-        newRack[index2] = tile1;
-    }
-    return newRack;
 }
 ```
 

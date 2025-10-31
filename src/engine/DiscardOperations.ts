@@ -1,6 +1,7 @@
 import { BoardState, PlacementHistoryEntry } from '../types/board';
 import { RackState } from '../types/rack';
 import { TileData } from '../types/tile';
+import { findTileInRack } from '../utils/rackUtils';
 import * as TileOperations from './TileOperations';
 import * as TileSupply from './TileSupply';
 
@@ -43,7 +44,7 @@ export function removeForDiscard(
     tileId: string
 ): RemoveForDiscardResult | null {
     // Try to find tile in rack first
-    const rackIndex = TileOperations.findTileInRack(rack, tileId);
+    const rackIndex = findTileInRack(rack, tileId);
     if (rackIndex !== null) {
         const tile = rack[rackIndex];
         if (!tile) {
@@ -121,7 +122,7 @@ export function discardAndDraw(
     }
 
     // Determine source rack index for TileSupply.discardAndDraw
-    const sourceRackIndex = TileOperations.findTileInRack(rack, tileId);
+    const sourceRackIndex = findTileInRack(rack, tileId);
     
     // Use updated rack from remove result for supply operation
     const updatedSupplyState: TileSupply.TileSupplyState = {

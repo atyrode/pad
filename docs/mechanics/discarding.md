@@ -20,7 +20,7 @@ export function removeForDiscard(
     tileId: string
 ): RemoveForDiscardResult | null {
     // Try to find tile in rack first
-    const rackIndex = TileOperations.findTileInRack(rack, tileId);
+    const rackIndex = findTileInRack(rack, tileId);
     if (rackIndex !== null) {
         const tile = rack[rackIndex];
         if (!tile) return null;
@@ -88,7 +88,7 @@ export function discardAndDraw(
     if (!removeResult) return null;
 
     // Determine source rack index for TileSupply
-    const sourceRackIndex = TileOperations.findTileInRack(rack, tileId);
+    const sourceRackIndex = findTileInRack(rack, tileId);
 
     // Use updated rack for supply operation
     const updatedSupplyState: TileSupplyState = {

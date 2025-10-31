@@ -2,6 +2,7 @@ import { BoardState, Position, PlacementHistoryEntry } from '../types/board';
 import { RackState } from '../types/rack';
 import { TileData } from '../types/tile';
 import { BOARD_SIZE } from '../constants/board';
+import { findFirstEmptySlot, moveTileToRack, removeTileFromRack, findTileInRack } from '../utils/rackUtils';
 
 /**
  * Result of placing a tile on the board from a rack
@@ -43,53 +44,7 @@ export interface SwapTilesResult {
 // RACK OPERATIONS
 // ============================================================================
 
-/**
- * Move a tile to a specific rack index
- */
-export function moveTileToRack(rack: RackState, tile: TileData, index: number): RackState {
-    const newRack = [...rack];
-    if (index >= 0 && index < rack.length) {
-        newRack[index] = tile;
-    }
-    return newRack;
-}
 
-/**
- * Remove a tile from a rack index
- */
-export function removeTileFromRack(rack: RackState, index: number): RackState {
-    const newRack = [...rack];
-    if (index >= 0 && index < rack.length) {
-        newRack[index] = null;
-    }
-    return newRack;
-}
-
-/**
- * Swap two tiles in the rack
- */
-export function swapRackTiles(rack: RackState, index1: number, index2: number): RackState {
-    const newRack = [...rack];
-    if (index1 >= 0 && index1 < rack.length && index2 >= 0 && index2 < rack.length) {
-        const tile1 = newRack[index1];
-        const tile2 = newRack[index2];
-        newRack[index1] = tile2;
-        newRack[index2] = tile1;
-    }
-    return newRack;
-}
-
-/**
- * Find first empty slot in rack
- */
-export function findFirstEmptySlot(rack: RackState): number | null {
-    for (let i = 0; i < rack.length; i++) {
-        if (rack[i] === null) {
-            return i;
-        }
-    }
-    return null;
-}
 
 // ============================================================================
 // BOARD OPERATIONS
@@ -141,17 +96,6 @@ function swapBoardTiles(board: BoardState, pos1: Position, pos2: Position): Boar
 // SEARCH OPERATIONS
 // ============================================================================
 
-/**
- * Find a tile in the rack by ID
- */
-export function findTileInRack(rack: RackState, tileId: string): number | null {
-    for (let i = 0; i < rack.length; i++) {
-        if (rack[i]?.id === tileId) {
-            return i;
-        }
-    }
-    return null;
-}
 
 /**
  * Find a tile position on the board by ID
