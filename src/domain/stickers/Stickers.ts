@@ -1,7 +1,14 @@
-import { StickerState, Sticker } from '../types/sticker';
-import { BOARD_SIZE } from '../constants/board';
-import { Position } from '../types/board';
-import type { WordInfo } from '../domain/board/Board';
+import { StickerState, Sticker } from '../../types/sticker';
+import { BOARD_SIZE } from '../../constants/board';
+import { Position } from '../../types/board';
+import type { WordInfo } from '../board/Board';
+
+/**
+ * Stickers domain module - Pure, immutable sticker operations
+ *
+ * This module provides all sticker-related functionality in a centralized,
+ * self-contained way. All operations are pure and return new sticker states.
+ */
 
 /**
  * Create initial sticker layout with 4-way rotational symmetry
@@ -9,7 +16,7 @@ import type { WordInfo } from '../domain/board/Board';
  * Points stickers (+10 points) closer to center
  */
 export function createInitialStickers(): StickerState {
-    const stickers: StickerState = Array(BOARD_SIZE).fill(null).map(() => 
+    const stickers: StickerState = Array(BOARD_SIZE).fill(null).map(() =>
         Array(BOARD_SIZE).fill(null)
     );
 
@@ -64,14 +71,14 @@ export function createInitialStickers(): StickerState {
 export function consumeSticker(stickers: StickerState, position: Position): StickerState {
     const newStickers = stickers.map(row => [...row]);
     const sticker = newStickers[position.row][position.col];
-    
+
     if (sticker && !sticker.consumed) {
         newStickers[position.row][position.col] = {
             ...sticker,
             consumed: true
         };
     }
-    
+
     return newStickers;
 }
 
@@ -81,14 +88,14 @@ export function consumeSticker(stickers: StickerState, position: Position): Stic
 export function reactivateSticker(stickers: StickerState, position: Position): StickerState {
     const newStickers = stickers.map(row => [...row]);
     const sticker = newStickers[position.row][position.col];
-    
+
     if (sticker && sticker.consumed) {
         newStickers[position.row][position.col] = {
             ...sticker,
             consumed: false
         };
     }
-    
+
     return newStickers;
 }
 
@@ -121,16 +128,16 @@ export function isStartStickerConsumed(stickers: StickerState): boolean {
 export function doesWordCoverStartSticker(word: WordInfo, stickers: StickerState): boolean {
     const startRow = 5;
     const startCol = 5;
-    
+
     if (word.direction === 'horizontal') {
         // Check if start position is within the horizontal word range
-        return word.position.row === startRow && 
-               startCol >= word.position.col && 
+        return word.position.row === startRow &&
+               startCol >= word.position.col &&
                startCol < word.position.col + word.word.length;
     } else {
         // Check if start position is within the vertical word range
-        return word.position.col === startCol && 
-               startRow >= word.position.row && 
+        return word.position.col === startCol &&
+               startRow >= word.position.row &&
                startRow < word.position.row + word.word.length;
     }
 }
@@ -173,4 +180,3 @@ export function countStickers(stickers: StickerState): {
 
     return { multiActive, multiConsumed, pointsActive, pointsConsumed, startActive, startConsumed };
 }
-

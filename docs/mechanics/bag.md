@@ -78,12 +78,12 @@ export const ALL_TILE_DEFINITIONS: TileDefinition[] = [
 
 ## Bag Creation
 
-### createTileBag() Function
+### createStandard() Function
 
-`TileSupply.createTileBag()` generates a full bag:
+`Bag.createStandard()` generates a full bag:
 
 ```typescript
-export function createTileBag(): Bag {
+export function createStandard(): Bag {
     const bag: Bag = [];
 
     for (const { tileId, count } of TILE_DISTRIBUTION) {
@@ -99,16 +99,16 @@ export function createTileBag(): Bag {
         }
     }
 
-    return shuffleBag(bag);
+    return shuffle(bag);
 }
 ```
 
 ### Bag Size Calculation
 
-`getFullBagSize()` returns total tiles:
+`fullSize()` returns total tiles:
 
 ```typescript
-export function getFullBagSize(): number {
+export function fullSize(): number {
     return TILE_DISTRIBUTION.reduce((total, tile) => total + tile.count, 0);
     // Returns 100
 }
@@ -118,10 +118,10 @@ export function getFullBagSize(): number {
 
 ### Fisher-Yates Shuffle
 
-`shuffleBag()` uses the Fisher-Yates algorithm:
+`shuffle()` uses the Fisher-Yates algorithm:
 
 ```typescript
-export function shuffleBag(bag: Bag): Bag {
+export function shuffle(bag: Bag): Bag {
     const shuffled = [...bag];
     for (let i = shuffled.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
@@ -194,7 +194,7 @@ function refillBagFromDiscard(bag: Bag, discard: TileData[]): {
 } {
     if (bag.length === 0 && discard.length > 0) {
         return {
-            newBag: shuffleBag([...discard]),
+            newBag: Bag.shuffle([...discard]),
             newDiscard: [],
             didRefill: true,
         };
@@ -317,7 +317,7 @@ const draftedTiles = positions
     .map(p => draftBoard[p.row][p.col].tile)
     .filter(Boolean) as TileData[];
 
-const newBag = TileSupply.shuffleBag([...draftedTiles]);
+const newBag = Bag.shuffle([...draftedTiles]);
 setBag(newBag);
 ```
 
@@ -338,10 +338,10 @@ Debug menu provides bag controls:
 
 ```typescript
 // Reset bag to full standard distribution
-setBag(createTileBag());
+setBag(Bag.createStandard());
 
 // Shuffle current bag
-setBag(shuffleBag(state.bag));
+setBag(Bag.shuffle(state.bag));
 
 // Clear bag
 setBag([]);

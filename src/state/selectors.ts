@@ -2,7 +2,7 @@ import { BoardState } from "../types/board";
 import { RackState } from "../types/rack";
 import { StickerState } from "../types/sticker";
 import * as Board from "../domain/board/Board";
-import { doesWordCoverStartSticker, isStartStickerConsumed } from "../utils/stickerUtils";
+import * as Stickers from "../domain/stickers/Stickers";
 import { isValidWordSync } from "../utils/dictionaryUtils";
 import * as Rack from "../domain/rack/Rack";
 
@@ -22,9 +22,9 @@ export function areAllCurrentWordsValidSelector(
     const allWordsValid = currentWords.every(wordInfo => isValidWordSync(wordInfo.word) === true);
     if (!allWordsValid) return false;
 
-    const startStickerConsumed = isStartStickerConsumed(stickers);
+    const startStickerConsumed = Stickers.isStartStickerConsumed(stickers);
     if (!startStickerConsumed) {
-        const allWordsCoverStart = currentWords.every(wordInfo => doesWordCoverStartSticker(wordInfo, stickers));
+        const allWordsCoverStart = currentWords.every(wordInfo => Stickers.doesWordCoverStartSticker(wordInfo, stickers));
         if (!allWordsCoverStart) return false;
     } else {
         const hasLockedTiles = board.some(row => row.some(cell => cell.tile && !cell.canTake));

@@ -1,8 +1,8 @@
 import { RackState } from '../types/rack';
 import { Bag } from '../types/bag';
 import { TileData } from '../types/tile';
-import { getTileDefinitionById } from '../utils/tileDefinitions';
 import * as Rack from '../domain/rack/Rack';
+import * as BagDomain from '../domain/bag/Bag';
 
 /**
  * State for tile supply operations
@@ -33,145 +33,28 @@ export interface DiscardAndDrawResult {
 }
 
 // ============================================================================
-// BAG OPERATIONS
+// BAG DELEGATION FUNCTIONS
 // ============================================================================
 
 /**
- * Tile distribution for standard Scrabble
- */
-interface TileDistribution {
-    tileId: number;
-    count: number;
-}
-
-const TILE_DISTRIBUTION: TileDistribution[] = [
-    { tileId: 0, count: 2 },   // Blank
-    { tileId: 2, count: 15 },  // E
-    { tileId: 1, count: 9 },   // A
-    { tileId: 3, count: 8 },   // I
-    { tileId: 4, count: 6 },   // N
-    { tileId: 5, count: 6 },   // O
-    { tileId: 6, count: 6 },   // R
-    { tileId: 7, count: 6 },   // S
-    { tileId: 8, count: 6 },   // T
-    { tileId: 9, count: 6 },   // U
-    { tileId: 10, count: 5 },  // L
-    { tileId: 11, count: 3 },  // D
-    { tileId: 12, count: 3 },  // M
-    { tileId: 13, count: 2 },  // G
-    { tileId: 14, count: 2 },  // B
-    { tileId: 15, count: 2 },  // C
-    { tileId: 16, count: 2 },  // P
-    { tileId: 17, count: 2 },  // F
-    { tileId: 18, count: 2 },  // H
-    { tileId: 19, count: 2 },  // V
-    { tileId: 23, count: 1 },  // J
-    { tileId: 25, count: 1 },  // Q
-    { tileId: 22, count: 1 },  // K
-    { tileId: 20, count: 1 },  // W
-    { tileId: 24, count: 1 },  // X
-    { tileId: 21, count: 1 },  // Y
-    { tileId: 26, count: 1 },  // Z
-];
-
-/**
- * Shuffle a bag using Fisher-Yates algorithm
+ * Shuffle a bag using Fisher-Yates algorithm (delegates to Bag domain)
  */
 export function shuffleBag(bag: Bag): Bag {
-    const shuffled = [...bag];
-    for (let i = shuffled.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-    }
-    return shuffled;
+    return BagDomain.shuffle(bag);
 }
 
 /**
- * Create a new tile bag with standard Scrabble distribution
+ * Create a new tile bag with standard Scrabble distribution (delegates to Bag domain)
  */
 export function createTileBag(): Bag {
-    const bag: Bag = [];
-    
-    for (const { tileId, count } of TILE_DISTRIBUTION) {
-        const tileDefinition = getTileDefinitionById(tileId);
-        if (!tileDefinition) {
-            console.warn(`Tile definition not found for ID: ${tileId}`);
-            continue;
-        }
-        
-        for (let i = 0; i < count; i++) {
-            bag.push({
-                id: crypto.randomUUID(),
-                value: tileDefinition.letter,
-                score: tileDefinition.score,
-            });
-        }
-    }
-    
-    return shuffleBag(bag);
+    return BagDomain.createStandard();
 }
 
 /**
- * Get the total number of tiles in a full bag
+ * Get the total number of tiles in a full bag (delegates to Bag domain)
  */
 export function getFullBagSize(): number {
-    return TILE_DISTRIBUTION.reduce((total, tile) => total + tile.count, 0);
-}
-
-/**
- * Draw a single tile from the bag (without refilling from discard)
- */
-function drawTileFromBag(bag: Bag): { tile: TileData | null; newBag: Bag } {
-    if (bag.length === 0) {
-        return { tile: null, newBag: bag };
-    }
-    
-    const drawnTile = bag[0];
-    const newBag = bag.slice(1);
-    
-    return { tile: drawnTile, newBag };
-}
-
-/**
- * Refill the bag from the discard pile if the bag is empty
- */
-function refillBagFromDiscard(bag: Bag, discard: TileData[]): {
-    newBag: Bag;
-    newDiscard: TileData[];
-    didRefill: boolean;
-} {
-    if (bag.length === 0 && discard.length > 0) {
-        return {
-            newBag: shuffleBag([...discard]),
-            newDiscard: [],
-            didRefill: true,
-        };
-    }
-    return {
-        newBag: bag,
-        newDiscard: discard,
-        didRefill: false,
-    };
-}
-
-/**
- * Draw a tile from the bag, automatically refilling from discard if needed
- */
-function drawTile(bag: Bag, discard: TileData[]): {
-    tile: TileData | null;
-    newBag: Bag;
-    newDiscard: TileData[];
-    didRefill: boolean;
-} {
-    const { newBag, newDiscard, didRefill } = refillBagFromDiscard(bag, discard);
-    const { tile, newBag: updatedBag } = drawTileFromBag(newBag);
-    
-    return {
-        tile,
-        newBag: updatedBag,
-        newDiscard,
-        didRefill,
-    };
+    return BagDomain.fullSize();
 }
 
 
@@ -189,7 +72,7 @@ export function drawOne(currentState: TileSupplyState): DrawResult | null {
         return null;
     }
 
-    const { tile, newBag, newDiscard } = drawTile(currentState.bag, currentState.discard);
+    const { tile, bag: newBag, discard: newDiscard } = BagDomain.draw(currentState.bag, currentState.discard);
     if (!tile) {
         return null;
     }
@@ -217,7 +100,7 @@ export function drawToFill(currentState: TileSupplyState): DrawResult {
         const slot = Rack.firstEmpty(rackWork);
         if (slot === null) break;
 
-        const { tile, newBag, newDiscard } = drawTile(currentBag, currentDiscard);
+        const { tile, bag: newBag, discard: newDiscard } = BagDomain.draw(currentBag, currentDiscard);
         if (!tile) break;
 
         rackWork[slot] = tile;
@@ -243,7 +126,7 @@ export function redraw(currentState: TileSupplyState): DrawResult {
     const newRack: RackState = Array(currentState.rack.length).fill(null);
 
     for (let i = 0; i < currentTileCount; i++) {
-        const { tile, newBag, newDiscard } = drawTile(currentBag, currentDiscard);
+        const { tile, bag: newBag, discard: newDiscard } = BagDomain.draw(currentBag, currentDiscard);
         if (!tile) break;
 
         newRack[i] = tile;
@@ -295,7 +178,7 @@ export function discardAndDraw(
     }
 
     // Draw new tile using the updated discard
-    const { tile: newTile, newBag, newDiscard } = drawTile(currentState.bag, updatedDiscard);
+    const { tile: newTile, bag: newBag, discard: newDiscard } = BagDomain.draw(currentState.bag, updatedDiscard);
     if (!newTile) {
         return {
             rack: updatedRack,

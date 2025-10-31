@@ -5,7 +5,7 @@ import { StickerState } from '../types/sticker';
 import { TileData } from '../types/tile';
 import * as BoardDomain from '../domain/board/Board';
 import type { WordInfo } from '../domain/board/Board';
-import { consumeSticker, isStickerActive } from '../utils/stickerUtils';
+import * as Stickers from '../domain/stickers/Stickers';
 import * as TileSupply from './TileSupply';
 
 /**
@@ -75,7 +75,7 @@ export function calculateWordScore(word: WordInfo, board: BoardState, stickers?:
                 points += cell.tile.score;
                 letterCount++;
                 
-                if (stickers && isStickerActive(stickers, { row: word.position.row, col })) {
+                if (stickers && Stickers.isStickerActive(stickers, { row: word.position.row, col })) {
                     const sticker = stickers[word.position.row][col];
                     if (sticker) {
                         if (sticker.type === 'multi') {
@@ -94,7 +94,7 @@ export function calculateWordScore(word: WordInfo, board: BoardState, stickers?:
                 points += cell.tile.score;
                 letterCount++;
                 
-                if (stickers && isStickerActive(stickers, { row, col: word.position.col })) {
+                if (stickers && Stickers.isStickerActive(stickers, { row, col: word.position.col })) {
                     const sticker = stickers[row][word.position.col];
                     if (sticker) {
                         if (sticker.type === 'multi') {
@@ -140,7 +140,7 @@ export function calculateCurrentPlayScore(board: BoardState, stickers?: StickerS
                         placedCount++;
                     }
                     
-                    if (stickers && isStickerActive(stickers, { row: word.position.row, col })) {
+                    if (stickers && Stickers.isStickerActive(stickers, { row: word.position.row, col })) {
                         const sticker = stickers[word.position.row][col];
                         if (sticker) {
                             if (sticker.type === 'multi') {
@@ -162,7 +162,7 @@ export function calculateCurrentPlayScore(board: BoardState, stickers?: StickerS
                         placedCount++;
                     }
                     
-                    if (stickers && isStickerActive(stickers, { row, col: word.position.col })) {
+                    if (stickers && Stickers.isStickerActive(stickers, { row, col: word.position.col })) {
                         const sticker = stickers[row][word.position.col];
                         if (sticker) {
                             if (sticker.type === 'multi') {
@@ -246,7 +246,7 @@ export function resolvePlay(args: ResolvePlayArgs): ResolvePlayResult {
         for (let col = 0; col < args.board[row].length; col++) {
             const cell = args.board[row][col];
             if (cell.tile && cell.canTake) {
-                newStickers = consumeSticker(newStickers, { row, col });
+                newStickers = Stickers.consumeSticker(newStickers, { row, col });
             }
         }
     }

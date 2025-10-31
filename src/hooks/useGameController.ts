@@ -20,7 +20,8 @@ import * as TileSupply from "../engine/TileSupply";
 import * as PlayResolution from "../engine/PlayResolution";
 import { createInitialDraftBoard } from "../utils/draftBoardUtils";
 import * as Board from "../domain/board/Board";
-import { createInitialStickers, consumeSticker } from "../utils/stickerUtils";
+import * as Bag from "../domain/bag/Bag";
+import * as Stickers from "../domain/stickers/Stickers";
 import { getAllAvailableLetters } from "../utils/tileDefinitions";
 import { canPlaySelector, canShuffleSelector } from "../state/selectors";
 
@@ -333,12 +334,12 @@ export function useGameController() {
       setTotalScore(0);
     },
     onResetStickers: () => {
-      let stickers = createInitialStickers();
+      let stickers = Stickers.createInitialStickers();
       for (let row = 0; row < state.board.length; row++) {
         for (let col = 0; col < state.board[row].length; col++) {
           const cell = state.board[row][col];
           if (cell.tile && !cell.canTake) {
-            stickers = consumeSticker(stickers, { row, col });
+            stickers = Stickers.consumeSticker(stickers, { row, col });
           }
         }
       }
@@ -351,7 +352,7 @@ export function useGameController() {
       const draftedTiles = positions
         .map(p => state.draftBoard[p.row][p.col].tile)
         .filter(Boolean) as TileData[];
-      setBag(TileSupply.shuffleBag([...draftedTiles]));
+      setBag(Bag.shuffle([...draftedTiles]));
     },
     onResetGame: () => {
       // Capture current board before resetting for sticker calculation
@@ -360,12 +361,12 @@ export function useGameController() {
       const emptyRack: RackState = Array(state.rack.length).fill(null);
       setRack(emptyRack);
       setTotalScore(0);
-      let stickers = createInitialStickers();
+      let stickers = Stickers.createInitialStickers();
       for (let row = 0; row < currentBoard.length; row++) {
         for (let col = 0; col < currentBoard[row].length; col++) {
           const cell = currentBoard[row][col];
           if (cell.tile && !cell.canTake) {
-            stickers = consumeSticker(stickers, { row, col });
+            stickers = Stickers.consumeSticker(stickers, { row, col });
           }
         }
       }
@@ -376,10 +377,10 @@ export function useGameController() {
       const draftedTiles = positions
         .map(p => state.draftBoard[p.row][p.col].tile)
         .filter(Boolean) as TileData[];
-      setBag(TileSupply.shuffleBag([...draftedTiles]));
+      setBag(Bag.shuffle([...draftedTiles]));
     },
     onShuffleBag: () => {
-      setBag(TileSupply.shuffleBag(state.bag));
+      setBag(Bag.shuffle(state.bag));
     },
     onResetDraft: () => {
       setDraftBoard(createInitialDraftBoard());

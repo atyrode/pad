@@ -6,7 +6,7 @@ import { StickerState } from '../types/sticker';
 import * as BoardDomain from '../domain/board/Board';
 import { createInitialDraftBoard, generateRandomTiles } from '../utils/draftBoardUtils';
 import { isValidWordSync } from '../utils/dictionaryUtils';
-import { countStickers } from '../utils/stickerUtils';
+import * as Stickers from '../domain/stickers/Stickers';
 import * as Rack from '../domain/rack/Rack';
 import { TileData } from '../types/tile';
 import { useGame } from '../state/GameContext';
@@ -128,7 +128,7 @@ export default function DebugMenu({ bag, rack, board, setRack, setBag, setBoard,
   const currentPlayScore = PlayResolution.calculateCurrentPlayScore(board, stickers);
 
   // Count stickers
-  const stickerCounts = countStickers(stickers);
+  const stickerCounts = Stickers.countStickers(stickers);
 
   // Check if board is empty (no tiles placed)
   const isBoardEmpty = board.every(row =>

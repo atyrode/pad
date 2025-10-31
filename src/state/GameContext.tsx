@@ -6,7 +6,7 @@ import { gameReducer } from "./gameReducer";
 import * as Board from "../domain/board/Board";
 import * as Rack from "../domain/rack/Rack";
 import { createInitialDraftBoard } from "../utils/draftBoardUtils";
-import { createInitialStickers } from "../utils/stickerUtils";
+import * as Stickers from "../domain/stickers/Stickers";
 import { preloadDictionary } from "../utils/dictionaryUtils";
 
 const GameStateContext = createContext<GameState | undefined>(undefined);
@@ -19,7 +19,7 @@ function getInitialState(): GameState {
         bag: [],
         discard: [],
 
-        stickers: createInitialStickers(),
+        stickers: Stickers.createInitialStickers(),
         totalScore: 0,
 
         isDraftMode: false,

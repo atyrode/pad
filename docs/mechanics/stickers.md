@@ -57,7 +57,7 @@ interface Sticker {
 
 ### Initial Layout
 
-`createInitialStickers()` in `src/utils/stickerUtils.ts` places stickers with 4-way rotational symmetry:
+`createInitialStickers()` in `src/domain/stickers/Stickers.ts` places stickers with 4-way rotational symmetry:
 
 ```typescript
 export function createInitialStickers(): StickerState {
@@ -131,7 +131,7 @@ export function createInitialStickers(): StickerState {
 
 ## Sticker Consumption
 
-### consumeSticker() Function
+### Stickers.consumeSticker() Function
 
 Stickers are consumed when tiles are placed on them:
 
@@ -162,7 +162,7 @@ for (let row = 0; row < args.board.length; row++) {
     for (let col = 0; col < args.board[row].length; col++) {
         const cell = args.board[row][col];
         if (cell.tile && cell.canTake) { // Just placed tile
-            newStickers = consumeSticker(newStickers, { row, col });
+            newStickers = Stickers.consumeSticker(newStickers, { row, col });
         }
     }
 }
@@ -179,11 +179,11 @@ for (let row = 0; row < args.board.length; row++) {
 
 ### Active State
 
-`isStickerActive()` checks if a sticker provides bonuses:
+`Stickers.isStickerActive()` checks if a sticker provides bonuses:
 
 ```typescript
 export function isStickerActive(stickers: StickerState, position: Position): boolean {
-    const sticker = getStickerAt(stickers, position);
+    const sticker = Stickers.getStickerAt(stickers, position);
     return sticker !== null && !sticker.consumed;
 }
 ```
@@ -213,7 +213,7 @@ Multipliers are applied to the entire word score:
 let stickerMulti = 0;
 
 // Check each position in word
-if (stickers && isStickerActive(stickers, position)) {
+if (stickers && Stickers.isStickerActive(stickers, position)) {
     const sticker = stickers[position.row][position.col];
     if (sticker?.type === 'multi') {
         stickerMulti += sticker.value;
@@ -240,7 +240,7 @@ Bonus points are added before multiplication:
 let stickerPoints = 0;
 
 // Add points stickers
-if (stickers && isStickerActive(stickers, position)) {
+if (stickers && Stickers.isStickerActive(stickers, position)) {
     const sticker = stickers[position.row][position.col];
     if (sticker?.type === 'points') {
         stickerPoints += sticker.value;
@@ -344,12 +344,13 @@ export function countStickers(stickers: StickerState): {
 
 ### Sticker Access
 
-`getStickerAt()` retrieves sticker at position:
+`Stickers.getStickerAt()` retrieves sticker at position:
 
 ```typescript
 export function getStickerAt(stickers: StickerState, position: Position): Sticker | null {
     return stickers[position.row][position.col];
 }
+```
 ```
 
 ## Visual Representation
@@ -396,13 +397,13 @@ Debug menu provides sticker controls:
 ```typescript
 // Reset stickers
 onResetStickers: () => {
-    let stickers = createInitialStickers();
+    let stickers = Stickers.createInitialStickers();
     // Consume stickers where locked tiles exist
     for (let row = 0; row < state.board.length; row++) {
         for (let col = 0; col < state.board[row].length; col++) {
             const cell = state.board[row][col];
             if (cell.tile && !cell.canTake) {
-                stickers = consumeSticker(stickers, { row, col });
+                stickers = Stickers.consumeSticker(stickers, { row, col });
             }
         }
     }
