@@ -100,7 +100,7 @@ export function useKeyboardTileActions({
     }
 
     return false;
-  }, [board, rack, selectedCell, setBoard, setRack, setPlacementHistory]);
+  }, [board, rack, setBoard, setRack, setPlacementHistory]);
 
   const handleKeyboardTileRemoval = useCallback((): { success: boolean; position?: Position } => {
     if (placementHistory.length === 0) return { success: false };
