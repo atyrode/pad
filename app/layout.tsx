@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Manifold  | tyrode.dev",
-  description: "A simple and clean note-taking app.",
+  title: "Skrabble | tyrode.dev",
+  description: "A solo French word-tile game.",
 };
 
 export default function RootLayout({

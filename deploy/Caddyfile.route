@@ -1,0 +1,5 @@
+@games path /skrabble /skrabble/*
+handle @games {
+	reverse_proxy 127.0.0.1:8093
+}
+respond 404

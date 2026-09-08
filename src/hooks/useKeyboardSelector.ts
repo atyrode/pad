@@ -147,6 +147,7 @@ export const useKeyboardSelector = (props?: UseKeyboardSelectorProps) => {
     if (success && selectorState.direction) {
       // Move selector forward in current direction after successful placement, skipping non-placeable tiles
       setSelectorState(prevState => {
+        if (!prevState.direction) return prevState;
         const { row, col } = prevState.position;
         const nextPosition = findNextNonLockedCell(row, col, prevState.direction);
         
@@ -256,6 +257,7 @@ export const useKeyboardSelector = (props?: UseKeyboardSelectorProps) => {
     }
 
     setSelectorState(prevState => {
+      if (!prevState.direction) return prevState;
       const { row, col } = prevState.position;
       const nextPosition = findNextNonLockedCell(row, col, prevState.direction);
       

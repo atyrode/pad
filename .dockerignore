@@ -1,0 +1,9 @@
+.git
+.clever.json
+.next
+out
+node_modules
+.env*
+*.log
+*.tsbuildinfo
+next-env.d.ts
