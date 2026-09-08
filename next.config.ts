@@ -5,6 +5,7 @@ const nextConfig: NextConfig = {
   basePath: "/skrabble",
   trailingSlash: true,
   allowedDevOrigins: ["games.tyrode.dev"],
+  devIndicators: false,
 };
 
 export default nextConfig;

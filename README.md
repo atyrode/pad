@@ -56,6 +56,7 @@ is bind-mounted into the development container, so editing the checkout updates
 the browser through Next.js Fast Refresh. **Ordinary edits need no commit, push,
 image rebuild, or host activation.** This is deliberately a public development
 server: visitors see work in progress and may see development error overlays.
+The Next.js toolbar is hidden; Fast Refresh remains enabled.
 
 ```sh
 docker compose -f compose.dev.yaml up -d --build --wait
