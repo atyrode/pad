@@ -8,7 +8,6 @@ import { TileData } from '../types/tile';
 
 interface RackProps {
     rack: RackState;
-    setRack: React.Dispatch<React.SetStateAction<RackState>>;
     boardCellSize: number;
     overBoardPos: Position | null;
     overRackIndex: number | null;
@@ -19,7 +18,7 @@ interface RackProps {
     onRackRightClick?: (tile: TileData, rackIndex: number) => boolean;
 }
 
-export default function Rack({ rack, setRack, boardCellSize, overBoardPos, overRackIndex, boardRef, rackRef, gameAreaRef, selectedCell, onRackRightClick }: RackProps) {
+export default function Rack({ rack, boardCellSize, overBoardPos, overRackIndex, boardRef, rackRef, gameAreaRef, selectedCell, onRackRightClick }: RackProps) {
     const internalRackRef = React.useRef<HTMLDivElement>(null);
     const actualRackRef = rackRef || internalRackRef;
 

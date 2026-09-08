@@ -20,54 +20,31 @@ function createTileFromLetter(letter: string, id: string): TileData {
     };
 }
 
-/**
- * Generate random tiles from the tile definitions
- */
-export function generateRandomTiles(count: number): TileData[] {
-    const tiles: TileData[] = [];
-    
-    for (let i = 0; i < count; i++) {
-        // Pick a random tile definition
-        const randomIndex = Math.floor(Math.random() * ALL_TILE_DEFINITIONS.length);
-        const tileDef = ALL_TILE_DEFINITIONS[randomIndex];
-        
-        // Create a unique tile with timestamp-based ID
-        const tile: TileData = {
-            id: `random-${tileDef.letter}-${Date.now()}-${i}`,
-            value: tileDef.letter,
-            score: tileDef.score
-        };
-        
-        tiles.push(tile);
-    }
-    
-    return tiles;
-}
-
 const VOWELS = new Set(['A', 'E', 'I', 'O', 'U', 'Y']);
 
-export function generateUniqueTiles(count: number, type: 'vowel' | 'consonant'): TileData[] {
+export function generateUniqueTiles(
+    count: number,
+    type: 'vowel' | 'consonant',
+    random: () => number,
+    createId: () => string,
+): TileData[] {
     const pool = ALL_TILE_DEFINITIONS.filter(def => type === 'vowel' ? VOWELS.has(def.letter) : !VOWELS.has(def.letter));
+    if (!Number.isInteger(count) || count < 0 || count > pool.length) {
+        throw new RangeError(`Cannot sample ${count} distinct ${type} tiles from ${pool.length} letters`);
+    }
     const tiles: TileData[] = [];
-    const used = new Set<string>();
-    while (tiles.length < count && pool.length > 0) {
-        const randomIndex = Math.floor(Math.random() * pool.length);
-        const def = pool[randomIndex];
-        if (used.has(def.letter)) continue;
-        used.add(def.letter);
-        tiles.push({ id: `random-${def.letter}-${Date.now()}-${tiles.length}`, value: def.letter, score: def.score });
+    for (let i = 0; i < count; i++) {
+        const index = Math.floor(random() * pool.length);
+        const [def] = pool.splice(index, 1);
+        tiles.push({ id: createId(), value: def.letter, score: def.score });
     }
     return tiles;
-}
-
-export function createBlankTile(idSuffix: string = ''): TileData {
-    return { id: `blank-${Date.now()}-${idSuffix}`, value: '*', score: 0, originalValue: '*', displayValue: undefined } as any;
 }
 
 /**
  * Create the initial draft board with "DRAFT" spelled out in locked tiles
- * on the second row (row 1), centered in the 11x11 grid
- * and random suggested tiles at positions (4,2), (4,5), (4,8)
+ * on the second row (row 1), centered in the 11x11 grid.
+ * The engine owns suggestions at positions (4,2), (4,5), (4,8).
  */
 export function createInitialDraftBoard(): BoardState {
     const board = createInitialBoard();
@@ -107,18 +84,9 @@ export function createInitialDraftBoard(): BoardState {
         };
     });
     
-    // Add random suggested tiles at positions (4,2), (4,5), (4,8)
-    const suggestedPositions = [
-        { row: 4, col: 2 },
-        { row: 4, col: 5 },
-        { row: 4, col: 8 }
-    ];
-
-    // Initial suggestions: vowel draft (V): sides vowels, middle empty
-    const initialVowels = generateUniqueTiles(2, 'vowel');
-    board[4][2] = { ...board[4][2], tile: initialVowels[0], canPlace: false, canTake: true };
-    board[4][5] = { ...board[4][5], tile: null, canPlace: false, canTake: true };
-    board[4][8] = { ...board[4][8], tile: initialVowels[1], canPlace: false, canTake: true };
+    board[4][2] = { ...board[4][2], canPlace: false, canTake: true };
+    board[4][5] = { ...board[4][5], canPlace: false, canTake: true };
+    board[4][8] = { ...board[4][8], canPlace: false, canTake: true };
     
     return board;
 }

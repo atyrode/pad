@@ -1,282 +1,97 @@
-import { useState, useEffect, useCallback } from 'react';
+import { KeyboardEvent, useRef, useState } from 'react';
 import { BOARD_SIZE } from '../constants/board';
-import { BoardState } from '../types/board';
+import { BoardState, Direction, Position } from '../types/board';
 
-export type Direction = 'right' | 'down';
-
-export interface SelectorState {
-  position: { row: number; col: number };
-  direction: Direction | null;
-  visible: boolean;
+interface SelectorState {
+    position: Position;
+    direction: Direction | null;
+    visible: boolean;
 }
 
 interface UseKeyboardSelectorProps {
-  onLetterInput?: (letter: string) => boolean;
-  onBackspace?: () => { success: boolean; position?: { row: number; col: number } };
-  onShuffle?: () => void;
-  onPlay?: () => void;
-  board?: BoardState;
+    isEnabled: () => boolean;
+    getBoard: () => BoardState;
+    onLetterInput: (letter: string, position: Position) => boolean;
+    onBackspace: () => { success: boolean; position?: Position };
+    onShuffle: () => void;
+    onPlay: () => void;
+    onDiscard: (position: Position | null) => void;
 }
 
-export const useKeyboardSelector = (props?: UseKeyboardSelectorProps) => {
-  const [selectorState, setSelectorState] = useState<SelectorState>({
-    position: { row: 5, col: 5 }, // Center of 11x11 board
-    direction: null,
-    visible: false,
-  });
-
-  // Helper function to find the next placeable cell in the given direction
-  const findNextNonLockedCell = useCallback((startRow: number, startCol: number, direction: Direction): { row: number; col: number } | null => {
-    if (!props?.board) {
-      // If no board provided, fall back to simple movement
-      if (direction === 'right') {
-        return { row: startRow, col: (startCol + 1) % BOARD_SIZE };
-      } else {
-        return { row: (startRow + 1) % BOARD_SIZE, col: startCol };
-      }
-    }
-
-    let currentRow = startRow;
-    let currentCol = startCol;
-    const startPosition = { row: startRow, col: startCol };
-    let attempts = 0;
-    const maxAttempts = BOARD_SIZE; // Prevent infinite loop
-
-    do {
-      // Move in the specified direction
-      if (direction === 'right') {
-        currentCol = (currentCol + 1) % BOARD_SIZE;
-      } else {
-        currentRow = (currentRow + 1) % BOARD_SIZE;
-      }
-
-      // Check if we've wrapped around to the starting position
-      if (currentRow === startPosition.row && currentCol === startPosition.col) {
-        return null; // No non-locked cells found
-      }
-
-      // Check if current cell can accept a placement
-      const cell = props.board[currentRow][currentCol];
-      if (cell.canPlace) {
-        return { row: currentRow, col: currentCol };
-      }
-
-      attempts++;
-    } while (attempts < maxAttempts);
-
-    return null; // No non-locked cells found
-  }, [props?.board]);
-
-  const moveSelector = useCallback((arrowDirection: 'up' | 'down' | 'left' | 'right') => {
-    setSelectorState(prevState => {
-      if (!prevState.visible) {
-        // First arrow press - show selector at center and set direction to 'right'
-        const { row, col } = prevState.position;
-        let newRow = row;
-        let newCol = col;
-
-        // Move in the pressed arrow direction
-        switch (arrowDirection) {
-          case 'up':
-            newRow = (row - 1 + BOARD_SIZE) % BOARD_SIZE;
-            break;
-          case 'down':
-            newRow = (row + 1) % BOARD_SIZE;
-            break;
-          case 'left':
-            newCol = (col - 1 + BOARD_SIZE) % BOARD_SIZE;
-            break;
-          case 'right':
-            newCol = (col + 1) % BOARD_SIZE;
-            break;
-        }
-
-        return {
-          position: { row: newRow, col: newCol },
-          direction: 'right', // Default direction
-          visible: true,
-        };
-      }
-
-      // Subsequent arrow presses - move in the pressed direction
-      const { row, col } = prevState.position;
-      let newRow = row;
-      let newCol = col;
-
-      switch (arrowDirection) {
-        case 'up':
-          newRow = (row - 1 + BOARD_SIZE) % BOARD_SIZE;
-          break;
-        case 'down':
-          newRow = (row + 1) % BOARD_SIZE;
-          break;
-        case 'left':
-          newCol = (col - 1 + BOARD_SIZE) % BOARD_SIZE;
-          break;
-        case 'right':
-          newCol = (col + 1) % BOARD_SIZE;
-          break;
-      }
-
-      return {
-        ...prevState,
-        position: { row: newRow, col: newCol },
-      };
-    });
-  }, []);
-
-  const toggleDirection = useCallback(() => {
-    setSelectorState(prevState => {
-      if (!prevState.visible) {
-        return prevState; // Can't toggle if not visible
-      }
-
-      return {
-        ...prevState,
-        direction: prevState.direction === 'right' ? 'down' : 'right',
-      };
-    });
-  }, []);
-
-  const handleLetterInput = useCallback((letter: string) => {
-    if (!props?.onLetterInput || !selectorState.visible) {
-      return false;
-    }
-
-    const success = props.onLetterInput(letter);
-    if (success && selectorState.direction) {
-      // Move selector forward in current direction after successful placement, skipping non-placeable tiles
-      setSelectorState(prevState => {
-        if (!prevState.direction) return prevState;
-        const { row, col } = prevState.position;
-        const nextPosition = findNextNonLockedCell(row, col, prevState.direction);
-        
-        if (nextPosition) {
-          return {
-            ...prevState,
-            position: nextPosition,
-          };
-        } else {
-          // No placeable cells found, stay at current position
-          return prevState;
-        }
-      });
-    }
-    return success;
-  }, [props?.onLetterInput, selectorState.visible, selectorState.direction, findNextNonLockedCell]);
-
-  const handleBackspace = useCallback(() => {
-    if (!props?.onBackspace) {
-      return false;
-    }
-
-    // If selector is not visible, make it visible first
-    if (!selectorState.visible) {
-      setSelectorState(prevState => ({
-        ...prevState,
-        visible: true,
-        direction: 'right', // Default direction
-      }));
-    }
-
-    // Call the removal handler and get result with position
-    const result = props.onBackspace();
-    if (result.success && result.position) {
-      // Move selector to where the tile was removed
-      setSelectorState(prevState => ({
-        ...prevState,
-        position: result.position!,
-        visible: true, // Ensure it stays visible
-      }));
-    }
-    return result.success;
-  }, [props?.onBackspace, selectorState.visible]);
-
-  const handleKeyDown = useCallback((event: KeyboardEvent) => {
-    // Handle letter keys (A-Z)
-    if (event.key.length === 1 && /[a-zA-Z]/.test(event.key)) {
-      event.preventDefault();
-      handleLetterInput(event.key.toUpperCase());
-    }
-    // Handle backspace
-    else if (event.code === 'Backspace') {
-      event.preventDefault();
-      handleBackspace();
-    }
-    // Handle arrow keys for movement
-    else if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.code)) {
-      event.preventDefault();
-
-      const keyToDirection: Record<string, 'up' | 'down' | 'left' | 'right'> = {
-        'ArrowUp': 'up',
-        'ArrowDown': 'down',
-        'ArrowLeft': 'left',
-        'ArrowRight': 'right',
-      };
-
-      const direction = keyToDirection[event.code];
-      if (direction) {
-        moveSelector(direction);
-      }
-    }
-    // Handle TAB key for direction toggle
-    else if (event.code === 'Tab') {
-      event.preventDefault();
-      toggleDirection();
-    }
-    // Handle Space key for shuffle
-    else if (event.code === 'Space') {
-      event.preventDefault();
-      if (props?.onShuffle) {
-        props.onShuffle();
-      }
-    }
-    // Handle Enter key for play
-    else if (event.code === 'Enter') {
-      event.preventDefault();
-      if (props?.onPlay) {
-        props.onPlay();
-      }
-    }
-  }, [moveSelector, toggleDirection, handleLetterInput, handleBackspace]);
-
-  useEffect(() => {
-    // Add keyboard event listener
-    document.addEventListener('keydown', handleKeyDown);
-
-    // Cleanup on unmount
-    return () => {
-      document.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [handleKeyDown]);
-
-  // Function to advance selector after manual tile placement (like right-click)
-  const advanceSelector = useCallback(() => {
-    if (!selectorState.visible || !selectorState.direction) {
-      return;
-    }
-
-    setSelectorState(prevState => {
-      if (!prevState.direction) return prevState;
-      const { row, col } = prevState.position;
-      const nextPosition = findNextNonLockedCell(row, col, prevState.direction);
-      
-      if (nextPosition) {
-        return {
-          ...prevState,
-          position: nextPosition,
-        };
-      } else {
-        // No non-locked cells found, stay at current position
-        return prevState;
-      }
-    });
-  }, [selectorState.visible, selectorState.direction, findNextNonLockedCell]);
-
-  return {
-    selectedCell: selectorState.visible ? selectorState.position : null,
-    selectorDirection: selectorState.direction,
-    isSelectorVisible: selectorState.visible,
-    advanceSelector,
-  };
+const initialSelector: SelectorState = {
+    position: { row: 5, col: 5 }, direction: null, visible: false,
 };
+
+export function useKeyboardSelector(props: UseKeyboardSelectorProps) {
+    const [selector, setSelector] = useState(initialSelector);
+    const latest = useRef(selector);
+    const update = (next: SelectorState) => {
+        latest.current = next;
+        setSelector(next);
+    };
+    const resetSelector = () => update(initialSelector);
+    const getSelectedCell = () => latest.current.visible ? latest.current.position : null;
+
+    const advanceSelector = () => {
+        const current = latest.current;
+        if (!current.visible || !current.direction) return;
+        const board = props.getBoard();
+        for (let step = 1; step < BOARD_SIZE; step++) {
+            const row = (current.position.row + (current.direction === 'down' ? step : 0)) % BOARD_SIZE;
+            const col = (current.position.col + (current.direction === 'right' ? step : 0)) % BOARD_SIZE;
+            if (board[row][col].canPlace) {
+                update({ ...current, position: { row, col } });
+                return;
+            }
+        }
+    };
+
+    const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+        if (!props.isEnabled() || event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey || event.nativeEvent.isComposing) return;
+        if (!(event.target instanceof HTMLElement) || event.target.closest('input, textarea, select, button, a, summary, [contenteditable]:not([contenteditable="false"])')) return;
+        const isLetter = /^[a-zA-Z]$/.test(event.key);
+        // Shift-letter still types capitals; Shift+Tab and other modified keys stay native.
+        if (event.shiftKey && !isLetter) return;
+        const current = latest.current;
+        if (event.key === 'Tab') {
+            if (!current.visible) return;
+            event.preventDefault();
+            update({ ...current, direction: current.direction === 'right' ? 'down' : 'right' });
+        } else if (event.key.startsWith('Arrow')) {
+            const delta = { ArrowUp: [-1, 0], ArrowDown: [1, 0], ArrowLeft: [0, -1], ArrowRight: [0, 1] }[event.key];
+            if (!delta) return;
+            event.preventDefault();
+            update({
+                position: {
+                    row: (current.position.row + delta[0] + BOARD_SIZE) % BOARD_SIZE,
+                    col: (current.position.col + delta[1] + BOARD_SIZE) % BOARD_SIZE,
+                },
+                direction: current.direction ?? 'right', visible: true,
+            });
+        } else if (isLetter) {
+            event.preventDefault();
+            if (current.visible && props.onLetterInput(event.key.toUpperCase(), current.position)) advanceSelector();
+        } else if (event.key === 'Backspace') {
+            event.preventDefault();
+            const result = props.onBackspace();
+            update({ ...current, position: result.position ?? current.position,
+                direction: current.direction ?? 'right', visible: true });
+        } else if (event.key === ' ') {
+            event.preventDefault();
+            props.onShuffle();
+        } else if (event.key === 'Enter') {
+            event.preventDefault();
+            props.onPlay();
+        } else if (event.key === 'Delete') {
+            event.preventDefault();
+            props.onDiscard(getSelectedCell());
+        } else if (event.key === 'Escape') {
+            event.preventDefault();
+            resetSelector();
+            event.currentTarget.blur();
+        }
+    };
+
+    return { selectedCell: selector.visible ? selector.position : null,
+        selectorDirection: selector.direction, getSelectedCell, advanceSelector, resetSelector, handleKeyDown };
+}

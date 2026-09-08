@@ -1,5 +1,4 @@
 import { BoardState, Position } from '../types/board';
-import { TileData } from '../types/tile';
 import { BOARD_SIZE } from '../constants/board';
 
 export function findTilePosition(board: BoardState, tileId: string): Position | null {
@@ -20,47 +19,11 @@ export function parseEmptySlotId(slotId: string): Position | null {
     return { row: parseInt(rowStr), col: parseInt(colStr) };
 }
 
-export function swapBoardTiles(board: BoardState, pos1: Position, pos2: Position): BoardState {
-    const newBoard = board.map(row => [...row]);
-
-    // Swap ONLY the tiles, preserve canPlace/canTake flags per cell
-    const tile1 = newBoard[pos1.row][pos1.col].tile;
-    const tile2 = newBoard[pos2.row][pos2.col].tile;
-
-    newBoard[pos1.row][pos1.col] = {
-        ...newBoard[pos1.row][pos1.col],
-        tile: tile2,
-    };
-
-    newBoard[pos2.row][pos2.col] = {
-        ...newBoard[pos2.row][pos2.col],
-        tile: tile1,
-    };
-
-    return newBoard;
-}
-
 export function createInitialBoard(): BoardState {
     const initialBoard: BoardState = Array(BOARD_SIZE).fill(null).map(() => 
         Array(BOARD_SIZE).fill(null).map(() => ({ tile: null, canPlace: true, canTake: true }))
     );
     return initialBoard;
-}
-
-export function removeTileFromBoard(board: BoardState, pos: Position): BoardState {
-    const newBoard = board.map(row => [...row]);
-    // Preserve existing canPlace/canTake flags for this cell
-    const existing = newBoard[pos.row][pos.col];
-    newBoard[pos.row][pos.col] = { ...existing, tile: null };
-    return newBoard;
-}
-
-export function placeTileOnBoard(board: BoardState, tile: TileData, pos: Position): BoardState {
-    const newBoard = board.map(row => [...row]);
-    // Preserve existing canPlace/canTake flags for this cell
-    const existing = newBoard[pos.row][pos.col];
-    newBoard[pos.row][pos.col] = { ...existing, tile };
-    return newBoard;
 }
 
 export interface WordInfo {
@@ -191,19 +154,9 @@ export function areUnlockedTilesInSingleLine(board: BoardState): boolean {
             const currentCol = sortedByCol[i].col;
             const prevCol = sortedByCol[i-1].col;
             
-            // Check if there's a gap between consecutive unlocked tiles
-            if (currentCol - prevCol > 1) {
-                // Check if the gap is filled by locked tiles
-                let hasLockedTileInGap = false;
-                for (let col = prevCol + 1; col < currentCol; col++) {
-                    if (board[row][col].tile && !board[row][col].canTake) {
-                        hasLockedTileInGap = true;
-                        break;
-                    }
-                }
-                if (!hasLockedTileInGap) {
-                    return false; // Gap not filled by locked tiles
-                }
+            // Every intervening cell must be occupied, not merely one bridge tile.
+            for (let col = prevCol + 1; col < currentCol; col++) {
+                if (!board[row][col].tile) return false;
             }
         }
         return true; // All tiles in same row with gaps filled by locked tiles
@@ -220,19 +173,8 @@ export function areUnlockedTilesInSingleLine(board: BoardState): boolean {
             const currentRow = sortedByRow[i].row;
             const prevRow = sortedByRow[i-1].row;
             
-            // Check if there's a gap between consecutive unlocked tiles
-            if (currentRow - prevRow > 1) {
-                // Check if the gap is filled by locked tiles
-                let hasLockedTileInGap = false;
-                for (let row = prevRow + 1; row < currentRow; row++) {
-                    if (board[row][col].tile && !board[row][col].canTake) {
-                        hasLockedTileInGap = true;
-                        break;
-                    }
-                }
-                if (!hasLockedTileInGap) {
-                    return false; // Gap not filled by locked tiles
-                }
+            for (let row = prevRow + 1; row < currentRow; row++) {
+                if (!board[row][col].tile) return false;
             }
         }
         return true; // All tiles in same column with gaps filled by locked tiles

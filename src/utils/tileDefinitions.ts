@@ -73,20 +73,3 @@ export function getTileDefinition(letter: string): TileDefinition | undefined {
     }
     return ALL_TILE_DEFINITIONS.find(tile => tile.letter === letter);
 }
-
-/**
- * Get tile definition by ID
- */
-export function getTileDefinitionById(id: number): TileDefinition | undefined {
-    if (id === 0) {
-        return BLANK_TILE_DEFINITION;
-    }
-    return ALL_TILE_DEFINITIONS.find(tile => tile.id === id);
-}
-
-/**
- * Get all tile IDs
- */
-export function getAllTileIds(): number[] {
-    return [0, ...ALL_TILE_DEFINITIONS.map(tile => tile.id)];
-}

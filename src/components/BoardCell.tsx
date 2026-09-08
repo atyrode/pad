@@ -3,28 +3,39 @@ import { useDraggable, useDroppable } from '@dnd-kit/core';
 import { ArrowBigRightDash, ArrowBigDownDash } from 'lucide-react';
 import Tile from './Tile';
 import StickerOverlay from './Sticker';
-import { BoardCellProps, Direction } from '../types/board';
-import { useCellSize } from '../hooks/useCellSize';
-import { getGridConstrainedTransform, getTileTransformOverRack } from '../utils/transformUtils';
+import type { Direction, Position } from '../types/board';
+import type { TileData } from '../types/tile';
+import type { Sticker } from '../types/sticker';
+import { useDragGeometry } from '../hooks/useCellSize';
+import { getGridConstrainedTransform, getCellSnappedTransform } from '../utils/transformUtils';
 import { MIN_CELL_SIZE } from '../constants/board';
 
-// Add shake animation keyframes
-const shakeKeyframes = `
-@keyframes shake {
-  0%, 100% { transform: translateX(0); }
-  10%, 30%, 50%, 70%, 90% { transform: translateX(-2px); }
-  20%, 40%, 60%, 80% { transform: translateX(2px); }
+interface BoardCellProps {
+    tile: TileData | null;
+    canTake: boolean;
+    row: number;
+    col: number;
+    cellSize: number;
+    overRackIndex: number | null;
+    rackRef?: React.RefObject<HTMLDivElement | null>;
+    gameAreaRef?: React.RefObject<HTMLDivElement | null>;
+    onRightClick?: (tile: TileData, position: Position) => boolean;
+    sticker?: Sticker | null;
+    tileOpacity?: number;
+    showCoordinates?: boolean;
+    isSelected?: boolean;
+    selectorDirection?: Direction | null;
 }
-`;
 
-export default function BoardCell({ tile, canPlace, canTake, row, col, overRackIndex, rackRef, gameAreaRef, onRightClick, sticker, tileOpacity, showCoordinates, isSelected, selectorDirection }: BoardCellProps) {
+export default function BoardCell({ tile, canTake, row, col, cellSize, overRackIndex, rackRef, gameAreaRef, onRightClick, sticker, tileOpacity, showCoordinates, isSelected, selectorDirection }: BoardCellProps) {
     const cellRef = useRef<HTMLDivElement>(null);
-    const cellSize = useCellSize(cellRef as React.RefObject<HTMLDivElement | null>);
+    const geometry = useDragGeometry(tile?.id ?? `empty-${row}-${col}`, cellRef, undefined, rackRef, gameAreaRef);
     const [isShaking, setIsShaking] = useState(false);
     
     const { attributes, listeners, setNodeRef: setDraggableRef, transform } = useDraggable({
         id: tile ? tile.id : `empty-${row}-${col}`,
         disabled: !tile || !canTake, // Only tiles that can be taken are draggable
+        attributes: { tabIndex: -1 },
     });
 
     const { setNodeRef: setDroppableRef } = useDroppable({
@@ -44,28 +55,20 @@ export default function BoardCell({ tile, canPlace, canTake, row, col, overRackI
             if (!success) {
                 // Trigger shake animation if rack is full
                 setIsShaking(true);
-                setTimeout(() => setIsShaking(false), 500); // Animation duration
             }
         }
     };
 
-    // Prioritize rack snapping when dragging over a rack cell
-    // Otherwise, use board grid snapping (existing behavior)
-    let tileStyle;
-    if (transform && overRackIndex !== null) {
-        // Use rack snapping when hovering over a rack cell
-        tileStyle = getTileTransformOverRack(transform, overRackIndex, cellRef, rackRef, null, gameAreaRef);
-    } else {
-        // Fall back to board grid snapping
-        tileStyle = getGridConstrainedTransform(transform, row, col, cellSize, cellRef, gameAreaRef);
-    }
-
+    const tileStyle = overRackIndex !== null
+        ? getCellSnappedTransform(transform, geometry, geometry?.rack[overRackIndex])
+        : getGridConstrainedTransform(transform, row, col, cellSize, geometry);
 
     return (
-        <>
-            <style>{shakeKeyframes}</style>
             <div
-                id="board-cell"
+                data-board-cell=""
+                data-row={row}
+                data-col={col}
+                data-tile-id={tile?.id}
                 ref={setNodeRef}
                 className={`aspect-square border border-zinc-100/70 rounded-sm flex items-center justify-center relative ${tile && canTake
                         ? 'cursor-grab active:cursor-grabbing select-none'
@@ -78,6 +81,7 @@ export default function BoardCell({ tile, canPlace, canTake, row, col, overRackI
                     animation: isShaking ? 'shake 0.5s ease-in-out' : undefined
                 }}
                 onContextMenu={handleRightClick}
+                onAnimationEnd={() => setIsShaking(false)}
                 {...(tile && canTake ? listeners : {})}
                 {...(tile && canTake ? attributes : {})}
             >
@@ -143,6 +147,5 @@ export default function BoardCell({ tile, canPlace, canTake, row, col, overRackI
                     </div>
                 )}
             </div>
-        </>
     );
 }

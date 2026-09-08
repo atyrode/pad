@@ -1,4 +1,3 @@
-import React from 'react';
 import { Sticker } from '../types/sticker';
 
 interface StickerOverlayProps {

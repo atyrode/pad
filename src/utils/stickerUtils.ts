@@ -59,40 +59,6 @@ export function createInitialStickers(): StickerState {
 }
 
 /**
- * Mark a sticker as consumed at the given position
- */
-export function consumeSticker(stickers: StickerState, position: Position): StickerState {
-    const newStickers = stickers.map(row => [...row]);
-    const sticker = newStickers[position.row][position.col];
-    
-    if (sticker && !sticker.consumed) {
-        newStickers[position.row][position.col] = {
-            ...sticker,
-            consumed: true
-        };
-    }
-    
-    return newStickers;
-}
-
-/**
- * Reactivate a sticker at the given position (when locked tile is removed)
- */
-export function reactivateSticker(stickers: StickerState, position: Position): StickerState {
-    const newStickers = stickers.map(row => [...row]);
-    const sticker = newStickers[position.row][position.col];
-    
-    if (sticker && sticker.consumed) {
-        newStickers[position.row][position.col] = {
-            ...sticker,
-            consumed: false
-        };
-    }
-    
-    return newStickers;
-}
-
-/**
  * Get sticker at a specific position
  */
 export function getStickerAt(stickers: StickerState, position: Position): Sticker | null {
@@ -118,7 +84,7 @@ export function isStartStickerConsumed(stickers: StickerState): boolean {
 /**
  * Check if a word covers the start sticker position
  */
-export function doesWordCoverStartSticker(word: WordInfo, stickers: StickerState): boolean {
+export function doesWordCoverStartSticker(word: WordInfo): boolean {
     const startRow = 5;
     const startCol = 5;
     

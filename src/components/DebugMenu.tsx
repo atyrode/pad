@@ -1,291 +1,44 @@
-import React, { useState, useEffect } from 'react';
-import { Bag } from '../types/bag';
-import { RackState } from '../types/rack';
-import { BoardState } from '../types/board';
-import { StickerState } from '../types/sticker';
-import { drawTileFromBag, shuffleBag } from '../utils/bagUtils';
-import { findFirstEmptySlot, moveTileToRack } from '../utils/rackUtils';
-import { createInitialBoard, findAllWords } from '../utils/boardUtils';
-import { createInitialDraftBoard, generateRandomTiles } from '../utils/draftBoardUtils';
-import { isValidWordSync, preloadDictionary } from '../utils/dictionaryUtils';
-import { calculateCurrentPlayScore } from '../utils/scoreUtils';
-import { createInitialStickers, countStickers, consumeSticker } from '../utils/stickerUtils';
-import { TileData } from '../types/tile';
+import type { ActionResult, GameAction, GameState, PlayEvaluation } from '../game/game';
+import { DRAFT_COLUMNS } from '../game/game';
+import { countStickers } from '../utils/stickerUtils';
 
 interface DebugMenuProps {
-  bag: Bag;
-  rack: RackState;
-  board: BoardState;
-  setRack: React.Dispatch<React.SetStateAction<RackState>>;
-  setBag: React.Dispatch<React.SetStateAction<Bag>>;
-  setBoard: React.Dispatch<React.SetStateAction<BoardState>>;
-  draftBoard: BoardState;
-  setDraftBoard: React.Dispatch<React.SetStateAction<BoardState>>;
-  totalScore: number;
-  setTotalScore: React.Dispatch<React.SetStateAction<number>>;
-  stickers: StickerState;
-  setStickers: React.Dispatch<React.SetStateAction<StickerState>>;
+  state: GameState;
+  dispatch: (action: GameAction) => ActionResult;
+  evaluation: PlayEvaluation;
+  dictionary: ReadonlySet<string> | null;
+  dictionaryError: string | null;
+  onRetryDictionary: () => void;
   tileOpacity: number;
-  setTileOpacity: React.Dispatch<React.SetStateAction<number>>;
+  setTileOpacity: (value: number) => void;
   showCoordinates: boolean;
-  setShowCoordinates: React.Dispatch<React.SetStateAction<boolean>>;
-  isDraftMode: boolean;
-  setIsDraftMode: React.Dispatch<React.SetStateAction<boolean>>;
-  onResetDraft?: () => void;
-  onRerollSuggestions?: () => void;
-  discard?: TileData[];
-  setDiscard?: React.Dispatch<React.SetStateAction<TileData[]>>;
+  setShowCoordinates: (value: boolean) => void;
 }
 
-export default function DebugMenu({ bag, rack, board, setRack, setBag, setBoard, draftBoard, setDraftBoard, totalScore, setTotalScore, stickers, setStickers, tileOpacity, setTileOpacity, showCoordinates, setShowCoordinates, isDraftMode, setIsDraftMode, onResetDraft, onRerollSuggestions, discard = [], setDiscard }: DebugMenuProps) {
-  const [isDictionaryLoaded, setIsDictionaryLoaded] = useState(false);
-
-  // Load dictionary on component mount
-  useEffect(() => {
-    preloadDictionary().then(() => {
-      setIsDictionaryLoaded(true);
-    });
-  }, []);
-
-  const refillBagFromDiscardIfNeeded = (currentBag: Bag): Bag => {
-    if (currentBag.length === 0 && discard.length > 0 && setDiscard) {
-      const refilled = shuffleBag([...discard]);
-      setDiscard([]);
-      return refilled;
-    }
-    return currentBag;
-  };
-
-  const handleDraw = () => {
-    // Check if bag has tiles and rack has space
-    let workingBag = refillBagFromDiscardIfNeeded(bag);
-    if (workingBag.length === 0) return;
-
-    const emptySlot = findFirstEmptySlot(rack);
-    if (emptySlot === null) return; // Rack is full
-
-    // Draw tile from bag
-    const { tile, newBag } = drawTileFromBag(workingBag);
-    if (tile === null) return;
-
-    // Update states
-    setBag(newBag);
-    setRack((prevRack) => moveTileToRack(prevRack, tile, emptySlot));
-  };
-
-  const handleDrawAll = () => {
-    let workingBag = refillBagFromDiscardIfNeeded(bag);
-    if (workingBag.length === 0) return;
-
-    let currentBag = workingBag;
-    let newRack = [...rack];
-
-    // Fill all empty slots
-    for (let i = 0; i < newRack.length; i++) {
-      if (newRack[i] === null && currentBag.length > 0) {
-        const { tile, newBag } = drawTileFromBag(currentBag);
-        if (tile) {
-          newRack[i] = tile;
-          currentBag = newBag;
-        }
-      }
-    }
-
-    setBag(currentBag);
-    setRack(newRack);
-  };
-
-  const handleRedraw = () => {
-    let workingBag = refillBagFromDiscardIfNeeded(bag);
-    if (workingBag.length === 0) return;
-
-    // Count how many tiles are currently in the rack
-    const currentTileCount = rack.filter(tile => tile !== null).length;
-
-    // Empty the rack
-    const emptyRack = Array(rack.length).fill(null);
-
-    // Draw the same number of tiles
-    let currentBag = workingBag;
-    let newRack = [...emptyRack];
-
-    for (let i = 0; i < currentTileCount && currentBag.length > 0; i++) {
-      const { tile, newBag } = drawTileFromBag(currentBag);
-      if (tile) {
-        newRack[i] = tile;
-        currentBag = newBag;
-      }
-    }
-
-    setBag(currentBag);
-    setRack(newRack);
-  };
-
-  const handleClear = () => {
-    // Empty the rack
-    const emptyRack = Array(rack.length).fill(null);
-    setRack(emptyRack);
-  };
-
-  const handleResetGame = () => {
-    // Clear the board, rack, reset score and stickers; seed bag from current draft
-    const emptyBoard = createInitialBoard();
-    const emptyRack = Array(rack.length).fill(null);
-    const newStickers = createInitialStickers();
-
-    // Collect drafted tiles from placement zone: rows 7 and 8, center 7 columns
-    const centerCount = 7;
-    const centerStart = Math.floor((11 - centerCount) / 2);
-    const draftedPositions: { row: number; col: number }[] = [];
-    [7, 8].forEach(r => {
-      for (let c = centerStart; c < centerStart + centerCount; c++) {
-        draftedPositions.push({ row: r, col: c });
-      }
-    });
-    const draftedTiles = draftedPositions
-      .map(p => draftBoard[p.row][p.col].tile)
-      .filter(Boolean) as any[];
-
-    setBoard(emptyBoard);
-    setRack(emptyRack);
-    setBag(shuffleBag([...draftedTiles]));
-    setTotalScore(0);
-    setStickers(newStickers);
-  };
-
-  const handleResetScore = () => {
-    // Reset only the score
-    setTotalScore(0);
-  };
-
-  const handleResetBoard = () => {
-    // Clear the board only
-    const emptyBoard = createInitialBoard();
-    setBoard(emptyBoard);
-  };
-
-  const handleResetStickers = () => {
-    // Reset stickers to initial state
-    let newStickers = createInitialStickers();
-    
-    // Consume any stickers that have non-takeable (locked) tiles on top
-    for (let row = 0; row < board.length; row++) {
-      for (let col = 0; col < board[row].length; col++) {
-        const cell = board[row][col];
-        if (cell.tile && !cell.canTake) {
-          // This position has a locked tile, so consume the sticker if it exists
-          newStickers = consumeSticker(newStickers, { row, col });
-        }
-      }
-    }
-    
-    setStickers(newStickers);
-  };
-
-  const handleResetBag = () => {
-    // Seed the bag from the current draft placement zone
-    const centerCount = 7;
-    const centerStart = Math.floor((11 - centerCount) / 2);
-    const draftedPositions: { row: number; col: number }[] = [];
-    [7, 8].forEach(r => {
-      for (let c = centerStart; c < centerStart + centerCount; c++) {
-        draftedPositions.push({ row: r, col: c });
-      }
-    });
-    const draftedTiles = draftedPositions
-      .map(p => draftBoard[p.row][p.col].tile)
-      .filter(Boolean) as any[];
-    setBag(shuffleBag([...draftedTiles]));
-  };
-
-  const handleShuffle = () => {
-    // Shuffle the current bag
-    const shuffledBag = shuffleBag(bag);
-    setBag(shuffledBag);
-  };
-
-  // Check if buttons should be disabled
-  const isDrawDisabled = bag.length === 0 || findFirstEmptySlot(rack) === null;
-  const isDrawAllDisabled = bag.length === 0 || findFirstEmptySlot(rack) === null;
-  const isRedrawDisabled = bag.length === 0 || rack.every(tile => tile === null);
-
-  // Helper function to get validation icon
-  const getValidationIcon = (word: string) => {
-    if (!isDictionaryLoaded) {
-      return <span className="text-zinc-500 text-xs">⏳</span>;
-    }
-
-    const isValid = isValidWordSync(word);
-    if (isValid === true) {
-      return <span className="text-green-500 text-xs">✓</span>;
-    } else if (isValid === false) {
-      return <span className="text-red-500 text-xs">✗</span>;
-    } else {
-      return <span className="text-zinc-500 text-xs">?</span>;
-    }
-  };
-
-  // Find all words on the board
-  const words = findAllWords(board);
-  const currentWords = words.filter(w => !w.isLocked);
-  const playedWords = words.filter(w => w.isLocked);
-
-  // Calculate current play score
-  const currentPlayScore = calculateCurrentPlayScore(board, stickers);
-
-  // Count stickers
+export default function DebugMenu({ state, dispatch, evaluation, dictionary, dictionaryError, onRetryDictionary, tileOpacity, setTileOpacity, showCoordinates, setShowCoordinates }: DebugMenuProps) {
+  const { bag, rack, board, discard, stickers, totalScore } = state;
+  const isDraftMode = state.mode === 'draft';
+  const isRackEmpty = rack.every(tile => tile === null);
+  const isDrawDisabled = (bag.length === 0 && discard.length === 0) || !rack.includes(null);
+  const isDrawAllDisabled = isDrawDisabled;
+  const isRedrawDisabled = isRackEmpty;
+  const isBoardResetDisabled = state.placementHistory.length === 0 &&
+    board.every(row => row.every(cell => cell.tile === null));
+  const isRackResetDisabled = isRackEmpty;
+  const isScoreResetDisabled = totalScore === 0;
+  const currentWords = evaluation.words.filter(word => !word.isLocked);
+  const playedWords = evaluation.words.filter(word => word.isLocked);
+  const currentPlayScore = evaluation.score;
   const stickerCounts = countStickers(stickers);
 
-  // Check if board is empty (no tiles placed)
-  const isBoardEmpty = board.every(row =>
-    row.every(cell => cell.tile === null)
-  );
-
-  // Check if rack is empty (all slots are null)
-  const isRackEmpty = rack.every(tile => tile === null);
-
-  // Draft-based bag: consider draft unavailable if no drafted tiles present
-  const centerCount = 7;
-  const centerStart = Math.floor((11 - centerCount) / 2);
-  const draftedCount = [7, 8].flatMap(r => Array.from({ length: centerCount }, (_, i) => ({ row: r, col: centerStart + i })))
-    .filter(pos => draftBoard[pos.row][pos.col].tile)
-    .length;
-
-  // Helper: collect all drafted tiles (14 center slots)
-  const collectDraftedTiles = () => {
-    const positions = [7, 8].flatMap(r => Array.from({ length: centerCount }, (_, i) => ({ row: r, col: centerStart + i })));
-    return positions.map(p => draftBoard[p.row][p.col].tile).filter(Boolean) as any[];
+  const getValidationIcon = (word: string) => {
+    if (!dictionary) {
+      return <span className="text-zinc-500 text-xs" aria-label="Dictionary unavailable">?</span>;
+    }
+    return dictionary.has(word.toUpperCase())
+      ? <span className="text-green-500 text-xs" aria-label="Valid word">✓</span>
+      : <span className="text-red-500 text-xs" aria-label="Invalid word">✗</span>;
   };
-
-  // Compare current bag to drafted tiles (order-agnostic, by tile.id)
-  const isBagSameAsDraft = () => {
-    const draftedTiles = collectDraftedTiles();
-    if (draftedTiles.length === 0) return false;
-    if (bag.length !== draftedTiles.length) return false;
-    const draftedIds = new Set(draftedTiles.map(t => t.id));
-    return bag.every(t => draftedIds.has(t!.id));
-  };
-
-  // Check if score is zero
-  const isScoreZero = totalScore === 0;
-
-  // Calculate disabled states for reset buttons
-  const isBoardResetDisabled = isBoardEmpty;
-  const isRackResetDisabled = isRackEmpty;
-  const isBagResetDisabled = draftedCount === 0 || isBagSameAsDraft();
-  const isScoreResetDisabled = isScoreZero;
-
-  // Check if stickers are in initial state
-  const isStickersReset = stickerCounts.multiActive === 4 && stickerCounts.pointsActive === 4 &&
-    stickerCounts.multiConsumed === 0 && stickerCounts.pointsConsumed === 0 &&
-    stickerCounts.startActive === 1 && stickerCounts.startConsumed === 0;
-  const isStickersResetDisabled = isStickersReset;
-
-  // Game reset is disabled if all other reset buttons are disabled
-  const isGameResetDisabled = isBoardResetDisabled &&
-    isRackResetDisabled &&
-    isBagResetDisabled &&
-    isScoreResetDisabled;
 
   return (
     <div id="debug-menu" className="w-1/3 h-full bg-zinc-600 p-4 overflow-y-auto">
@@ -296,7 +49,7 @@ export default function DebugMenu({ bag, rack, board, setRack, setBag, setBoard,
         <h3 className="text-white text-lg font-semibold mb-3">Mode</h3>
         <div className="flex flex-row gap-2 justify-center">
           <button
-            onClick={() => setIsDraftMode(!isDraftMode)}
+            onClick={() => dispatch({ type: 'set-mode', mode: isDraftMode ? 'game' : 'draft' })}
             className={`py-2 px-3 rounded-lg text-white font-semibold text-sm transition-opacity grow ${
               isDraftMode
                 ? 'bg-blue-600 hover:opacity-80 hover:bg-blue-500'
@@ -314,21 +67,19 @@ export default function DebugMenu({ bag, rack, board, setRack, setBag, setBoard,
           {/* Reset */}
           <div className="bg-zinc-700 rounded-lg p-4 mb-4">
             <h3 className="text-white text-lg font-semibold mb-3">Reset</h3>
+            <p className="text-zinc-400 text-xs mb-3">Debug controls: partial resets may remove tiles.</p>
+            {/* Full reset stays available: it also owns discard, history and stickers. */}
             <div className="flex flex-row gap-2 justify-center mb-2">
               <button
-                onClick={handleResetGame}
-                disabled={isGameResetDisabled}
-                className={`py-2 px-3 rounded-lg text-white font-semibold text-sm transition-opacity grow ${isGameResetDisabled
-                  ? 'bg-zinc-800 opacity-50 cursor-not-allowed'
-                  : 'bg-red-600 hover:opacity-80 hover:bg-red-500'
-                  }`}
+                onClick={() => dispatch({ type: 'reset', target: 'game' })}
+                className="py-2 px-3 rounded-lg text-white font-semibold text-sm transition-opacity grow bg-red-600 hover:opacity-80 hover:bg-red-500"
               >
                 Game
               </button>
             </div>
             <div className="flex flex-row gap-2 justify-center">
               <button
-                onClick={handleResetBoard}
+                onClick={() => dispatch({ type: 'reset', target: 'board' })}
                 disabled={isBoardResetDisabled}
                 className={`py-2 px-3 rounded-lg text-white font-semibold text-sm transition-opacity grow ${isBoardResetDisabled
                   ? 'bg-zinc-800 opacity-50 cursor-not-allowed'
@@ -338,7 +89,7 @@ export default function DebugMenu({ bag, rack, board, setRack, setBag, setBoard,
                 Board
               </button>
               <button
-                onClick={handleClear}
+                onClick={() => dispatch({ type: 'reset', target: 'rack' })}
                 disabled={isRackResetDisabled}
                 className={`py-2 px-3 rounded-lg text-white font-semibold text-sm transition-opacity grow ${isRackResetDisabled
                   ? 'bg-zinc-800 opacity-50 cursor-not-allowed'
@@ -348,17 +99,13 @@ export default function DebugMenu({ bag, rack, board, setRack, setBag, setBoard,
                 Rack
               </button>
               <button
-                onClick={handleResetBag}
-                disabled={isBagResetDisabled}
-                className={`py-2 px-3 rounded-lg text-white font-semibold text-sm transition-opacity grow ${isBagResetDisabled
-                  ? 'bg-zinc-800 opacity-50 cursor-not-allowed'
-                  : 'bg-green-600 hover:opacity-80 hover:bg-green-500'
-                  }`}
+                onClick={() => dispatch({ type: 'reset', target: 'bag' })}
+                className="py-2 px-3 rounded-lg text-white font-semibold text-sm transition-opacity grow bg-green-600 hover:opacity-80 hover:bg-green-500"
               >
                 Bag
               </button>
               <button
-                onClick={handleResetScore}
+                onClick={() => dispatch({ type: 'reset', target: 'score' })}
                 disabled={isScoreResetDisabled}
                 className={`py-2 px-3 rounded-lg text-white font-semibold text-sm transition-opacity grow ${isScoreResetDisabled
                   ? 'bg-zinc-800 opacity-50 cursor-not-allowed'
@@ -368,12 +115,8 @@ export default function DebugMenu({ bag, rack, board, setRack, setBag, setBoard,
                 Score
               </button>
               <button
-                onClick={handleResetStickers}
-                disabled={isStickersResetDisabled}
-                className={`py-2 px-3 rounded-lg text-white font-semibold text-sm transition-opacity grow ${isStickersResetDisabled
-                  ? 'bg-zinc-800 opacity-50 cursor-not-allowed'
-                  : 'bg-indigo-600 hover:opacity-80 hover:bg-indigo-500'
-                  }`}
+                onClick={() => dispatch({ type: 'reset', target: 'stickers' })}
+                className="py-2 px-3 rounded-lg text-white font-semibold text-sm transition-opacity grow bg-indigo-600 hover:opacity-80 hover:bg-indigo-500"
               >
                 Stickers
               </button>
@@ -385,7 +128,7 @@ export default function DebugMenu({ bag, rack, board, setRack, setBag, setBoard,
             <h3 className="text-white text-lg font-semibold mb-3">Draw</h3>
             <div className="flex flex-row gap-2 justify-center">
               <button
-                onClick={handleDraw}
+                onClick={() => dispatch({ type: 'draw', count: 1 })}
                 disabled={isDrawDisabled}
                 className={`py-2 px-3 rounded-lg text-white font-semibold text-sm transition-opacity grow ${isDrawDisabled
                   ? 'bg-zinc-800 opacity-50 cursor-not-allowed'
@@ -395,7 +138,7 @@ export default function DebugMenu({ bag, rack, board, setRack, setBag, setBoard,
                 Draw
               </button>
               <button
-                onClick={handleDrawAll}
+                onClick={() => dispatch({ type: 'draw', count: 'all' })}
                 disabled={isDrawAllDisabled}
                 className={`py-2 px-3 rounded-lg text-white font-semibold text-sm transition-opacity grow ${isDrawAllDisabled
                   ? 'bg-zinc-800 opacity-50 cursor-not-allowed'
@@ -405,7 +148,7 @@ export default function DebugMenu({ bag, rack, board, setRack, setBag, setBoard,
                 Draw All
               </button>
               <button
-                onClick={handleRedraw}
+                onClick={() => dispatch({ type: 'redraw' })}
                 disabled={isRedrawDisabled}
                 className={`py-2 px-3 rounded-lg text-white font-semibold text-sm transition-opacity grow ${isRedrawDisabled
                   ? 'bg-zinc-800 opacity-50 cursor-not-allowed'
@@ -417,8 +160,8 @@ export default function DebugMenu({ bag, rack, board, setRack, setBag, setBoard,
             </div>
             {(isDrawDisabled || isDrawAllDisabled || isRedrawDisabled) && (
               <p className="text-zinc-400 text-xs mt-2 text-center">
-                {bag.length === 0 ? 'Bag is empty' :
-                  isRedrawDisabled && rack.every(tile => tile === null) ? 'Rack is empty' : 'Rack is full'}
+                {bag.length === 0 && discard.length === 0 ? 'Bag and discard are empty' :
+                  isRackEmpty ? 'Rack is empty' : 'Rack is full'}
               </p>
             )}
           </div>
@@ -468,6 +211,23 @@ export default function DebugMenu({ bag, rack, board, setRack, setBag, setBoard,
           {/* Board */}
           <div className="bg-zinc-700 rounded-lg p-4 mt-4">
             <h3 className="text-white text-lg font-semibold mb-3">Board</h3>
+            <div className="text-zinc-400 text-xs mb-3" role="status">
+              {dictionaryError ? (
+                <>
+                  <p>Dictionary unavailable: {dictionaryError}</p>
+                  <button
+                    onClick={onRetryDictionary}
+                    className="mt-2 py-1 px-3 rounded-lg text-white text-xs bg-zinc-600 hover:bg-zinc-500"
+                  >
+                    Retry
+                  </button>
+                </>
+              ) : !dictionary ? (
+                <p>Loading dictionary. Play is unavailable.</p>
+              ) : (
+                <p>{evaluation.canPlay ? 'Ready to play' : evaluation.reason}</p>
+              )}
+            </div>
 
             {/* Current Words Section */}
             <div className="mb-4">
@@ -532,7 +292,7 @@ export default function DebugMenu({ bag, rack, board, setRack, setBag, setBoard,
               ))}
             </div>
             <button
-              onClick={handleShuffle}
+              onClick={() => dispatch({ type: 'shuffle-bag' })}
               disabled={bag.length === 0}
               className={`w-full py-2 px-3 rounded-lg text-white font-semibold text-sm transition-opacity ${bag.length === 0
                 ? 'bg-zinc-800 opacity-50 cursor-not-allowed'
@@ -587,28 +347,35 @@ export default function DebugMenu({ bag, rack, board, setRack, setBag, setBoard,
           <div className="bg-zinc-700 rounded-lg p-4 mb-4">
             <h3 className="text-white text-lg font-semibold mb-3">Draft Mode</h3>
             <p className="text-zinc-400 text-sm text-center mb-3">
-              Draft mode is active. Use the suggested tiles to build words!
+              {state.draft.complete ? 'Draft complete. Exit Draft, then Draw All to begin.' : 'Choose suggested tiles with 1 / 2 / 3 on the board, or use the buttons below.'}
             </p>
+            {!state.draft.complete && (
+              <div className="flex flex-row gap-2 justify-center mb-3">
+                {DRAFT_COLUMNS.map((column, index) => {
+                  const tile = state.draft.board[4][column].tile;
+                  return (
+                    <button
+                      key={column}
+                      onClick={() => dispatch({ type: 'draft-pick', column })}
+                      disabled={!tile}
+                      className="py-2 px-3 rounded-lg text-white font-semibold text-sm bg-blue-600 hover:bg-blue-500 disabled:bg-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {index + 1}: {tile?.value ?? '—'}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
             <div className="flex flex-row gap-2 justify-center">
               <button
-                onClick={() => {
-                  if (onRerollSuggestions) {
-                    onRerollSuggestions();
-                  }
-                }}
-                className="py-2 px-3 rounded-lg text-white font-semibold text-sm transition-opacity bg-blue-600 hover:opacity-80 hover:bg-blue-500"
+                onClick={() => dispatch({ type: 'draft-reroll' })}
+                disabled={state.draft.complete}
+                className="py-2 px-3 rounded-lg text-white font-semibold text-sm transition-opacity bg-blue-600 hover:opacity-80 hover:bg-blue-500 disabled:bg-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 New Suggestions
               </button>
               <button
-                onClick={() => {
-                  if (onResetDraft) {
-                    onResetDraft();
-                  } else {
-                    const newDraftBoard = createInitialDraftBoard();
-                    setDraftBoard(newDraftBoard);
-                  }
-                }}
+                onClick={() => dispatch({ type: 'reset-draft' })}
                 className="py-2 px-3 rounded-lg text-white font-semibold text-sm transition-opacity bg-orange-600 hover:opacity-80 hover:bg-orange-500"
               >
                 Reset Draft
@@ -624,14 +391,16 @@ export default function DebugMenu({ bag, rack, board, setRack, setBag, setBoard,
 
         {/* Tile Opacity Slider */}
         <div className="mb-4">
-          <div className="text-white text-sm font-medium mb-2">Tile Opacity</div>
+          <label htmlFor="tile-opacity" className="block text-white text-sm font-medium mb-2">Tile Opacity</label>
           <div className="flex items-center gap-3">
             <input
+              id="tile-opacity"
               type="range"
               min="0"
               max="100"
               value={tileOpacity}
               onChange={(e) => setTileOpacity(Number(e.target.value))}
+              aria-valuetext={`${tileOpacity}%`}
               className="flex-1 h-2 bg-zinc-600 rounded-lg appearance-none cursor-pointer slider"
             />
             <span className="text-white text-sm font-mono w-12 text-right">
@@ -645,6 +414,7 @@ export default function DebugMenu({ bag, rack, board, setRack, setBag, setBoard,
           <div className="text-white text-sm font-medium mb-2">Show Coordinates</div>
           <button
             onClick={() => setShowCoordinates(!showCoordinates)}
+            aria-pressed={showCoordinates}
             className={`w-full py-2 px-3 rounded-lg text-white font-semibold text-sm transition-opacity ${
               showCoordinates
                 ? 'bg-green-600 hover:opacity-80 hover:bg-green-500'
