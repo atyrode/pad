@@ -49,22 +49,49 @@ transfer the built image with `docker save` / `docker load` and start with
 `docker compose up -d --no-build --wait`. Update the destination's HTTPS proxy and
 DNS. Existing open tabs continue playing even when the service is stopped.
 
-## Current hosting: Clever Cloud
+## Live development on dev-01
 
-The `skrabble` Docker application is in the **Tyrode** organization. `.clever.json`
-is the CLI-generated application link (IDs and deployment URLs, no credentials).
-Clever Cloud builds the same `Dockerfile` directly; it does not run Compose.
-HTTPS is managed by the provider. The runtime is one nano instance; builds use a
-dedicated M instance, so Next.js does not have to build within the small runtime's
-memory limit.
+The live development checkout is `/home/alex/scrabble` on **dev-01**. Its source
+is bind-mounted into the development container, so editing the checkout updates
+the browser through Next.js Fast Refresh. **Ordinary edits need no commit, push,
+image rebuild, or host activation.** This is deliberately a public development
+server: visitors see work in progress and may see development error overlays.
+
+```sh
+docker compose -f compose.dev.yaml up -d --build --wait
+docker compose -f compose.dev.yaml logs -f game
+# Stop without deleting the checkout or build caches:
+docker compose -f compose.dev.yaml stop
+# Resume:
+docker compose -f compose.dev.yaml up -d --wait
+```
+
+Dependencies and `.next` use Docker volumes, separate from host installs.
+After changing dependencies, update and commit `bun.lock`, then restart the
+container to install the new frozen lockfile. Rebuild if changing its base image
+or Dockerfile. Development and production recipes use the same default port;
+stop one before starting the other, or set `SKRABBLE_PORT` to a different port.
+
+The host owns one stable Caddy HTTPS edge: **`games.tyrode.dev` →
+`127.0.0.1:8093`**. The game checkout owns its `/skrabble` path. DNS is an
+unproxied **A record `games` → `152.53.112.19`**. The edge is declared in the
+dotfiles repository; normal game iteration does not touch it.
+
+## Clever Cloud standby
+
+The existing `skrabble` Docker application in the **Tyrode** organization is
+stopped, not deleted, for reuse after development. `.clever.json` is its
+CLI-generated link (IDs and deployment URLs, no credentials). Clever Cloud
+builds the same production `Dockerfile` directly; it does not run Compose.
+Its runtime is one nano instance and builds use a dedicated M instance.
 
 With an authorized [Clever Tools](https://www.clever.cloud/developers/doc/cli/)
 session, from this repository:
 
 ```sh
-# Deploy the current committed branch (uncommitted changes are not deployed):
+# Deploy the current committed branch when returning to managed hosting:
 clever deploy --alias skrabble
-# Stop / start independently of your development computer:
+# Stop / resume the retained application:
 clever stop --alias skrabble
 clever restart --alias skrabble
 clever logs --alias skrabble
@@ -79,13 +106,12 @@ clever env set CC_HEALTH_CHECK_PATH /skrabble/ --alias skrabble
 clever scale --alias skrabble --flavor nano --build-flavor M --instances 1
 ```
 
-To recreate on Clever Cloud rather than reuse the linked application, create a
-new Docker app with `clever create --type docker skrabble --org Tyrode --alias
-skrabble-new`, apply the settings above with the new alias, and deploy. Attach
-`games.tyrode.dev` to the new app, removing its association from the old app first
-if necessary. In Cloudflare DNS, the current record is **CNAME `games` →
-`domain.par.clever-cloud.com`**, DNS only. `clever domain diag` reports the correct
-target for another region. Never commit tokens or copy CLI authentication state.
+To return to Clever Cloud, deploy the desired committed branch and verify the
+provider URL before switching DNS. The custom domain remains attached to the
+retained app. The Paris DNS target is **CNAME `games` →
+`domain.par.clever-cloud.com`**, DNS only; use `clever domain diag` to confirm it.
+Wait for valid custom-domain HTTPS before stopping the dev-01 container.
+Never commit tokens or copy CLI authentication state.
 
 ## Local development
 
@@ -101,6 +127,7 @@ bun run build
 Production is served by the container, not `next start`: Next.js exports static
 files to `out/`. The `/skrabble` mount is a build-time setting in `next.config.ts`;
 the dictionary URL and Caddy route use the same prefix. The stale npm lockfile was
-removed; `bun.lock` is authoritative. No gameplay redesign or dependency upgrade
-was made. Two nullable-direction guards were required for TypeScript's production
-build; browser metadata now describes this game rather than the original starter.
+removed; `bun.lock` is authoritative. No gameplay redesign was made. Two
+nullable-direction guards were required for TypeScript's production build;
+browser metadata now describes the game. Next.js and React were updated to
+patched versions before exposing the development server.
