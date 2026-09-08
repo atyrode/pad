@@ -10,7 +10,12 @@ See [SPEC.md](SPEC.md) for current rules, planned direction, and open decisions;
 
 ## Play
 
-The game starts with an empty bag. Enter **Draft**, then use **1 / 2 / 3** in the
+The debug panel starts collapsed behind the top-left menu button. Open it for
+manual controls; close it to smoothly recenter the board and rack. The toggle is
+keyboard-accessible, hidden controls are skipped, and reduced-motion preferences
+disable the transition. Opening or closing the panel preserves the game.
+
+The game starts with an empty bag. Open the menu, enter **Draft**, then use **1 / 2 / 3** in the
 focused draft area to choose an offered column (vowels occupy 1 and 3; the final
 blank occupies 2). Right-clicking an offer or dragging it into the draft area also
 works. After 14 picks, use **Exit Draft**, then **Draw All**; neither is automatic.

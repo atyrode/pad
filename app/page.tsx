@@ -2,7 +2,7 @@
 
 import { KeyboardEvent, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { closestCenter, DndContext } from '@dnd-kit/core';
-import { Play, Shuffle } from 'lucide-react';
+import { Menu, Play, Shuffle, X } from 'lucide-react';
 import DebugMenu from '../src/components/DebugMenu';
 import Board from '../src/components/Board';
 import Rack from '../src/components/Rack';
@@ -43,6 +43,7 @@ function Sandbox() {
     const dictionaryRef = useRef<ReadonlySet<string> | null>(null);
     const [dictionaryError, setDictionaryError] = useState<string | null>(null);
     const [dictionaryAttempt, setDictionaryAttempt] = useState(0);
+    const [isDebugOpen, setIsDebugOpen] = useState(false);
     const [tileOpacity, setTileOpacity] = useState(100);
     const [showCoordinates, setShowCoordinates] = useState(false);
     const [boardCellSize, setBoardCellSize] = useState(44);
@@ -219,17 +220,30 @@ function Sandbox() {
         : dictionaryError || evaluation.reason || `Ready to play for ${evaluation.score.totalScore} points.`);
 
     return (
-        <div id="main" className="h-screen w-screen bg-zinc-500 flex">
+        <div id="main" className="relative h-screen w-screen bg-zinc-500 flex">
             <div className="contents" inert={pendingBlank !== null}>
                 <DndContext sensors={drag.sensors} collisionDetection={closestCenter} accessibility={dragAccessibility}
                     onDragStart={drag.handleDragStart} onDragOver={drag.handleDragOver}
                     onDragEnd={drag.handleDragEnd} onDragCancel={drag.handleDragCancel}>
-                    <DebugMenu state={state} dispatch={dispatch} evaluation={evaluation} dictionary={dictionary}
-                        dictionaryError={dictionaryError} onRetryDictionary={() => {
-                            setDictionaryError(null);
-                            setDictionaryAttempt(attempt => attempt + 1);
-                        }} tileOpacity={tileOpacity} setTileOpacity={setTileOpacity}
-                        showCoordinates={showCoordinates} setShowCoordinates={setShowCoordinates} />
+                    <button type="button" aria-label={isDebugOpen ? 'Close debug menu' : 'Open debug menu'}
+                        aria-expanded={isDebugOpen} aria-controls="debug-panel"
+                        onClick={() => setIsDebugOpen(open => !open)}
+                        className="absolute left-4 top-4 z-30 flex h-10 w-10 items-center justify-center rounded-lg border border-zinc-500 bg-zinc-600 text-zinc-100 transition-colors hover:bg-zinc-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-200">
+                        {isDebugOpen ? <X size={20} aria-hidden="true" /> : <Menu size={20} aria-hidden="true" />}
+                    </button>
+                    <aside id="debug-panel" aria-label="Debug controls" aria-hidden={!isDebugOpen} inert={!isDebugOpen}
+                        className="h-full shrink-0 overflow-hidden bg-zinc-600 transition-[width] duration-300 ease-in-out motion-reduce:transition-none"
+                        style={{ width: isDebugOpen ? '33.333333%' : 0 }}>
+                        <div className={`h-full transition-[opacity,transform] duration-300 ease-in-out motion-reduce:transition-none ${isDebugOpen ? 'translate-x-0 opacity-100' : '-translate-x-3 opacity-0'}`}
+                            style={{ width: 'calc(100vw / 3)' }}>
+                            <DebugMenu state={state} dispatch={dispatch} evaluation={evaluation} dictionary={dictionary}
+                                dictionaryError={dictionaryError} onRetryDictionary={() => {
+                                    setDictionaryError(null);
+                                    setDictionaryAttempt(attempt => attempt + 1);
+                                }} tileOpacity={tileOpacity} setTileOpacity={setTileOpacity}
+                                showCoordinates={showCoordinates} setShowCoordinates={setShowCoordinates} />
+                        </div>
+                    </aside>
                     <div ref={gameAreaRef} id="game-area" role="region" tabIndex={0}
                         aria-label={isDraftMode ? 'Draft area' : 'Game area'} aria-describedby="game-help game-status"
                         data-mode={state.mode} onKeyDown={handleSurfaceKeyDown}
@@ -238,11 +252,11 @@ function Sandbox() {
                                 event.currentTarget.focus({ preventScroll: true });
                             }
                         }}
-                        className="grow bg-zinc-500 flex flex-col items-center justify-center gap-4"
+                        className="min-w-0 flex-1 bg-zinc-500 flex flex-col items-center justify-center gap-4"
                         style={{ animation: 'fadeIn 0.3s ease-in-out' }}>
                         <p id="game-help" className="sr-only">{isDraftMode
-                            ? 'Choose an offered column with 1, 2, or 3. Tab reaches the native debug controls.'
-                            : 'Arrows select a cell; letters place tiles; Tab changes direction; Backspace recalls; Space shuffles; Enter plays. Delete discards the selected board tile, or the first rack tile when no cell is selected. Shift+Tab leaves the game area; Escape clears selection and releases focus. Native debug buttons provide draw, redraw, reset and mode controls.'}</p>
+                            ? 'Choose an offered column with 1, 2, or 3. Open the top-left debug menu for mode and draft controls.'
+                            : 'Arrows select a cell; letters place tiles; Tab changes direction; Backspace recalls; Space shuffles; Enter plays. Delete discards the selected board tile, or the first rack tile when no cell is selected. Shift+Tab leaves the game area; Escape clears selection and releases focus. Open the top-left debug menu for draw, redraw, reset and mode controls.'}</p>
                         <p id="game-status" className="sr-only" role="status" aria-live="polite">{status}</p>
                         <Board variant={state.mode} board={isDraftMode ? state.draft.board : state.board}
                             onCellSizeChange={setBoardCellSize} overRackIndex={drag.overRackIndex}

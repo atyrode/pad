@@ -41,8 +41,8 @@ export default function DebugMenu({ state, dispatch, evaluation, dictionary, dic
   };
 
   return (
-    <div id="debug-menu" className="w-1/3 h-full bg-zinc-600 p-4 overflow-y-auto">
-      <h2 className="text-white text-xl font-bold mb-4">Debug Menu</h2>
+    <div id="debug-menu" className="h-full bg-zinc-600 p-4 overflow-y-auto">
+      <h2 className="sticky top-0 z-20 bg-zinc-600 text-white text-xl font-bold h-10 flex items-center pl-14 mb-4">Debug Menu</h2>
 
       {/* Mode */}
       <div className="bg-zinc-700 rounded-lg p-4 mb-4">

@@ -118,11 +118,12 @@ Follow README before changing hosting or exposing partially integrated work.
   with fresh placed letters: clear the board's letters, but preserve the player's
   bag and upgrades to both board and bag. This carryover direction is confirmed;
   encounter transitions are not implemented by the sandbox's debug reset.
-- **Round budget: OPEN.** Separate play and redraw allowances are a recommendation
-  only; the hypothesis is that redraws remain useful without directly sacrificing
-  scoring turns. A shared action budget instead trades rack improvement against
-  scoring, potentially discouraging redraws. Neither approach is decided; counts,
-  encounter targets and replenishment are unset.
+- **Round budget: separate play and redraw allowances are agreed.** One redraw
+  replaces a selected subset of rack tiles without spending a scoring turn.
+  The first encounter's provisional parameters are **4 plays, 3 redraws and a
+  100-point target**: win on reaching the target; lose if plays run out below it.
+  These are adjustable starting parameters, not a balance conclusion. Encounter
+  implementation and between-encounter replenishment remain future work.
 - Probably no permanent power progression, but that is not finalized. Do not add
   unlock economies or assume a meta-progression contract.
 - Local saves are desired future work, not implemented persistence or guaranteed
