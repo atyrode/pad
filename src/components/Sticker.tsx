@@ -1,4 +1,4 @@
-import { Sticker } from '../types/sticker';
+import type { Sticker } from '../game/generated';
 
 interface StickerOverlayProps {
     sticker: Sticker | null;

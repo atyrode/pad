@@ -1,9 +1,9 @@
 import { describe, expect, test } from 'bun:test';
-import type { TileData } from '../types/tile';
-import { areUnlockedTilesInSingleLine } from '../utils/boardUtils';
-import { generateUniqueTiles } from '../utils/draftBoardUtils';
+import type { TileData } from './generated';
 import { getTileDefinition } from '../utils/tileDefinitions';
-import { applyAction, createGame, DRAFT_COLUMNS, DRAFT_SEQUENCE, evaluatePlay, getDraftedTiles, type GameAction, type GameState } from './game';
+import { applyAction, areUnlockedTilesInSingleLine, createGame, DRAFT_COLUMNS, DRAFT_SEQUENCE, evaluatePlay, getDraftedTiles, initializeEngine, type EncounterConfig, type GameAction, type GameState } from './runtime';
+
+await initializeEngine(await Bun.file(new URL('../generated/engine/skrabble_engine_bg.wasm', import.meta.url)).arrayBuffer());
 
 function tile(id: string, value = 'A'): TileData {
     return { id, value, score: getTileDefinition(value)!.score, ...(value === '*' ? { originalValue: '*' } : {}) };
@@ -33,6 +33,24 @@ function finishDraft(seed = 42): GameState {
         state = act(state, { type: 'draft-pick', column });
     }
     return state;
+}
+
+function finishEncounterDraft(config: EncounterConfig = { plays: 4, redraws: 3, targetScore: 100 }, seed = 42): GameState {
+    let state = act(createGame(seed), { type: 'new-encounter', config });
+    for (let pick = 0; pick < DRAFT_SEQUENCE.length - 1; pick++) {
+        const column = DRAFT_COLUMNS.find(col => state.draft.board[4][col].tile)!;
+        state = act(state, { type: 'draft-pick', column });
+    }
+    return state;
+}
+
+function placeOpeningWord(state: GameState): { state: GameState; dictionary: ReadonlySet<string> } {
+    const tiles = state.rack.filter((value): value is TileData => value !== null).slice(0, 2);
+    const dictionary = new Set([tiles.map(tile => tile.value === '*' ? 'A' : tile.value).join('')]);
+    for (const [index, tile] of tiles.entries()) {
+        state = act(state, { type: 'move', tileId: tile.id, to: { zone: 'board', row: 5, col: 5 + index }, letter: 'A' });
+    }
+    return { state, dictionary };
 }
 
 function put(state: GameState, row: number, col: number, value: string, locked = false): void {
@@ -196,12 +214,6 @@ describe('atomic rejection and blank handling', () => {
 });
 
 describe('draft and seeded mechanics', () => {
-    test('oversized distinct sampling rejects instead of looping forever', () => {
-        expect(() => generateUniqueTiles(7, 'vowel', () => 0, () => 'preview')).toThrow(RangeError);
-        expect(() => generateUniqueTiles(21, 'consonant', () => 0, () => 'preview')).toThrow(RangeError);
-        const vowels = generateUniqueTiles(6, 'vowel', () => 0, () => 'preview');
-        expect(new Set(vowels.map(value => value.value))).toEqual(new Set(['A', 'E', 'I', 'O', 'U', 'Y']));
-    });
 
     test('fourteen manual picks respect offers, rearrange independently, seed fresh copies once and never auto-exit or draw', () => {
         let state = act(createGame(31), { type: 'set-mode', mode: 'draft' });
@@ -383,5 +395,335 @@ describe('play geometry and bespoke scoring', () => {
         const single = createGame(1);
         put(single, 5, 5, 'A');
         expect(evaluatePlay(single, new Set(['A'])).canPlay).toBe(false);
+    });
+});
+
+describe('encounter lifecycle and budgets', () => {
+    test('invalid configurations and premature lifecycle commands reject atomically', () => {
+        const state = createGame(50);
+        for (const [field, values] of [
+            ['plays', [0, -1, 1.5, Infinity, NaN, Number.MAX_SAFE_INTEGER + 1]],
+            ['redraws', [-1, 0.5, Infinity, NaN, Number.MAX_SAFE_INTEGER + 1]],
+            ['targetScore', [0, -1, 0.5, Infinity, NaN, Number.MAX_SAFE_INTEGER + 1]],
+        ] as const) {
+            for (const value of values) {
+                expectRejected(state, { type: 'new-encounter', config: { plays: 4, redraws: 3, targetScore: 100, [field]: value } });
+            }
+        }
+        for (const type of ['start-encounter', 'retry-encounter', 'concede-encounter'] as const) expectRejected(state, { type });
+        expectRejected(state, { type: 'redraw-selected', tileIds: ['absent'] });
+        const draft = act(state, { type: 'new-encounter' });
+        expectRejected(draft, { type: 'start-encounter' }, new Set());
+        expectRejected(draft, { type: 'retry-encounter' }, new Set());
+        expectRejected(draft, { type: 'concede-encounter' });
+        const complete = finishEncounterDraft();
+        expectRejected(complete, { type: 'start-encounter' });
+        const playing = act(complete, { type: 'start-encounter' }, new Set());
+        expectRejected(playing, { type: 'start-encounter' }, new Set());
+        expectRejected(playing, { type: 'retry-encounter' }, new Set());
+    });
+
+    test('a missing dictionary leaves the automatically completed recipe waiting without reseeding on rearrangement or recovery', () => {
+        let state = act(createGame(60), { type: 'new-encounter' });
+        const offered = state.draft.board[4][2].tile!;
+        state = act(state, { type: 'move', tileId: offered.id, to: { zone: 'draft', row: 8, col: 8 } });
+        expect(state.draft.pickIndex).toBe(1);
+        const offers = state.draft.board[4];
+        const rng = state.rng;
+        state = act(state, { type: 'move', tileId: offered.id, to: { zone: 'draft', row: 7, col: 2 } });
+        expect(state.draft.board[4]).toEqual(offers);
+        expect(state.rng).toBe(rng);
+        while (!state.draft.complete) {
+            const column = DRAFT_COLUMNS.find(col => state.draft.board[4][col].tile)!;
+            state = act(state, { type: 'draft-pick', column });
+        }
+        expect(state.encounter?.status).toBe('draft');
+        expect(state.mode).toBe('draft');
+        expect(state.rack.filter(Boolean)).toEqual([]);
+        expect(state.draft.pickIndex).toBe(14);
+        expect(getDraftedTiles(state).filter(tile => tile.value === '*')).toHaveLength(1);
+        const inventory = liveIds(state);
+        const templateIds = new Set(getDraftedTiles(state).map(tile => tile.id));
+        expect(inventory).toHaveLength(14);
+        expect(inventory.some(id => templateIds.has(id))).toBe(false);
+        expectRejected(state, { type: 'draft-pick', column: 5 });
+        expectRejected(state, { type: 'start-encounter' });
+        const recipe = getDraftedTiles(state);
+        state = act(state, { type: 'move', tileId: recipe[0].id, to: { zone: 'draft', row: 8, col: 8 } }, new Set());
+        expect(state.encounter?.status).toBe('draft');
+        expect(state.rack.filter(Boolean)).toEqual([]);
+        expect(liveIds(state)).toEqual(inventory);
+        expect(getDraftedTiles(state).map(tile => tile.id).sort()).toEqual(recipe.map(tile => tile.id).sort());
+        state = act(state, { type: 'start-encounter' }, new Set());
+        expect(state.encounter?.status).toBe('playing');
+        expect(state.mode).toBe('game');
+        expect(state.rack.filter(Boolean)).toHaveLength(7);
+        expect(state.bag).toHaveLength(7);
+        expect(liveIds(state)).toEqual(inventory);
+        expectRejected(state, { type: 'start-encounter' }, new Set());
+        expectRejected(state, { type: 'draft-pick', column: 5 }, new Set());
+    });
+
+    test('the thirteenth choice auto-picks the final blank and starts identically for direct and pointer picks', () => {
+        const dictionary = new Set<string>();
+        let state = act(createGame(61), { type: 'new-encounter' }, dictionary);
+        for (let pick = 0; pick < 12; pick++) {
+            const column = DRAFT_COLUMNS.find(col => state.draft.board[4][col].tile)!;
+            state = act(state, { type: 'draft-pick', column }, dictionary);
+        }
+        expect(getDraftedTiles(state)).toHaveLength(12);
+        expect(state.bag).toEqual([]);
+        expect(state.rack.filter(Boolean)).toEqual([]);
+        const column = DRAFT_COLUMNS.find(col => state.draft.board[4][col].tile)!;
+        const offered = state.draft.board[4][column].tile!;
+        const position = { row: 8, col: 8 };
+        const actions: GameAction[] = [
+            { type: 'draft-pick', column, to: position },
+            { type: 'move', tileId: offered.id, to: { zone: 'draft', ...position } },
+        ];
+        const snapshot = structuredClone(state);
+        freeze(state);
+        const results = actions.map(action => applyAction(state, action, dictionary));
+        expect(results[0].state).toEqual(results[1].state);
+        for (const result of results) {
+            expect(result.ok).toBe(true);
+            if (!result.ok) throw new Error(result.reason);
+            const playing = result.state;
+            expect(playing.encounter).toEqual({
+                status: 'playing', config: { plays: 4, redraws: 3, targetScore: 100 },
+                playsRemaining: 4, redrawsRemaining: 3,
+            });
+            expect(playing.mode).toBe('game');
+            expect(playing.draft.complete).toBe(true);
+            expect(playing.draft.seeded).toBe(true);
+            expect(playing.draft.pickIndex).toBe(14);
+            expect(playing.draft.board[8][8].tile).toEqual(offered);
+            expect(playing.draft.board[8][7].tile?.value).toBe('*');
+            const recipe = getDraftedTiles(playing);
+            expect(recipe).toHaveLength(14);
+            expect(recipe.filter(tile => tile.value === '*')).toHaveLength(1);
+            expect(DRAFT_COLUMNS.every(col => playing.draft.board[4][col].tile === null)).toBe(true);
+            expect(playing.rack.filter(Boolean)).toHaveLength(7);
+            expect(playing.bag).toHaveLength(7);
+            const inventory = [...playing.bag, ...playing.rack.filter((tile): tile is TileData => tile !== null)];
+            expect(new Set(inventory.map(tile => tile.id)).size).toBe(14);
+            expect(inventory.map(tile => tile.value).sort()).toEqual(recipe.map(tile => tile.value).sort());
+            const recipeIds = new Set(recipe.map(tile => tile.id));
+            expect(inventory.some(tile => recipeIds.has(tile.id))).toBe(false);
+            expectRejected(playing, { type: 'start-encounter' }, dictionary);
+            expectRejected(playing, actions[0], dictionary);
+            expectRejected(playing, actions[1], dictionary);
+        }
+        expect(state).toEqual(snapshot);
+        const waiting = act(state, actions[1]);
+        expect(act(waiting, { type: 'start-encounter' }, dictionary)).toEqual(results[0].state);
+    });
+
+    test('draft and playing phases cannot bypass budgets with sandbox commands', () => {
+        const draft = finishEncounterDraft();
+        const playing = act(draft, { type: 'start-encounter' }, new Set());
+        const debugActions: GameAction[] = [
+            { type: 'draw', count: 'all' }, { type: 'discard', tileId: playing.rack[0]!.id },
+            { type: 'redraw' }, { type: 'shuffle-bag' }, { type: 'set-mode', mode: 'game' },
+            { type: 'set-mode', mode: 'draft' }, { type: 'draft-reroll' }, { type: 'reset-draft' },
+            ...(['game', 'board', 'rack', 'bag', 'score', 'stickers'] as const).map(target => ({ type: 'reset', target } as const)),
+        ];
+        for (const state of [draft, playing]) {
+            for (const action of debugActions) expectRejected(state, action, new Set());
+        }
+        const offer = getDraftedTiles(draft)[0];
+        expectRejected(draft, { type: 'move', tileId: offer.id, to: { zone: 'rack', index: 0 } });
+        expectRejected(draft, { type: 'shuffle-rack' });
+        expectRejected(draft, { type: 'redraw-selected', tileIds: [] });
+        expectRejected(playing, { type: 'draft-pick', column: 2 });
+        expectRejected(playing, { type: 'move', tileId: playing.rack[0]!.id, to: { zone: 'draft', row: 7, col: 2 } });
+    });
+
+    test('only valid plays spend a play; movement, recall, shuffle and rejection are free', () => {
+        const opening = act(finishEncounterDraft({ plays: 2, redraws: 0, targetScore: 10000 }), { type: 'start-encounter' }, new Set());
+        let state = act(opening, { type: 'move', tileId: opening.rack[0]!.id, to: { zone: 'board', row: 5, col: 5 }, letter: 'A' });
+        state = act(state, { type: 'recall' });
+        state = act(state, { type: 'shuffle-rack' });
+        expect(state.encounter?.playsRemaining).toBe(2);
+        expectRejected(state, { type: 'move', tileId: state.rack[0]!.id, to: { zone: 'board', row: -1, col: 5 } });
+        const pending = placeOpeningWord(state);
+        expectRejected(pending.state, { type: 'play' });
+        expectRejected(pending.state, { type: 'play' }, new Set());
+        const gap = act(pending.state, { type: 'move', tileId: pending.state.board[5][6].tile!.id, to: { zone: 'board', row: 5, col: 7 } });
+        expectRejected(gap, { type: 'play' }, pending.dictionary);
+        const score = evaluatePlay(pending.state, pending.dictionary).score.totalScore;
+        state = act(pending.state, { type: 'play' }, pending.dictionary);
+        expect(state.totalScore).toBe(score);
+        expect(state.encounter?.playsRemaining).toBe(1);
+        expect(state.encounter?.redrawsRemaining).toBe(0);
+        expect(state.encounter?.status).toBe('playing');
+        expect(state.board[5][5].canTake).toBe(false);
+        expect(state.stickers[5][5]?.consumed).toBe(true);
+        expect(state.rack.filter(Boolean)).toHaveLength(7);
+        expect(state.placementHistory).toEqual([]);
+        expectConserved(opening, state);
+        expectRejected(state, { type: 'play' }, pending.dictionary);
+    });
+
+    test('target success wins on the last play, while a below-target last play loses', () => {
+        const config = { plays: 1, redraws: 0, targetScore: 1 };
+        const draft = finishEncounterDraft(config);
+        config.plays = 99;
+        config.targetScore = 10000;
+        const win = placeOpeningWord(act(draft, { type: 'start-encounter' }, new Set()));
+        const won = act(win.state, { type: 'play' }, win.dictionary);
+        expect(won.encounter?.status).toBe('won');
+        expect(won.encounter?.playsRemaining).toBe(0);
+        const exact = placeOpeningWord(act(finishEncounterDraft({ plays: 2, redraws: 0, targetScore: won.totalScore }), { type: 'start-encounter' }, new Set()));
+        const earlyWin = act(exact.state, { type: 'play' }, exact.dictionary);
+        expect(earlyWin.encounter?.status).toBe('won');
+        expect(earlyWin.encounter?.playsRemaining).toBe(1);
+        const loss = placeOpeningWord(act(finishEncounterDraft({ plays: 1, redraws: 3, targetScore: 10000 }), { type: 'start-encounter' }, new Set()));
+        const lost = act(loss.state, { type: 'play' }, loss.dictionary);
+        expect(lost.encounter?.status).toBe('lost');
+        expect(lost.encounter?.playsRemaining).toBe(0);
+        expect(lost.encounter?.redrawsRemaining).toBe(3);
+        for (const state of [won, lost]) {
+            for (const action of [
+                { type: 'move', tileId: state.rack[0]!.id, to: { zone: 'board', row: 5, col: 7 } },
+                { type: 'recall' }, { type: 'shuffle-rack' }, { type: 'play' },
+                { type: 'redraw-selected', tileIds: [state.rack[0]!.id] },
+                { type: 'reset', target: 'score' }, { type: 'concede-encounter' },
+                { type: 'start-encounter' },
+            ] satisfies GameAction[]) expectRejected(state, action, win.dictionary);
+            expect(evaluatePlay(state, win.dictionary).canPlay).toBe(false);
+            expectRejected(state, { type: 'retry-encounter' });
+            expect(act(state, { type: 'retry-encounter' }, new Set()).encounter?.status).toBe('playing');
+        }
+    });
+
+    test('concession blocks even a valid pending play; leaving restores sandbox but cannot resume the attempt', () => {
+        const pending = placeOpeningWord(act(finishEncounterDraft(), { type: 'start-encounter' }, new Set()));
+        expect(evaluatePlay(pending.state, pending.dictionary).canPlay).toBe(true);
+        const ended = act(pending.state, { type: 'concede-encounter' });
+        expect(ended.encounter?.status).toBe('lost');
+        expect(ended.encounter?.playsRemaining).toBe(4);
+        expect(evaluatePlay(ended, pending.dictionary).canPlay).toBe(false);
+        expectRejected(ended, { type: 'play' }, pending.dictionary);
+        const sandbox = act(ended, { type: 'enter-sandbox' });
+        expect(sandbox.encounter).toBeNull();
+        expectConserved(ended, sandbox);
+        expect(evaluatePlay(sandbox, pending.dictionary).canPlay).toBe(true);
+        expect(act(sandbox, { type: 'play' }, pending.dictionary).totalScore).toBeGreaterThan(0);
+        expectRejected(sandbox, { type: 'retry-encounter' }, pending.dictionary);
+        expectRejected(sandbox, { type: 'start-encounter' }, pending.dictionary);
+        const playing = act(finishEncounterDraft(), { type: 'start-encounter' }, new Set());
+        expect(act(playing, { type: 'enter-sandbox' }).encounter).toBeNull();
+        const draft = act(createGame(1), { type: 'new-encounter' });
+        const manualDraft = act(draft, { type: 'enter-sandbox' });
+        expect(act(manualDraft, { type: 'draft-reroll' }).draft.pickIndex).toBe(0);
+    });
+
+    test('retry restores a fresh attempt from the same recipe and new draft abandons every old gameplay zone', () => {
+        const config = { plays: 3, redraws: 2, targetScore: 10000 };
+        const initial = act(finishEncounterDraft(config), { type: 'start-encounter' }, new Set());
+        const pending = placeOpeningWord(initial);
+        let state = act(pending.state, { type: 'play' }, pending.dictionary);
+        state = act(state, { type: 'redraw-selected', tileIds: [state.rack[0]!.id] });
+        state = act(state, { type: 'move', tileId: state.rack[1]!.id, to: { zone: 'board', row: 4, col: 5 }, letter: 'A' });
+        const ended = act(state, { type: 'concede-encounter' });
+        const previousIds = new Set(liveIds(ended));
+        const recipe = getDraftedTiles(ended).map(tile => tile.value).sort();
+        freeze(ended);
+        const retry = act(ended, { type: 'retry-encounter' }, new Set());
+        expect(retry.totalScore).toBe(0);
+        expect(retry.encounter?.playsRemaining).toBe(3);
+        expect(retry.encounter?.redrawsRemaining).toBe(2);
+        expect(retry.board.flat().filter(cell => cell.tile)).toEqual([]);
+        expect(retry.discard).toEqual([]);
+        expect(retry.placementHistory).toEqual([]);
+        expect(retry.stickers.flat().some(sticker => sticker?.consumed)).toBe(false);
+        expect([...retry.bag, ...retry.rack.filter((tile): tile is TileData => tile !== null)].map(tile => tile.value).sort()).toEqual(recipe);
+        expect(getDraftedTiles(retry)).toEqual(getDraftedTiles(ended));
+        expect(liveIds(retry)).toHaveLength(14);
+        expect(liveIds(retry).some(id => previousIds.has(id))).toBe(false);
+        expect(retry.rng).not.toBe(ended.rng);
+        for (const source of [state, ended, retry]) {
+            const fresh = act(source, { type: 'new-encounter' });
+            expect(fresh.encounter?.status).toBe('draft');
+            expect(fresh.totalScore).toBe(0);
+            expect(liveIds(fresh)).toEqual([]);
+            expect(getDraftedTiles(fresh)).toEqual([]);
+            expect(fresh.placementHistory).toEqual([]);
+            expect(fresh.stickers.flat().some(sticker => sticker?.consumed)).toBe(false);
+            expect(fresh.draft.pickIndex).toBe(0);
+        }
+    });
+});
+
+describe('selected encounter redraw', () => {
+    test('selection spends one redraw, preserves unselected slots and pending tiles, and rejects invalid IDs atomically', () => {
+        let state = act(finishEncounterDraft({ plays: 4, redraws: 1, targetScore: 100 }), { type: 'start-encounter' }, new Set());
+        const pendingId = state.rack[0]!.id;
+        state = act(state, { type: 'move', tileId: pendingId, to: { zone: 'board', row: 5, col: 5 }, letter: 'A' });
+        const selected = [state.rack[2]!.id, state.rack[5]!.id];
+        for (const tileIds of [[], [selected[0], selected[0]], [selected[0], 'stale'], [selected[0], pendingId], [state.bag[0].id]]) {
+            expectRejected(state, { type: 'redraw-selected', tileIds });
+        }
+        const next = act(state, { type: 'redraw-selected', tileIds: selected });
+        expect(next.rack[2]?.id).toBe(state.bag[0].id);
+        expect(next.rack[5]?.id).toBe(state.bag[1].id);
+        for (const index of [0, 1, 3, 4, 6]) expect(next.rack[index]).toEqual(state.rack[index]);
+        expect(next.board).toEqual(state.board);
+        expect(next.placementHistory).toEqual(state.placementHistory);
+        expect(next.totalScore).toBe(state.totalScore);
+        expect(next.encounter?.playsRemaining).toBe(4);
+        expect(next.encounter?.redrawsRemaining).toBe(0);
+        expect(next.discard.map(tile => tile.id).sort()).toEqual([...selected].sort());
+        expectConserved(state, next);
+        expectRejected(next, { type: 'redraw-selected', tileIds: [next.rack[2]!.id] });
+    });
+
+    test('an exhausted bag recycles a just-returned blank without changing its identity or inventing inventory', () => {
+        let state = act(finishEncounterDraft({ plays: 4, redraws: 1, targetScore: 100 }), { type: 'start-encounter' }, new Set());
+        const allTiles = [...state.bag, ...state.rack.filter((tile): tile is TileData => tile !== null)];
+        const blank = allTiles.find(tile => tile.value === '*')!;
+        // Only the blank remains in inventory; all other physical tiles are on the board.
+        state.bag = [];
+        state.rack = [blank, null, null, null, null, null, null];
+        for (const [index, physical] of allTiles.filter(tile => tile.id !== blank.id).entries()) {
+            state.board[Math.floor(index / 11)][index % 11].tile = physical;
+        }
+        state = act(state, { type: 'move', tileId: blank.id, to: { zone: 'board', row: 5, col: 5 }, letter: 'Z' });
+        state = act(state, { type: 'recall' });
+        freeze(state);
+        const redrawn = act(state, { type: 'redraw-selected', tileIds: [blank.id] });
+        expect(redrawn.rack[0]).toEqual(tile(blank.id, '*'));
+        expect(redrawn.rack.slice(1)).toEqual([null, null, null, null, null, null]);
+        expect(redrawn.encounter?.redrawsRemaining).toBe(0);
+        expectConserved(state, redrawn);
+    });
+
+    test('seeded replay is exact and selection order or cosmetic rack shuffles cannot perturb mechanics', () => {
+        const run = () => {
+            let state = act(finishEncounterDraft(), { type: 'start-encounter' }, new Set());
+            state = act(state, { type: 'redraw-selected', tileIds: [state.rack[6]!.id, state.rack[1]!.id] });
+            state = act(state, { type: 'concede-encounter' });
+            return act(state, { type: 'retry-encounter' }, new Set());
+        };
+        expect(run()).toEqual(run());
+        let plain = act(finishEncounterDraft(), { type: 'start-encounter' }, new Set());
+        let shuffled = act(act(plain, { type: 'shuffle-rack' }), { type: 'shuffle-rack' });
+        for (let redraw = 0; redraw < 3; redraw++) {
+            const selection = plain.rack.filter((tile): tile is TileData => tile !== null).map(tile => tile.id).sort().slice(0, 4);
+            const reversed = act(plain, { type: 'redraw-selected', tileIds: [...selection].reverse() });
+            plain = act(plain, { type: 'redraw-selected', tileIds: selection });
+            expect(reversed).toEqual(plain);
+            shuffled = act(shuffled, { type: 'redraw-selected', tileIds: [...selection].reverse() });
+            expect(shuffled.rng).toBe(plain.rng);
+            expect(shuffled.bag).toEqual(plain.bag);
+            expect(shuffled.discard).toEqual(plain.discard);
+            expect(shuffled.rack.filter(Boolean).map(tile => tile!.id).sort()).toEqual(plain.rack.filter(Boolean).map(tile => tile!.id).sort());
+        }
+        plain = act(act(plain, { type: 'concede-encounter' }), { type: 'retry-encounter' }, new Set());
+        shuffled = act(act(shuffled, { type: 'concede-encounter' }), { type: 'retry-encounter' }, new Set());
+        expect(shuffled.rack).toEqual(plain.rack);
+        expect(shuffled.bag).toEqual(plain.bag);
+        expect(shuffled.rng).toBe(plain.rng);
     });
 });

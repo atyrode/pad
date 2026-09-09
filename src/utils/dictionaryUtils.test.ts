@@ -2,6 +2,8 @@ import { expect, test } from 'bun:test';
 import { fileURLToPath } from 'node:url';
 
 const loaderUrl = new URL('./dictionaryUtils.ts', import.meta.url).href;
+const engineUrl = new URL('../game/runtime.ts', import.meta.url).href;
+const wasmPath = fileURLToPath(new URL('../generated/engine/skrabble_engine_bg.wasm', import.meta.url));
 const lexiconPath = fileURLToPath(new URL('../../public/dictionnary/french.txt', import.meta.url));
 
 // Each process gets a fresh module cache and fetch mock, without changing the
@@ -12,6 +14,8 @@ async function runIsolated(scenario: string) {
     '--eval',
     `import assert from 'node:assert/strict';
      import { loadDictionary } from ${JSON.stringify(loaderUrl)};
+     import { initializeEngine } from ${JSON.stringify(engineUrl)};
+     await initializeEngine(await Bun.file(${JSON.stringify(wasmPath)}).arrayBuffer());
      ${scenario}`,
   ], { stdout: 'pipe', stderr: 'pipe' });
   const [exitCode, stdout, stderr] = await Promise.all([

@@ -1,10 +1,10 @@
 # Skrabble
 
-A solo French word-tile sandbox. Play at **https://games.tyrode.dev/skrabble/**.
+A solo French word-building game. Play at **https://games.tyrode.dev/skrabble/**.
 
-Desktop first, keyboard primary, mouse drag-and-drop secondary. The current
-manual/debug sandbox has drafting, drawing, placement, scoring, and board/tile
-experiments—not a run, encounter map, shop, or progression loop.
+Desktop first, keyboard primary, mouse drag-and-drop secondary. The first encounter
+combines drafting, placement and scoring with separate play/redraw budgets.
+A manual/debug sandbox remains available; maps, shops and progression are not.
 See [SPEC.md](SPEC.md) for current rules, planned direction, and open decisions;
 [AGENTS.md](AGENTS.md) is the short contributor guide.
 
@@ -15,10 +15,12 @@ manual controls; close it to smoothly recenter the board and rack. The toggle is
 keyboard-accessible, hidden controls are skipped, and reduced-motion preferences
 disable the transition. Opening or closing the panel preserves the game.
 
-The game starts with an empty bag. Open the menu, enter **Draft**, then use **1 / 2 / 3** in the
-focused draft area to choose an offered column (vowels occupy 1 and 3; the final
-blank occupies 2). Right-clicking an offer or dragging it into the draft area also
-works. After 14 picks, use **Exit Draft**, then **Draw All**; neither is automatic.
+The game opens directly in **Draft**. Type an offered letter, or use **1 / 2 / 3**
+to choose a column (vowels occupy 1 and 3). Right-clicking an offer or dragging it
+into a draft slot also works. After 13 choices the final blank slides in
+automatically, followed by the encounter: **100 points, 4 plays, 3 redraws**.
+No start button is required. Flights and the final settled-bag pause are
+interruptible presentation; the underlying actions commit immediately.
 
 The game area receives focus on load; Tab or a click can return focus to it.
 With that area focused:
@@ -29,10 +31,19 @@ With that area focused:
   **Shift+Tab** leaves the game area; **Escape** clears selection and releases focus.
 - **Backspace** recalls the latest pending placement; **Space** shuffles the rack;
   **Enter** commits a valid play. The first word must cover the central star.
-- **Delete** discards the selected board tile, or the first rack tile when no cell
-  is selected. Locked tiles cannot be discarded.
+- **1–7** select rack slots for redraw; **Enter** confirms and **Escape** cancels.
+  **Delete** also opens redraw selection. The rack-side redraw icon selects or
+  confirms; dragging one rack tile onto it redraws just that tile immediately.
+  Each accepted redraw costs one redraw, not a play, and preserves unselected slots.
+- Reaching 100 wins; using the last play below 100 loses. **Enter** or the retry
+  icon at the existing Play position retries with the same drafted bag.
+- The menu's **Game / Sandbox** selector changes mode explicitly. In Game,
+  **Restart game** closes the menu and returns to a fresh draft and encounter.
+  Selecting **Game** from Sandbox also starts a fresh draft. In the sandbox,
+  **Clear sandbox** clears gameplay, and Delete discards rather than selecting
+  redraw. Manual draft still requires 14 picks, Exit Draft and Draw All.
 
-Draw, redraw, reset, mode, shuffle and Play controls are native keyboard-focusable
+The menu, rack actions and debug controls are native keyboard-focusable
 buttons; game shortcuts do not override their normal keyboard behavior. A blank
 chooser accepts **A–Z** or a letter button, **Tab / Shift+Tab** navigate inside it,
 and **Escape** cancels without moving the tile. Dictionary loading failures show a
@@ -46,7 +57,36 @@ service worker or saved-game feature is added by this deployment.
 
 ## Local development
 
-Use Bun 1.3.13 and Node 24 (matching the Docker build):
+Use Bun 1.3.13, Node 24, and Rust 1.97.1. `rust-toolchain.toml` pins the Rust
+compiler, `wasm32-unknown-unknown` target, rustfmt and Clippy. With
+[rustup](https://rustup.rs/) installed, set up the pinned toolchain and matching
+Wasm binding generator:
+
+```sh
+rustup toolchain install 1.97.1 --profile minimal \
+  --target wasm32-unknown-unknown --component rustfmt --component clippy
+cargo +1.97.1 install wasm-bindgen-cli --version 0.2.121 --locked
+```
+
+`wasm-bindgen-cli` must match the crate's exact `wasm-bindgen = 0.2.121` pin.
+`Cargo.lock` is authoritative for Rust dependencies; `bun.lock` is authoritative
+for JavaScript dependencies. Keep both lockfiles when building.
+
+An optional Nix development shell is:
+
+```sh
+nix shell nixpkgs#rustc nixpkgs#cargo nixpkgs#wasm-bindgen-cli \
+  nixpkgs#gcc nixpkgs#lld nixpkgs#rustfmt nixpkgs#clippy --command bash
+rustc --version
+wasm-bindgen --version
+```
+
+The current packages supply the required Wasm standard library, Rust 1.97.1 and
+wasm-bindgen-cli 0.2.121. This command does not pin the `nixpkgs` input:
+check those versions before use, and use the rustup setup above if they differ.
+The repository toolchain file governs rustup, not Nix-provided compilers.
+
+Then, from the repository root:
 
 ```sh
 bun install --frozen-lockfile
@@ -54,54 +94,145 @@ bun run dev
 # Open http://localhost:3000/skrabble/
 bun run typecheck
 bun run lint
+bun run test:rust
 bun run test
+bun run test:parity
 bun run check
 bun run build
 ```
 
-`check` runs typecheck, lint and tests; the static production build is a separate
-gate. `.github/workflows/ci.yml` is configured to run both after a frozen install.
-The app uses Next.js 16.3.4 and React 19.2.8. These commands and workflow describe
-available checks, not a claim that CI or every browser scenario has passed.
+- `build:engine` (`bun scripts/build-engine.ts`) builds the native tools and Wasm
+  core and generates the frontend interface.
+- `dev` runs `build:engine` before `next dev`; `build` does the same before
+  `next build`.
+- `test:rust` runs `cargo test --locked --workspace`; `test` runs `bun test src`;
+  `test:parity` runs `bun scripts/verify-engine.ts`. Build the engine first when
+  running Wasm tests or parity directly.
+- `check` builds the engine, checks Cargo formatting and Clippy, typechecks/lints,
+  and runs native tests, Bun/Wasm tests and native/Wasm parity. The static
+  production build remains a separate gate.
+
+Generated outputs are `src/game/generated.ts` (Rust-derived data types/metadata),
+`src/generated/engine/*` (Wasm JavaScript, declarations and binary),
+`public/engine/<fingerprint>.wasm`, and
+`target/release/{engine-cli,export-interface}`. Do not edit generated files:
+rebuild from Rust. Generated frontend artifacts and `target/` are ignored and
+excluded from Docker build input; the container builds its own copies.
+
+Rust edits require rebuilding the engine, restarting the development server and
+reloading the browser; `bun run dev` performs the rebuild at startup, not on every
+Rust edit. React/TypeScript UI edits retain normal Next.js Fast Refresh.
+The app uses Next.js 16.3.4 and React 19.2.8. These are available commands and
+checks, not a claim that CI or every browser scenario has passed.
 
 Production is served by the container, not `next start`: Next.js exports static
 files to `out/`. The `/skrabble` mount is a build-time setting in `next.config.ts`;
-the dictionary URL and Caddy route use the same prefix. `bun.lock` is the
-authoritative dependency lockfile.
+the dictionary URL and Caddy route use the same prefix.
 
-## Headless TypeScript API
+## One Rust engine: native and Wasm
 
-The browser and Bun use the same framework-free `src/game/game.ts` engine.
-Callers supply a `ReadonlySet<string>` of uppercase dictionary words (or `null`
-while unavailable, which prevents committing a play). For example, save this as
-`example.ts` at the repository root and run `bun run example.ts`:
+`crates/skrabble-engine` owns the rules, seeded randomness, actions and evaluation.
+It compiles natively for headless work and to Wasm for browser play. React and
+TypeScript provide presentation and a serialization adapter, not a second rules
+implementation. The browser keeps the French dictionary in a persistent Rust
+`Lexicon`; it does not transfer the lexicon on each action.
 
-```ts
-import { createGame, applyAction, evaluatePlay, type GameAction } from './src/game/game';
+### Typed native API
 
-const dictionary: ReadonlySet<string> = new Set(
-  (await Bun.file('public/dictionnary/french.txt').text()).split('\n')
-    .map(word => word.trim().toUpperCase()).filter(Boolean),
-);
-let state = createGame(42);
-function act(action: GameAction) {
-  const result = applyAction(state, action, dictionary);
-  if (!result.ok) throw new Error(result.reason);
-  state = result.state;
+Native callers use `skrabble_engine::{engine, model, rules, Dictionary}` directly.
+For example, save this as `crates/skrabble-engine/examples/draft.rs`, then run
+`cargo run --locked -p skrabble-engine --example draft` from the repository root:
+
+```rust
+use skrabble_engine::{
+    engine::{apply_action, create_game},
+    model::GameAction,
+    rules::evaluate_play,
+    Dictionary,
+};
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let dictionary: Dictionary =
+        std::fs::read_to_string("public/dictionnary/french.txt")?
+            .lines()
+            .map(|word| word.trim().to_uppercase())
+            .filter(|word| !word.is_empty())
+            .collect();
+    let mut state = create_game(42);
+    apply_action(
+        &mut state,
+        &GameAction::NewEncounter { config: None },
+        Some(&dictionary),
+    )?;
+    for _ in 0..13 {
+        apply_action(
+            &mut state,
+            &GameAction::DraftPick { column: 2.0, to: None },
+            Some(&dictionary),
+        )?;
+    }
+    println!("{:#?}", evaluate_play(&state, Some(&dictionary)));
+    Ok(())
 }
-act({ type: 'set-mode', mode: 'draft' });
-for (let pick = 0; pick < 14; pick++) act({ type: 'draft-pick', column: pick === 13 ? 5 : 2 });
-act({ type: 'set-mode', mode: 'game' });
-act({ type: 'draw', count: 'all' });
-console.log(evaluatePlay(state, dictionary));
 ```
 
-This drafts and draws a rack; evaluation reports that no word is placed yet.
-`applyAction` returns an accepted state or a rejection reason with unchanged state;
-`evaluatePlay` exposes words, score breakdown and play eligibility. A seed plus
-the same ordered actions reproduces state under the **same rules and lexicon**.
-State is JSON-compatible plain data, not an implemented saved-game feature.
-This is an in-process API, not an HTTP service, solver or persistence layer.
+This completes the draft, automatically adds the blank, starts an encounter and
+draws seven tiles; no word is placed yet. `create_game(seed: u32)` alone creates
+manual sandbox state. If the dictionary is unavailable (`None`), the completed
+encounter draft waits for `GameAction::StartEncounter` with a loaded dictionary.
+Browser loading/retry performs that recovery automatically.
+
+`apply_action(&mut GameState, &GameAction, Option<&Dictionary>)` returns
+`Result<ActionEffect, String>`: accepted commands mutate the state; rejected
+commands leave it unchanged. The native action hot path uses typed values with no
+JSON serialization or full-state clone. `evaluate_play(&GameState,
+Option<&Dictionary>)` returns a `PlayEvaluation` with words, score breakdown and
+play eligibility. This in-process API is the simulation path; load a dictionary
+once and reuse it across actions.
+
+A seed plus the same ordered actions reproduces state under the **same rules and
+lexicon**. State can be serialized for inspection; this is not an implemented
+saved-game feature, HTTP service, solver or persistence layer.
+
+### Browser/Bun adapter and debug CLI
+
+Callers of `src/game/runtime.ts` await `initializeEngine()` once, then use the
+synchronous `createGame`, `applyAction` and `evaluatePlay` adapter functions.
+Bun can supply the generated binary explicitly:
+
+```ts
+import { initializeEngine, createGame } from './src/game/runtime';
+
+await initializeEngine(
+  await Bun.file('src/generated/engine/skrabble_engine_bg.wasm').arrayBuffer(),
+);
+const state = createGame(42);
+```
+
+The browser loader uses the fingerprinted public Wasm asset. Initialization is
+asynchronous; accepted gameplay actions remain synchronous after initialization.
+The native `target/release/engine-cli` reads one JSON request per line and writes
+one JSON result per line for `create`, `apply`, `evaluate` and `trace`. Use it for
+interop, debug and parity checks, not as a JSON subprocess in a simulation hot loop.
+
+### Native/Wasm parity
+
+After `bun run build:engine`, `bun run test:parity` compares seeded transitions
+and evaluations between the native CLI and the Bun-loaded Wasm core. Its
+synthetic lexicon exercises mechanics, not French word coverage or balance.
+Optional migration comparisons load an external compatibility module at runtime:
+
+```sh
+bun scripts/verify-engine.ts --reference /absolute/path/to/reference-engine.ts
+bun scripts/verify-engine.ts --browser-fixture /tmp/skrabble-browser-fixture.json
+```
+
+The reference module must export compatible `createGame`, `applyAction` and
+`evaluatePlay` functions; it is not shipped with the app or retained as a second
+rules implementation. `--browser-fixture` writes replay traces and edge cases
+with expected hashes for separate Chromium verification; it does not launch or
+verify Chromium by itself. The two options can be combined. Neither a fixture
+nor a passing native/Bun comparison proves browser acceptance or a remote CI run.
 
 ## Dictionary provenance
 
@@ -140,9 +271,10 @@ loopback-only; place your own HTTPS reverse proxy in front for public access.
 (import it into your existing Caddy configuration). It preserves `/skrabble` and
 returns 404 for other paths. No machine identity or dotfiles repository is needed.
 
-The image is a static Next.js export served by Caddy on port **8080**. Node and Bun
-exist only in the build stage. Base images are digest-pinned, dependencies use
-`bun.lock` with `--frozen-lockfile`, and Compose runs read-only, non-root, with no
+The image is a static Next.js export served by Caddy on port **8080**. Node, Bun
+and Rust tooling exist only in the build stage. Base images are digest-pinned;
+JavaScript dependencies use `bun.lock` with `--frozen-lockfile`, and Rust builds
+use `Cargo.lock` with `--locked`. Compose runs read-only, non-root, with no
 Linux capabilities. There are no data volumes to migrate. `restart:
 unless-stopped` restarts the container when Docker starts; ensure Docker itself
 starts at boot (rootless Docker also needs user lingering).
@@ -155,11 +287,13 @@ DNS. Existing open tabs continue playing even when the service is stopped.
 ## Live development on dev-01
 
 The live development checkout is `/home/alex/scrabble` on **dev-01**. Its source
-is bind-mounted into the development container, so editing the checkout updates
-the browser through Next.js Fast Refresh. **Ordinary edits need no commit, push,
-image rebuild, or host activation.** This is deliberately a public development
-server: visitors see work in progress and may see development error overlays.
-The Next.js toolbar is hidden; Fast Refresh remains enabled.
+is bind-mounted into the development container. React/TypeScript UI edits update
+the browser through Next.js Fast Refresh. Rust edits require an engine rebuild,
+development-server restart and browser reload; starting `dev` rebuilds the engine.
+**Source edits need no commit, push, image rebuild, or host activation.** This is
+deliberately a public development server: visitors see work in progress and may
+see development error overlays. The Next.js toolbar is hidden; Fast Refresh
+remains enabled for the UI.
 Treat edits here as live changes. Do not change hosting, deploy, switch DNS, or
 handle credentials without explicit authorization; the commands below are
 operational reference, not permission to run them.
@@ -174,9 +308,11 @@ docker compose -f compose.dev.yaml up -d --wait
 ```
 
 Dependencies and `.next` use Docker volumes, separate from host installs.
-After changing dependencies, update `bun.lock`, then restart the
-container to install the new frozen lockfile. Commit only when requested.
-Rebuild if changing its base image or Dockerfile.
+After changing JavaScript dependencies, update `bun.lock`, then restart the
+container to install the new frozen lockfile. Rust dependency changes require
+updating `Cargo.lock` and rebuilding the engine; keep the binding generator and
+crate pins aligned. Commit only when requested.
+Rebuild the image if changing its base image, Dockerfile or installed toolchain.
 Development and production recipes use the same default port;
 stop one before starting the other, or set `SKRABBLE_PORT` to a different port.
 

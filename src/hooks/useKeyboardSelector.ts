@@ -1,6 +1,7 @@
 import { KeyboardEvent, useRef, useState } from 'react';
 import { BOARD_SIZE } from '../constants/board';
-import { BoardState, Direction, Position } from '../types/board';
+import type { Direction } from '../types/board';
+import type { BoardState, Position } from '../game/generated';
 
 interface SelectorState {
     position: Position;

@@ -2,9 +2,8 @@
 
 import React, { useRef } from 'react';
 import BoardCell from './BoardCell';
-import type { BoardState, Position, Direction } from '../types/board';
-import type { TileData } from '../types/tile';
-import type { Sticker, StickerState } from '../types/sticker';
+import type { Direction } from '../types/board';
+import type { BoardState, Position, TileData, Sticker, StickerState } from '../game/generated';
 import { BOARD_SIZE, BOARD_WIDTH, BOARD_MAX_WIDTH } from '../constants/board';
 import { useCellSize } from '../hooks/useCellSize';
 
@@ -19,9 +18,11 @@ interface BoardProps {
     onRightClick?: (tile: TileData, position: Position) => boolean;
     stickers?: StickerState;
     tileOpacity?: number;
+    hiddenTileIds?: ReadonlySet<string>;
     showCoordinates?: boolean;
     selectedCell?: Position | null;
     selectorDirection?: Direction | null;
+    maxWidth?: string;
 }
 
 const draftStar: Sticker = { type: 'start', value: 0, consumed: false };
@@ -33,7 +34,7 @@ const shakeKeyframes = `
 }
 `;
 
-export default function Board({ board, variant = 'game', onCellSizeChange, overRackIndex, boardRef: externalBoardRef, rackRef, gameAreaRef, onRightClick, stickers, tileOpacity, showCoordinates, selectedCell, selectorDirection }: BoardProps) {
+export default function Board({ board, variant = 'game', onCellSizeChange, overRackIndex, boardRef: externalBoardRef, rackRef, gameAreaRef, onRightClick, stickers, tileOpacity, hiddenTileIds, showCoordinates, selectedCell, selectorDirection, maxWidth = BOARD_MAX_WIDTH }: BoardProps) {
     const internalBoardRef = useRef<HTMLDivElement>(null);
     const boardRef = externalBoardRef || internalBoardRef;
     const cellSize = useCellSize(boardRef, onCellSizeChange);
@@ -45,10 +46,10 @@ export default function Board({ board, variant = 'game', onCellSizeChange, overR
             <div
                 ref={boardRef}
                 data-board-variant={variant}
-                className={`grid gap-1 p-1 border border-10 rounded-lg aspect-square ${isDraft ? 'bg-blue-800 border-blue-900' : 'bg-green-800 border-green-900'}`}
+                className={`grid shrink-0 gap-1 p-1 border border-10 rounded-lg aspect-square ${isDraft ? 'bg-blue-800 border-blue-900' : 'bg-green-800 border-green-900 animate-[fadeIn_160ms_ease-out] motion-reduce:animate-none'}`}
                 style={{
                     width: `${BOARD_WIDTH}px`,
-                    maxWidth: BOARD_MAX_WIDTH,
+                    maxWidth,
                     gridTemplateColumns: `repeat(${BOARD_SIZE}, minmax(0, 1fr))`
                 }}
             >
@@ -73,6 +74,7 @@ export default function Board({ board, variant = 'game', onCellSizeChange, overR
                                 onRightClick={onRightClick}
                                 sticker={sticker}
                                 tileOpacity={tileOpacity}
+                                hideTile={!!cell.tile && hiddenTileIds?.has(cell.tile.id)}
                                 showCoordinates={showCoordinates}
                                 isSelected={selectedCell?.row === rowIndex && selectedCell?.col === colIndex}
                                 selectorDirection={selectorDirection}

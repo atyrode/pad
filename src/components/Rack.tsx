@@ -2,9 +2,7 @@
 
 import React from 'react';
 import RackCell from './RackCell';
-import { RackState } from '../types/rack';
-import { Position } from '../types/board';
-import { TileData } from '../types/tile';
+import type { RackState, Position, TileData } from '../game/generated';
 
 interface RackProps {
     rack: RackState;
@@ -16,9 +14,11 @@ interface RackProps {
     gameAreaRef?: React.RefObject<HTMLDivElement | null>;
     selectedCell?: Position | null;
     onRackRightClick?: (tile: TileData, rackIndex: number) => boolean;
+    redrawTileIds?: readonly string[];
+    onToggleRedraw?: (tileId: string) => void;
 }
 
-export default function Rack({ rack, boardCellSize, overBoardPos, overRackIndex, boardRef, rackRef, gameAreaRef, selectedCell, onRackRightClick }: RackProps) {
+export default function Rack({ rack, boardCellSize, overBoardPos, overRackIndex, boardRef, rackRef, gameAreaRef, selectedCell, onRackRightClick, redrawTileIds, onToggleRedraw }: RackProps) {
     const internalRackRef = React.useRef<HTMLDivElement>(null);
     const actualRackRef = rackRef || internalRackRef;
 
@@ -40,6 +40,8 @@ export default function Rack({ rack, boardCellSize, overBoardPos, overRackIndex,
                     gameAreaRef={gameAreaRef}
                     selectedCell={selectedCell}
                     onRackRightClick={onRackRightClick}
+                    isRedrawSelected={!!tile && !!redrawTileIds?.includes(tile.id)}
+                    onToggleRedraw={onToggleRedraw}
                 />
             ))}
         </div>

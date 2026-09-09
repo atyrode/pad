@@ -20,6 +20,12 @@
 # production
 /build
 
+# Rust engine and generated browser interface
+/target/
+/src/game/generated.ts
+/src/generated/engine/
+/public/engine/
+
 # misc
 .DS_Store
 *.pem

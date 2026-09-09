@@ -8,12 +8,15 @@
     "node": "24.x"
   },
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
+    "dev": "bun run build:engine && next dev",
+    "build": "bun run build:engine && next build",
+    "build:engine": "bun scripts/build-engine.ts",
     "typecheck": "tsc --noEmit --incremental false",
     "lint": "eslint",
     "test": "bun test src",
-    "check": "bun run typecheck && bun run lint && bun run test"
+    "test:rust": "cargo test --locked --workspace",
+    "test:parity": "bun scripts/verify-engine.ts",
+    "check": "bun run build:engine && cargo fmt --all -- --check && cargo clippy --locked --workspace --all-targets -- -D warnings && bun run typecheck && bun run lint && bun run test:rust && bun run test && bun run test:parity"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

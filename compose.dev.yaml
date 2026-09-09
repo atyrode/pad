@@ -14,8 +14,10 @@ services:
       - .:/app
       - dependencies:/app/node_modules
       - next-cache:/app/.next
+      - cargo-target:/cargo-target
     environment:
       NEXT_TELEMETRY_DISABLED: "1"
+      CARGO_TARGET_DIR: /cargo-target
     command: ["sh", "-c", "bun install --frozen-lockfile && exec bun run dev --hostname 0.0.0.0 --port 8080"]
     cap_drop:
       - ALL
@@ -27,7 +29,7 @@ services:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8080/skrabble/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 30s
       timeout: 15s
-      start_period: 90s
+      start_period: 300s
       retries: 3
     logging:
       driver: json-file
@@ -38,3 +40,4 @@ services:
 volumes:
   dependencies:
   next-cache:
+  cargo-target:

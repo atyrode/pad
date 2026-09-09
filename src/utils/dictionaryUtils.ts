@@ -1,24 +1,21 @@
-let dictionary: ReadonlySet<string> | null = null;
-let inFlight: Promise<ReadonlySet<string>> | null = null;
+import { initializeEngine, Lexicon } from '../game/runtime';
+
+let dictionary: Lexicon | null = null;
+let inFlight: Promise<Lexicon> | null = null;
 
 /** Load the existing French lexicon, sharing work and retaining only successful data. */
-export function loadDictionary(): Promise<ReadonlySet<string>> {
+export function loadDictionary(): Promise<Lexicon> {
   if (dictionary) return Promise.resolve(dictionary);
   if (inFlight) return inFlight;
 
   inFlight = (async () => {
-    const response = await fetch('/skrabble/dictionnary/french.txt');
+    const [response] = await Promise.all([fetch('/skrabble/dictionnary/french.txt'), initializeEngine()]);
     if (!response.ok) {
       throw new Error(`Failed to load dictionary: ${response.status}`);
     }
 
     const text = await response.text();
-    const words = new Set<string>();
-    for (const line of text.split('\n')) {
-      const word = line.trim().toUpperCase();
-      if (word) words.add(word);
-    }
-    dictionary = words;
+    dictionary = Lexicon.fromText(text);
     return dictionary;
   })().finally(() => {
     inFlight = null;

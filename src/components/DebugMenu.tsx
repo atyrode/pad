@@ -1,12 +1,12 @@
-import type { ActionResult, GameAction, GameState, PlayEvaluation } from '../game/game';
-import { DRAFT_COLUMNS } from '../game/game';
+import type { ActionResult, GameAction, GameState, Lexicon, PlayEvaluation } from '../game/runtime';
+import { DRAFT_COLUMNS } from '../game/runtime';
 import { countStickers } from '../utils/stickerUtils';
 
 interface DebugMenuProps {
   state: GameState;
   dispatch: (action: GameAction) => ActionResult;
   evaluation: PlayEvaluation;
-  dictionary: ReadonlySet<string> | null;
+  dictionary: Lexicon | null;
   dictionaryError: string | null;
   onRetryDictionary: () => void;
   tileOpacity: number;
@@ -18,6 +18,7 @@ interface DebugMenuProps {
 export default function DebugMenu({ state, dispatch, evaluation, dictionary, dictionaryError, onRetryDictionary, tileOpacity, setTileOpacity, showCoordinates, setShowCoordinates }: DebugMenuProps) {
   const { bag, rack, board, discard, stickers, totalScore } = state;
   const isDraftMode = state.mode === 'draft';
+  const encounterActive = state.encounter !== null;
   const isRackEmpty = rack.every(tile => tile === null);
   const isDrawDisabled = (bag.length === 0 && discard.length === 0) || !rack.includes(null);
   const isDrawAllDisabled = isDrawDisabled;
@@ -44,9 +45,28 @@ export default function DebugMenu({ state, dispatch, evaluation, dictionary, dic
     <div id="debug-menu" className="h-full bg-zinc-600 p-4 overflow-y-auto">
       <h2 className="sticky top-0 z-20 bg-zinc-600 text-white text-xl font-bold h-10 flex items-center pl-14 mb-4">Debug Menu</h2>
 
+      <div role="group" aria-label="Mode" className="flex rounded-lg bg-zinc-700 p-1 mb-4">
+        <button type="button" aria-pressed={encounterActive} disabled={encounterActive}
+          onClick={() => dispatch({ type: 'new-encounter' })}
+          className={`flex-1 py-2 rounded-md text-white text-sm ${encounterActive ? 'bg-zinc-500' : 'hover:bg-zinc-600'}`}>
+          Game
+        </button>
+        <button type="button" aria-pressed={!encounterActive} disabled={!encounterActive}
+          onClick={() => dispatch({ type: 'enter-sandbox' })}
+          className={`flex-1 py-2 rounded-md text-white text-sm ${!encounterActive ? 'bg-zinc-500' : 'hover:bg-zinc-600'}`}>
+          Sandbox
+        </button>
+      </div>
+
+      {encounterActive && <button type="button"
+        onClick={() => dispatch({ type: 'new-encounter', config: state.encounter?.config })}
+        className="w-full mb-4 py-2 px-3 rounded-lg text-white text-sm bg-zinc-700 hover:bg-zinc-800">
+        Restart game
+      </button>}
+
       {/* Mode */}
-      <div className="bg-zinc-700 rounded-lg p-4 mb-4">
-        <h3 className="text-white text-lg font-semibold mb-3">Mode</h3>
+      {!encounterActive && <fieldset className="bg-zinc-700 rounded-lg p-4 mb-4">
+        <h3 className="text-white text-lg font-semibold mb-3">Board</h3>
         <div className="flex flex-row gap-2 justify-center">
           <button
             onClick={() => dispatch({ type: 'set-mode', mode: isDraftMode ? 'game' : 'draft' })}
@@ -59,22 +79,21 @@ export default function DebugMenu({ state, dispatch, evaluation, dictionary, dic
             {isDraftMode ? 'Exit Draft' : 'Enter Draft'}
           </button>
         </div>
-      </div>
+      </fieldset>}
 
       {/* Game Mode Sections - Only show when NOT in draft mode */}
       {!isDraftMode && (
         <>
           {/* Reset */}
-          <div className="bg-zinc-700 rounded-lg p-4 mb-4">
+          {!encounterActive && <fieldset className="bg-zinc-700 rounded-lg p-4 mb-4">
             <h3 className="text-white text-lg font-semibold mb-3">Reset</h3>
-            <p className="text-zinc-400 text-xs mb-3">Debug controls: partial resets may remove tiles.</p>
             {/* Full reset stays available: it also owns discard, history and stickers. */}
             <div className="flex flex-row gap-2 justify-center mb-2">
               <button
                 onClick={() => dispatch({ type: 'reset', target: 'game' })}
                 className="py-2 px-3 rounded-lg text-white font-semibold text-sm transition-opacity grow bg-red-600 hover:opacity-80 hover:bg-red-500"
               >
-                Game
+                Clear sandbox
               </button>
             </div>
             <div className="flex flex-row gap-2 justify-center">
@@ -121,10 +140,10 @@ export default function DebugMenu({ state, dispatch, evaluation, dictionary, dic
                 Stickers
               </button>
             </div>
-          </div>
+          </fieldset>}
 
           {/* Draw */}
-          <div className="bg-zinc-700 rounded-lg p-4 mt-4">
+          {!encounterActive && <fieldset className="bg-zinc-700 rounded-lg p-4 mt-4">
             <h3 className="text-white text-lg font-semibold mb-3">Draw</h3>
             <div className="flex flex-row gap-2 justify-center">
               <button
@@ -164,7 +183,7 @@ export default function DebugMenu({ state, dispatch, evaluation, dictionary, dic
                   isRackEmpty ? 'Rack is empty' : 'Rack is full'}
               </p>
             )}
-          </div>
+          </fieldset>}
 
           {/* Score */}
           <div className="bg-zinc-700 rounded-lg p-4 mt-4">
@@ -223,7 +242,7 @@ export default function DebugMenu({ state, dispatch, evaluation, dictionary, dic
                   </button>
                 </>
               ) : !dictionary ? (
-                <p>Loading dictionary. Play is unavailable.</p>
+                <p>Loading dictionary…</p>
               ) : (
                 <p>{evaluation.canPlay ? 'Ready to play' : evaluation.reason}</p>
               )}
@@ -291,7 +310,7 @@ export default function DebugMenu({ state, dispatch, evaluation, dictionary, dic
                 </div>
               ))}
             </div>
-            <button
+            {!encounterActive && <button
               onClick={() => dispatch({ type: 'shuffle-bag' })}
               disabled={bag.length === 0}
               className={`w-full py-2 px-3 rounded-lg text-white font-semibold text-sm transition-opacity ${bag.length === 0
@@ -300,7 +319,7 @@ export default function DebugMenu({ state, dispatch, evaluation, dictionary, dic
                 }`}
             >
               Shuffle
-            </button>
+            </button>}
           </div>
 
           {/* Stickers */}
@@ -342,13 +361,10 @@ export default function DebugMenu({ state, dispatch, evaluation, dictionary, dic
       )}
 
       {/* Draft Mode Sections - Only show when in draft mode */}
-      {isDraftMode && (
+      {isDraftMode && !encounterActive && (
         <>
-          <div className="bg-zinc-700 rounded-lg p-4 mb-4">
+          <fieldset className="bg-zinc-700 rounded-lg p-4 mb-4">
             <h3 className="text-white text-lg font-semibold mb-3">Draft Mode</h3>
-            <p className="text-zinc-400 text-sm text-center mb-3">
-              {state.draft.complete ? 'Draft complete. Exit Draft, then Draw All to begin.' : 'Choose suggested tiles with 1 / 2 / 3 on the board, or use the buttons below.'}
-            </p>
             {!state.draft.complete && (
               <div className="flex flex-row gap-2 justify-center mb-3">
                 {DRAFT_COLUMNS.map((column, index) => {
@@ -381,7 +397,7 @@ export default function DebugMenu({ state, dispatch, evaluation, dictionary, dic
                 Reset Draft
               </button>
             </div>
-          </div>
+          </fieldset>
         </>
       )}
 

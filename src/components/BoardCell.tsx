@@ -3,9 +3,8 @@ import { useDraggable, useDroppable } from '@dnd-kit/core';
 import { ArrowBigRightDash, ArrowBigDownDash } from 'lucide-react';
 import Tile from './Tile';
 import StickerOverlay from './Sticker';
-import type { Direction, Position } from '../types/board';
-import type { TileData } from '../types/tile';
-import type { Sticker } from '../types/sticker';
+import type { Direction } from '../types/board';
+import type { Position, TileData, Sticker } from '../game/generated';
 import { useDragGeometry } from '../hooks/useCellSize';
 import { getGridConstrainedTransform, getCellSnappedTransform } from '../utils/transformUtils';
 import { MIN_CELL_SIZE } from '../constants/board';
@@ -22,12 +21,13 @@ interface BoardCellProps {
     onRightClick?: (tile: TileData, position: Position) => boolean;
     sticker?: Sticker | null;
     tileOpacity?: number;
+    hideTile?: boolean;
     showCoordinates?: boolean;
     isSelected?: boolean;
     selectorDirection?: Direction | null;
 }
 
-export default function BoardCell({ tile, canTake, row, col, cellSize, overRackIndex, rackRef, gameAreaRef, onRightClick, sticker, tileOpacity, showCoordinates, isSelected, selectorDirection }: BoardCellProps) {
+export default function BoardCell({ tile, canTake, row, col, cellSize, overRackIndex, rackRef, gameAreaRef, onRightClick, sticker, tileOpacity, hideTile, showCoordinates, isSelected, selectorDirection }: BoardCellProps) {
     const cellRef = useRef<HTMLDivElement>(null);
     const geometry = useDragGeometry(tile?.id ?? `empty-${row}-${col}`, cellRef, undefined, rackRef, gameAreaRef);
     const [isShaking, setIsShaking] = useState(false);
@@ -123,12 +123,13 @@ export default function BoardCell({ tile, canTake, row, col, cellSize, overRackI
                         className="w-full h-full rounded-sm relative z-10"
                         style={{
                             ...tileStyle,
+                            visibility: hideTile && !transform ? 'hidden' : undefined,
                             // Apply tile opacity (default to 100% if not provided)
                             opacity: transform ? 1 : (tileOpacity !== undefined ? tileOpacity / 100 : 1),
                             // Add a subtle shadow when dragging to show it's being moved
                             boxShadow: transform ? '0px 0px 25px rgba(0, 0, 0, 0.49)' : 'none',
                             zIndex: transform ? 10 : 'auto',
-                            transition: transform ? 'none' : 'all 0.1s linear'
+                            transition: transform || hideTile ? 'none' : 'transform 0.1s linear, opacity 0.1s linear, box-shadow 0.1s linear'
                         }}
                     >
                         <Tile value={tile.value} score={tile.score} locked={!canTake} originalValue={tile.originalValue} displayValue={tile.displayValue} />

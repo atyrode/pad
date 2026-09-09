@@ -7,8 +7,8 @@ import {
     useSensor,
     useSensors,
 } from '@dnd-kit/core';
-import { Position } from '../types/board';
-import { GameState, TileTarget } from '../game/game';
+import type { Position } from '../game/generated';
+import type { GameState, TileTarget } from '../game/runtime';
 import { DRAG_ACTIVATION_DISTANCE } from '../constants/board';
 import { findTilePosition, parseEmptySlotId } from '../utils/boardUtils';
 import { findTileInRack, parseRackSlotId } from '../utils/rackUtils';
