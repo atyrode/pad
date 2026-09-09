@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use skrabble_engine::{
+use interstice_engine::{
     Dictionary,
     engine::{apply_action, create_game, get_drafted_tiles},
     model::*,

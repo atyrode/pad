@@ -1,8 +1,8 @@
-# Skrabble: product and baseline contract
+# Interstice: product and baseline contract
 
 ## Status and boundaries
 
-Skrabble is a solo French word-building game with a first draft-and-encounter loop
+Interstice is a solo French word-building game with a first draft-and-encounter loop
 and a separate manual/debug sandbox. Preserve its appearance, bespoke scoring,
 debug controls and snappy feel. Desktop comes first; keyboard is primary and mouse
 drag-and-drop is secondary. See [README](README.md) for running and hosting, and
@@ -15,7 +15,7 @@ not copying code or assets. This document separates implemented rules from ideas
 
 ## Core vision: a familiar game with unexpected possibilities
 
-At first, Skrabble should read as a clear, approachable roguelike word game.
+At first, Interstice should read as a clear, approachable roguelike word game.
 Through curiosity and experimentation, the player discovers that some boundaries
 they assumed were fixed are actually playable: something that looked like a title,
 decoration or interface can participate in the game. The desired feeling is

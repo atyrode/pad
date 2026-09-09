@@ -1,6 +1,7 @@
-# Skrabble
+# Interstice
 
-A solo French word-building game. Play at **https://games.tyrode.dev/skrabble/**.
+A solo French word-building game for the gaps while AI agents work, with no time
+pressure. Play at **https://games.tyrode.dev/interstice/**.
 
 Desktop first, keyboard primary, mouse drag-and-drop secondary. The first encounter
 combines drafting, placement and scoring with separate play/redraw budgets.
@@ -91,7 +92,7 @@ Then, from the repository root:
 ```sh
 bun install --frozen-lockfile
 bun run dev
-# Open http://localhost:3000/skrabble/
+# Open http://localhost:3000/interstice/
 bun run typecheck
 bun run lint
 bun run test:rust
@@ -126,12 +127,12 @@ The app uses Next.js 16.3.4 and React 19.2.8. These are available commands and
 checks, not a claim that CI or every browser scenario has passed.
 
 Production is served by the container, not `next start`: Next.js exports static
-files to `out/`. The `/skrabble` mount is a build-time setting in `next.config.ts`;
+files to `out/`. The `/interstice` mount is a build-time setting in `next.config.ts`;
 the dictionary URL and Caddy route use the same prefix.
 
 ## One Rust engine: native and Wasm
 
-`crates/skrabble-engine` owns the rules, seeded randomness, actions and evaluation.
+`crates/interstice-engine` owns the rules, seeded randomness, actions and evaluation.
 It compiles natively for headless work and to Wasm for browser play. React and
 TypeScript provide presentation and a serialization adapter, not a second rules
 implementation. The browser keeps the French dictionary in a persistent Rust
@@ -139,12 +140,12 @@ implementation. The browser keeps the French dictionary in a persistent Rust
 
 ### Typed native API
 
-Native callers use `skrabble_engine::{engine, model, rules, Dictionary}` directly.
-For example, save this as `crates/skrabble-engine/examples/draft.rs`, then run
-`cargo run --locked -p skrabble-engine --example draft` from the repository root:
+Native callers use `interstice_engine::{engine, model, rules, Dictionary}` directly.
+For example, save this as `crates/interstice-engine/examples/draft.rs`, then run
+`cargo run --locked -p interstice-engine --example draft` from the repository root:
 
 ```rust
-use skrabble_engine::{
+use interstice_engine::{
     engine::{apply_action, create_game},
     model::GameAction,
     rules::evaluate_play,
@@ -204,7 +205,7 @@ Bun can supply the generated binary explicitly:
 import { initializeEngine, createGame } from './src/game/runtime';
 
 await initializeEngine(
-  await Bun.file('src/generated/engine/skrabble_engine_bg.wasm').arrayBuffer(),
+  await Bun.file('src/generated/engine/interstice_engine_bg.wasm').arrayBuffer(),
 );
 const state = createGame(42);
 ```
@@ -224,7 +225,7 @@ Optional migration comparisons load an external compatibility module at runtime:
 
 ```sh
 bun scripts/verify-engine.ts --reference /absolute/path/to/reference-engine.ts
-bun scripts/verify-engine.ts --browser-fixture /tmp/skrabble-browser-fixture.json
+bun scripts/verify-engine.ts --browser-fixture /tmp/interstice-browser-fixture.json
 ```
 
 The reference module must export compatible `createGame`, `applyAction` and
@@ -258,17 +259,17 @@ at build time); the resulting runtime serves all game assets locally.
 
 ```sh
 docker compose up -d --build --wait
-# Open http://127.0.0.1:8093/skrabble/
+# Open http://127.0.0.1:8093/interstice/
 docker compose logs -f game
 docker compose down
 # Start again without rebuilding:
 docker compose up -d --wait
 ```
 
-Set `SKRABBLE_PORT=8094` if the default port is occupied. The host binding is
+Set `INTERSTICE_PORT=8094` if the default port is occupied. The host binding is
 loopback-only; place your own HTTPS reverse proxy in front for public access.
 `deploy/Caddyfile.public` is an optional Caddy site recipe for the default port
-(import it into your existing Caddy configuration). It preserves `/skrabble` and
+(import it into your existing Caddy configuration). It preserves `/interstice` and
 returns 404 for other paths. No machine identity or dotfiles repository is needed.
 
 The image is a static Next.js export served by Caddy on port **8080**. Node, Bun
@@ -286,7 +287,7 @@ DNS. Existing open tabs continue playing even when the service is stopped.
 
 ## Live development on dev-01
 
-The live development checkout is `/home/alex/scrabble` on **dev-01**. Its source
+The live development checkout is `/home/alex/interstice` on **dev-01**. Its source
 is bind-mounted into the development container. React/TypeScript UI edits update
 the browser through Next.js Fast Refresh. Rust edits require an engine rebuild,
 development-server restart and browser reload; starting `dev` rebuilds the engine.
@@ -314,45 +315,9 @@ updating `Cargo.lock` and rebuilding the engine; keep the binding generator and
 crate pins aligned. Commit only when requested.
 Rebuild the image if changing its base image, Dockerfile or installed toolchain.
 Development and production recipes use the same default port;
-stop one before starting the other, or set `SKRABBLE_PORT` to a different port.
+stop one before starting the other, or set `INTERSTICE_PORT` to a different port.
 
 The host owns one stable Caddy HTTPS edge: **`games.tyrode.dev` →
-`127.0.0.1:8093`**. The game checkout owns its `/skrabble` path. DNS is an
+`127.0.0.1:8093`**. The game checkout owns its `/interstice` path. DNS is an
 unproxied **A record `games` → `152.53.112.19`**. The edge is declared in the
 dotfiles repository; normal game iteration does not touch it.
-
-## Clever Cloud standby
-
-The existing `skrabble` Docker application in the **Tyrode** organization is
-stopped, not deleted, for reuse after development. `.clever.json` is its
-CLI-generated link (IDs and deployment URLs, no credentials). Clever Cloud
-builds the same production `Dockerfile` directly; it does not run Compose.
-Its runtime is one nano instance and builds use a dedicated M instance.
-
-With an authorized [Clever Tools](https://www.clever.cloud/developers/doc/cli/)
-session, from this repository:
-
-```sh
-# Deploy the current committed branch when returning to managed hosting:
-clever deploy --alias skrabble
-# Stop / resume the retained application:
-clever stop --alias skrabble
-clever restart --alias skrabble
-clever logs --alias skrabble
-clever domain diag --alias skrabble
-```
-
-The app's required non-secret settings are:
-
-```sh
-clever env set CC_DOCKER_EXPOSED_HTTP_PORT 8080 --alias skrabble
-clever env set CC_HEALTH_CHECK_PATH /skrabble/ --alias skrabble
-clever scale --alias skrabble --flavor nano --build-flavor M --instances 1
-```
-
-To return to Clever Cloud, deploy the desired committed branch and verify the
-provider URL before switching DNS. The custom domain remains attached to the
-retained app. The Paris DNS target is **CNAME `games` →
-`domain.par.clever-cloud.com`**, DNS only; use `clever domain diag` to confirm it.
-Wait for valid custom-domain HTTPS before stopping the dev-01 container.
-Never commit tokens or copy CLI authentication state.

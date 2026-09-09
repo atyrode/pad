@@ -1,4 +1,4 @@
-use skrabble_engine::{model::*, rules};
+use interstice_engine::{model::*, rules};
 use ts_rs::TS;
 
 fn main() {

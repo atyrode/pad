@@ -9,7 +9,7 @@ export function loadDictionary(): Promise<Lexicon> {
   if (inFlight) return inFlight;
 
   inFlight = (async () => {
-    const [response] = await Promise.all([fetch('/skrabble/dictionnary/french.txt'), initializeEngine()]);
+    const [response] = await Promise.all([fetch('/interstice/dictionnary/french.txt'), initializeEngine()]);
     if (!response.ok) {
       throw new Error(`Failed to load dictionary: ${response.status}`);
     }

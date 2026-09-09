@@ -1,4 +1,4 @@
-@games path /skrabble /skrabble/*
+@games path /interstice /interstice/*
 handle @games {
 	reverse_proxy 127.0.0.1:8093
 }

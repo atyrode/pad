@@ -9,9 +9,9 @@
 	header X-Content-Type-Options nosniff
 	header Referrer-Policy strict-origin-when-cross-origin
 
-	redir /skrabble /skrabble/ 308
+	redir /interstice /interstice/ 308
 
-	handle_path /skrabble/* {
+	handle_path /interstice/* {
 		@immutable path /_next/static/*
 		header @immutable Cache-Control "public, max-age=31536000, immutable"
 		file_server

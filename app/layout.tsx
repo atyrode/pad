@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Skrabble | tyrode.dev",
-  description: "A solo French word-tile game.",
+  title: "Interstice | tyrode.dev",
+  description: "A solo French word game for the in-between.",
 };
 
 export default function RootLayout({

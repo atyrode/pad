@@ -4,7 +4,7 @@ import initialize, {
     isDraftPlacement as rustIsDraftPlacement,
     areUnlockedTilesInSingleLine as rustAreUnlockedTilesInSingleLine,
     type InitInput,
-} from '../generated/engine/skrabble_engine.js';
+} from '../generated/engine/interstice_engine.js';
 import { ENGINE_META, type EncounterConfig, type GameAction, type GameState, type PlayEvaluation,
     type Position, type TileData } from './generated';
 
@@ -26,7 +26,7 @@ const dictionaries = new WeakMap<ReadonlySet<string>, Lexicon>();
 export function initializeEngine(source?: InitInput): Promise<void> {
     if (ready) return Promise.resolve();
     if (inFlight) return inFlight;
-    inFlight = initialize({ module_or_path: source ?? `/skrabble/engine/${ENGINE_BUILD}.wasm` }).then(() => {
+    inFlight = initialize({ module_or_path: source ?? `/interstice/engine/${ENGINE_BUILD}.wasm` }).then(() => {
         unavailableDictionary = new Lexicon(null);
         ready = true;
     }).finally(() => { inFlight = null; });

@@ -3,7 +3,7 @@ import type { TileData } from './generated';
 import { getTileDefinition } from '../utils/tileDefinitions';
 import { applyAction, areUnlockedTilesInSingleLine, createGame, DRAFT_COLUMNS, DRAFT_SEQUENCE, evaluatePlay, getDraftedTiles, initializeEngine, type EncounterConfig, type GameAction, type GameState } from './runtime';
 
-await initializeEngine(await Bun.file(new URL('../generated/engine/skrabble_engine_bg.wasm', import.meta.url)).arrayBuffer());
+await initializeEngine(await Bun.file(new URL('../generated/engine/interstice_engine_bg.wasm', import.meta.url)).arrayBuffer());
 
 function tile(id: string, value = 'A'): TileData {
     return { id, value, score: getTileDefinition(value)!.score, ...(value === '*' ? { originalValue: '*' } : {}) };

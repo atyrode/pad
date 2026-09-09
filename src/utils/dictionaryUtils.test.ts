@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url';
 
 const loaderUrl = new URL('./dictionaryUtils.ts', import.meta.url).href;
 const engineUrl = new URL('../game/runtime.ts', import.meta.url).href;
-const wasmPath = fileURLToPath(new URL('../generated/engine/skrabble_engine_bg.wasm', import.meta.url));
+const wasmPath = fileURLToPath(new URL('../generated/engine/interstice_engine_bg.wasm', import.meta.url));
 const lexiconPath = fileURLToPath(new URL('../../public/dictionnary/french.txt', import.meta.url));
 
 // Each process gets a fresh module cache and fetch mock, without changing the

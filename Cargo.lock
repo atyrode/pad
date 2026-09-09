@@ -39,6 +39,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "interstice-engine"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde-wasm-bindgen",
+ "serde_json",
+ "ts-rs",
+ "wasm-bindgen",
+]
+
+[[package]]
 name = "itoa"
 version = "1.0.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -150,17 +161,6 @@ dependencies = [
  "serde",
  "serde_core",
  "zmij",
-]
-
-[[package]]
-name = "skrabble-engine"
-version = "0.1.0"
-dependencies = [
- "serde",
- "serde-wasm-bindgen",
- "serde_json",
- "ts-rs",
- "wasm-bindgen",
 ]
 
 [[package]]

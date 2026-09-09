@@ -5,7 +5,7 @@ import { pathToFileURL } from 'node:url';
 import * as wasm from '../src/game/runtime';
 import type { GameAction, GameState, PlayEvaluation } from '../src/game/generated';
 
-await wasm.initializeEngine(await Bun.file(new URL('../src/generated/engine/skrabble_engine_bg.wasm', import.meta.url)).arrayBuffer());
+await wasm.initializeEngine(await Bun.file(new URL('../src/generated/engine/interstice_engine_bg.wasm', import.meta.url)).arrayBuffer());
 const referenceIndex = process.argv.indexOf('--reference');
 // The compatibility module is selected by the caller at runtime, not shipped with the app.
 const reference = referenceIndex === -1 ? null : await import(pathToFileURL(resolve(process.argv[referenceIndex + 1])).href) as Pick<typeof wasm, 'createGame' | 'applyAction' | 'evaluatePlay'>;

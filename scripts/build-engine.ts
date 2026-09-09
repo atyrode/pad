@@ -23,8 +23,8 @@ async function exists(path: string) {
 const manifestPath = join(generated, 'build.json');
 if (await exists(manifestPath)) {
     const manifest = JSON.parse(await readFile(manifestPath, 'utf8')) as { fingerprint: string };
-    const outputs = [contract, join(generated, 'skrabble_engine.js'), join(generated, 'skrabble_engine.d.ts'),
-        join(generated, 'skrabble_engine_bg.wasm'), join(publicDirectory, `${fingerprint}.wasm`),
+    const outputs = [contract, join(generated, 'interstice_engine.js'), join(generated, 'interstice_engine.d.ts'),
+        join(generated, 'interstice_engine_bg.wasm'), join(publicDirectory, `${fingerprint}.wasm`),
         join(target, `release/engine-cli${executableSuffix}`), join(target, `release/export-interface${executableSuffix}`)];
     if (manifest.fingerprint === fingerprint && (await Promise.all(outputs.map(exists))).every(Boolean)) {
         console.log(`Rust engine ${fingerprint} is current.`);
@@ -42,23 +42,23 @@ async function run(command: string[], capture = false): Promise<string> {
 
 await run(['cargo', 'build', '--locked', '--release', '--bins']);
 await run(['cargo', 'build', '--locked', '--release', '--target', 'wasm32-unknown-unknown', '--lib']);
-const temporary = await mkdtemp(join(tmpdir(), 'skrabble-wasm-'));
+const temporary = await mkdtemp(join(tmpdir(), 'interstice-wasm-'));
 try {
-    await run(['wasm-bindgen', '--target', 'web', '--out-dir', temporary, '--out-name', 'skrabble_engine',
-        join(target, 'wasm32-unknown-unknown/release/skrabble_engine.wasm')]);
+    await run(['wasm-bindgen', '--target', 'web', '--out-dir', temporary, '--out-name', 'interstice_engine',
+        join(target, 'wasm32-unknown-unknown/release/interstice_engine.wasm')]);
     const executable = join(target, `release/export-interface${executableSuffix}`);
     const declarations = await run([executable], true);
     await Promise.all([mkdir(generated, { recursive: true }), mkdir(publicDirectory, { recursive: true })]);
-    await cp(join(temporary, 'skrabble_engine_bg.wasm'), join(publicDirectory, `${fingerprint}.wasm`));
-    const javascript = await readFile(join(temporary, 'skrabble_engine.js'), 'utf8');
-    const defaultUrl = "new URL('skrabble_engine_bg.wasm', import.meta.url)";
+    await cp(join(temporary, 'interstice_engine_bg.wasm'), join(publicDirectory, `${fingerprint}.wasm`));
+    const javascript = await readFile(join(temporary, 'interstice_engine.js'), 'utf8');
+    const defaultUrl = "new URL('interstice_engine_bg.wasm', import.meta.url)";
     if (!javascript.includes(defaultUrl)) throw new Error('Unexpected wasm-bindgen loader; review the generated asset URL.');
     // Keep one public Wasm asset, rather than making Next bundle a second unused copy.
-    const browserJavascript = javascript.replace(defaultUrl, JSON.stringify(`/skrabble/engine/${fingerprint}.wasm`));
-    const types = await readFile(join(temporary, 'skrabble_engine.d.ts'), 'utf8');
+    const browserJavascript = javascript.replace(defaultUrl, JSON.stringify(`/interstice/engine/${fingerprint}.wasm`));
+    const types = await readFile(join(temporary, 'interstice_engine.d.ts'), 'utf8');
     // A changed binary must also invalidate the frontend module and its initialized instance.
-    await writeFile(join(temporary, 'skrabble_engine.js'), `${browserJavascript}\nexport const ENGINE_BUILD = ${JSON.stringify(fingerprint)};\n`);
-    await writeFile(join(temporary, 'skrabble_engine.d.ts'), `${types}\nexport const ENGINE_BUILD: string;\n`);
+    await writeFile(join(temporary, 'interstice_engine.js'), `${browserJavascript}\nexport const ENGINE_BUILD = ${JSON.stringify(fingerprint)};\n`);
+    await writeFile(join(temporary, 'interstice_engine.d.ts'), `${types}\nexport const ENGINE_BUILD: string;\n`);
     await cp(temporary, generated, { recursive: true });
     await writeFile(contract, declarations);
     await writeFile(manifestPath, JSON.stringify({ fingerprint }) + '\n');

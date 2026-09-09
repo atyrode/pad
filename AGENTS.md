@@ -1,4 +1,4 @@
-# Working on Skrabble
+# Working on Interstice
 
 A chill, desktop-first word-building game: keyboard primary, mouse drag-and-drop
 secondary. Preserve the useful manual/debug sandbox and its lean shared engine.
@@ -7,7 +7,7 @@ secondary. Preserve the useful manual/debug sandbox and its lean shared engine.
 
 ## Source map
 
-- `crates/skrabble-engine/`: one deterministic Rust rules core, native API and
+- `crates/interstice-engine/`: one deterministic Rust rules core, native API and
   native regressions; compiled to Wasm for the browser.
 - `src/game/runtime.ts`: Wasm initialization and synchronous browser/Bun boundary.
 - `src/game/generated.ts`: Rust-generated data contracts and metadata; rebuild,

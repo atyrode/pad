@@ -1,6 +1,6 @@
+use interstice_engine::{Dictionary, engine, model::*, rules};
 use serde::Deserialize;
 use serde_json::{Value, json};
-use skrabble_engine::{Dictionary, engine, model::*, rules};
 use std::io::{self, BufRead, Write};
 
 #[derive(Deserialize)]
